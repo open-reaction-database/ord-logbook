@@ -1,0 +1,16 @@
+# markdownlint configuration. See https://github.com/DavidAnson/markdownlint.
+default: true
+
+# Prose is reflowed by editors; line length is not worth enforcing.
+MD013: false
+
+# Allow inline HTML (occasionally useful for figures and tables).
+MD033: false
+
+# Permit duplicate headings under different parent sections (entries reuse
+# section names like "Summary" and "Method").
+MD024:
+  siblings_only: true
+
+# Don't require table pipes to be visually aligned; hand-edited tables drift.
+MD060: false
