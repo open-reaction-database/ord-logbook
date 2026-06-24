@@ -22,7 +22,7 @@ jobs:
     env:
       # Maximum size for any tracked file. Keep large or binary artifacts out of
       # the repo and link to them instead.
-      MAX_BYTES: 5242880 # 5 MiB
+      MAX_BYTES: 1048576 # 1 MiB
     steps:
       - uses: actions/checkout@v4
       - name: Check tracked file sizes
