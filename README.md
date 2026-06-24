@@ -17,8 +17,14 @@ TEMPLATE.md copy this to start a new entry
 ```
 
 CI lints Markdown and rejects oversized files on every push and pull request
-(see `.github/workflows/ci.yml`). Content is licensed under
-[CC-BY-SA-4.0](LICENSE), matching `ord-data`.
+(see `.github/workflows/ci.yml`). The same checks run locally via
+[pre-commit](https://pre-commit.com) — install once with:
+
+```bash
+pre-commit install
+```
+
+Content is licensed under [CC-BY-SA-4.0](LICENSE), matching `ord-data`.
 
 ## Adding an entry
 

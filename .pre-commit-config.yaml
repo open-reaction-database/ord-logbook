@@ -1,0 +1,13 @@
+# Run `pre-commit install` once to enable these hooks locally.
+# See https://pre-commit.com.
+repos:
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
+    hooks:
+      - id: markdownlint-cli2
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Mirror the CI 5 MiB limit (maxkb is in KiB).
+      - id: check-added-large-files
+        args: [--maxkb=5120]
