@@ -39,11 +39,3 @@ git push
 Keep figures and large outputs under `assets/<entry-slug>/` so each entry's files
 are easy to find. For anything large or binary-heavy, link out rather than committing
 it here.
-
-## Index
-
-Newest first.
-
-| Date | Entry | Summary |
-|------|-------|---------|
-| _—_  | _first entry goes here_ | |
