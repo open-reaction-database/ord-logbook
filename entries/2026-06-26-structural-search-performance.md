@@ -113,13 +113,23 @@ It is **not** just a timeout, and it is **not** an operator-choice bug (the oper
 are already index-optimal). A `statement_timeout` is a mandatory safety net, but the
 real wins are in query shape and selectivity.
 
-1. **Add a `statement_timeout`** in `get_cursor` (there is none today) so no query runs
+Items 1 and 2 below are **implemented** in
+[ord-interface#205](https://github.com/open-reaction-database/ord-interface/pull/205);
+items 3–5 remain as follow-ups.
+
+1. **Add a `statement_timeout`** in `get_cursor` (there was none) so no query runs
    away; surface a graceful "query too broad — add constraints" instead of a hang.
+   *(Done in #205: default 20 s via `ORD_INTERFACE_STATEMENT_TIMEOUT_MS`; the
+   resulting `QueryCanceled` maps to a 400, and the async task path records the
+   error so it is reported rather than polling forever.)*
 2. **Rewrite multi-predicate queries from INTERSECT-of-DISTINCT to semi-joins / EXISTS
    driven from the most selective predicate.** Filter on yield/conversion/dataset
    first, then apply the expensive structural recheck only to survivors. This attacks
    benzene + yield (~21 s) and any "broad structure + selective filter" combination,
    and lets `LIMIT` actually bound the structural work.
+   *(Done in #205: each predicate is now an `EXISTS` over `ord.reaction`, combined
+   with `AND` under one `LIMIT`. Live-DB measurements: benzene EXACT + yield > 70%
+   ~25 s → ~10 s; morphine SIMILAR ~22 s → ~1 s.)*
 3. **Selectivity heuristic for lone broad structural searches.** For tiny aromatic
    fragments (benzene/pyridine substructure), estimate candidate count cheaply and
    refuse / require a co-constraint / warn rather than scanning. For the NL `/ask`
@@ -135,6 +145,8 @@ path, since both compile to the same `queries.py` engine.
 
 ## References
 
+- Implementation of fixes 1 and 2:
+  [ord-interface#205](https://github.com/open-reaction-database/ord-interface/pull/205).
 - Search engine: `ord-interface` `ord_interface/api/queries.py`
   (`ReactionComponentQuery`, `run_queries`, `_rank_by_similarity`).
 - Natural-language path that surfaced these cases:
