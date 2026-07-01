@@ -87,6 +87,14 @@ Profiled the ORM ingest loop on 2,000 reactions of `ord_dataset-805ad863…` aga
 
 Bounding the COPY win: replacing flush alone (keeping `from_proto`) removes most of the 66% → ~3×; additionally walking the proto straight to per-table tuples (skipping `from_proto`) attacks the 26% → toward ~10×.
 
+### COPY loader prototype (2026-06-30)
+
+Built a prototype that reuses `from_proto` (so the proto→columns mapping stays consistent with the generated schema), assigns UUIDv7 ids and wires foreign keys from the ORM relationship metadata, and streams rows with psycopg `COPY` per table (in `Base.metadata.sorted_tables` order for FK dependencies) instead of the unit of work.
+
+- **Speed: 210 rxn/s vs. the ORM's ~45 → 4.3×**, single-threaded, still including `from_proto`. Big dataset ~8h → ~1.9h on this basis; parallelism (existing `n_jobs` across datasets) and a `from_proto` bypass are additive on top.
+- **Correctness: byte-identical to the ORM.** A parity harness ingests the same reactions both ways into separate databases and compares, per table, an order-independent digest of every non-id/non-FK column: **parity across all 39 non-empty tables**. (Two gotchas surfaced and were handled: sibling-subclass FK columns on shared polymorphic tables are NULL for a given instance; and `set_submitted_at` must run after load, as the ORM path does.)
+- Confirmed on the uuidv7 branch that #875 alone does **not** speed the ORM path (flush still 68%) — it is purely the COPY enabler.
+
 ## Conclusions / next steps
 
 The ORM is the right tool for serving/reading; it is the wrong tool for bulk loading. The read path confirms this: ord-interface queries the tables in raw SQL (`FROM ord.reaction …`), so the ORM *object* layer is used almost only by `from_proto` (ingest) and a now-minor `to_proto` (compound-derive fallback). Nothing reads through the ORM, so bypassing it for ingest costs no read-path behavior. Plan, highest-leverage first:
