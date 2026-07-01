@@ -89,12 +89,13 @@ Bounding the COPY win: replacing flush alone (keeping `from_proto`) removes most
 
 ## Conclusions / next steps
 
-The ORM is the right tool for serving/reading; it is the wrong tool for bulk loading. Plan, highest-leverage first:
+The ORM is the right tool for serving/reading; it is the wrong tool for bulk loading. The read path confirms this: ord-interface queries the tables in raw SQL (`FROM ord.reaction …`), so the ORM *object* layer is used almost only by `from_proto` (ingest) and a now-minor `to_proto` (compound-derive fallback). Nothing reads through the ORM, so bypassing it for ingest costs no read-path behavior. Plan, highest-leverage first:
 
-1. **Set-based compound-SMILES derive** ([ord-schema#872](https://github.com/open-reaction-database/ord-schema/issues/872)) — pull SMILES from `ord.compound_identifier` in one SQL pass, RDKit-fallback only for compounds without a SMILES identifier. Smaller, lower-risk; do first.
-2. **`COPY`-based ingest** ([ord-schema#873](https://github.com/open-reaction-database/ord-schema/issues/873)) — flatten each proto to per-table tuples and stream via psycopg `COPY`, bypassing the ORM unit of work; parallelize proto→tuple across cores. **Prototype-gated:** build a loader for one dataset against a scratch DB and benchmark real rxn/s vs. the ORM path before committing to a PR.
-3. **Temporarily larger boxes** during a rebuild — both the DB and the load host are 2 vCPU, so parallelism saturates fast; bump Aurora (e.g. `r6g.xlarge`) and use a bigger load VM, then scale back.
-4. **`n_jobs > 1`** parallelizes across datasets (already supported) but not within the single dominant dataset, so it helps the tail, not the head.
+1. **Set-based compound-SMILES derive** ([ord-schema#872](https://github.com/open-reaction-database/ord-schema/issues/872)) — pull SMILES from `ord.compound_identifier` in one SQL pass, RDKit-fallback only for compounds without a SMILES identifier. **Done: [ord-schema#874](https://github.com/open-reaction-database/ord-schema/pull/874)** (value-parity tested).
+2. **UUIDv7 surrogate keys** ([ord-schema#857](https://github.com/open-reaction-database/ord-schema/issues/857)) — the enabler for COPY. Client-generatable + time-sortable ids remove the one hard part of a COPY loader (client-side PK assignment for FK wiring); integer serial ids would force sequence-block reservation or per-row round-trips. UUIDv7 over ULID: same time-sortability, but native `uuid` type and standard tooling for what are internal-only keys. **Done: [ord-schema#875](https://github.com/open-reaction-database/ord-schema/pull/875)** (`rdkit.*` stays integer serial — server-populated; `public.*` keyed on business strings; reads unaffected).
+3. **`COPY`-based ingest** ([ord-schema#873](https://github.com/open-reaction-database/ord-schema/issues/873)) — walk each proto straight to per-table tuples with client-minted UUIDv7 ids and stream via psycopg `COPY`, bypassing both the unit of work (66%) and `from_proto` (26%); parallelize proto→tuple across cores. Builds on #875.
+4. **Temporarily larger boxes** during a rebuild — both the DB and the load host are 2 vCPU, so parallelism saturates fast; bump Aurora (e.g. `r6g.xlarge`) and use a bigger load VM, then scale back.
+5. **`n_jobs > 1`** parallelizes across datasets (already supported) but not within the single dominant dataset, so it helps the tail, not the head.
 
 For the current run: **let it finish** — it is ~88% through the worst pass, and killing it discards ~13h of uncommitted derive work for the big dataset.
 
