@@ -18,6 +18,7 @@ A full production population of the ORM database (`ord_20260629` on the prod Aur
 - **Cost of the whole run: ~$10.** Aurora billed ~34.3M I/O over the 30h window (~$6.90 at $0.20/1M); the `db.t4g.large` instance runs 24/7 regardless (sunk); storage is negligible. Read I/O was *low* (12M) because the working set is cached — so the slow derive costs latency, not dollars. **Do not optimize to save RDS money.**
 - The fix is to stop using the ORM for bulk work: **`COPY`-based ingest** and **set-based compound derivation**. Target: a full rebuild in **~1h or less**.
 - Filed as [ord-schema#872](https://github.com/open-reaction-database/ord-schema/issues/872) (derive, smaller/safer, do first) and [ord-schema#873](https://github.com/open-reaction-database/ord-schema/issues/873) (COPY ingest, prototype-gated).
+- **Progress:** the derive fix is implemented in [ord-schema#874](https://github.com/open-reaction-database/ord-schema/pull/874) (set-based, value-parity tested). Profiling of the ingest loop (below) confirms flush dominates (66%) and bounds the COPY win at ~3–10×.
 
 ## Method
 
@@ -74,6 +75,17 @@ The reaction-SMILES pass was rewritten in #864 to bulk-fetch serialized protos p
 | **Marginal cost of the run** | **~$10, one-time** |
 
 Read I/O is low relative to ~8M per-compound fetches because most reads hit Aurora's buffer cache and aren't billed — reinforcing that the derive bottleneck is **round-trip latency, not I/O**.
+
+### Ingest profile (2026-06-30 update)
+
+Profiled the ORM ingest loop on 2,000 reactions of `ord_dataset-805ad863…` against a local Postgres over a **unix socket** (network eliminated), `_PARQUET_FLUSH_BATCH`-style flushes of 200:
+
+- **49.8 rxn/s** — matching prod's ~64, confirming the bottleneck is client/CPU, not the DB or network.
+- **flush: 66%** (`session.flush` → INSERT emission). The tell: **20,360 SQL executes for 2,000 reactions (~10 per reaction)** — the unit of work is not collapsing the ~30 child rows/reaction into set inserts; `_emit_insert_statements` alone is 12s.
+- **from_proto (ORM object construction): 26%** (289,982 recursive calls for 2,000 reactions).
+- other: 8%.
+
+Bounding the COPY win: replacing flush alone (keeping `from_proto`) removes most of the 66% → ~3×; additionally walking the proto straight to per-table tuples (skipping `from_proto`) attacks the 26% → toward ~10×.
 
 ## Conclusions / next steps
 
