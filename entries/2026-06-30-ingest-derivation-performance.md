@@ -95,6 +95,22 @@ Built a prototype that reuses `from_proto` (so the proto→columns mapping stays
 - **Correctness: byte-identical to the ORM.** A parity harness ingests the same reactions both ways into separate databases and compares, per table, an order-independent digest of every non-id/non-FK column: **parity across all 39 non-empty tables**. (Two gotchas surfaced and were handled: sibling-subclass FK columns on shared polymorphic tables are NULL for a given instance; and `set_submitted_at` must run after load, as the ORM path does.)
 - Confirmed on the uuidv7 branch that #875 alone does **not** speed the ORM path (flush still 68%) — it is purely the COPY enabler.
 
+### Is COPY worth the manual work? (COPY vs SQLAlchemy-native, and the ecosystem)
+
+Benchmarked the write step three ways on 2,000 reactions with the *same* `_collect_rows` flattening:
+
+| write path | rxn/s |
+|---|---|
+| `add()` + `flush()` (unit of work) | 45 |
+| SQLAlchemy `insertmanyvalues` (`session.execute(insert(t), [dicts])`) | 185 |
+| psycopg `COPY` | 224 |
+
+So **most of the win (45 → 185, ~4×) is SQLAlchemy's own bulk-insert** — no raw driver — and **COPY adds only ~20%** (185 → 224). The unavoidable manual part is the *flattening* (object graph → per-table rows with FKs wired), which is needed for either write path: SQLAlchemy's fast modes deliberately take flat rows, and only the (slow) unit of work walks the relationship graph.
+
+No off-the-shelf package does that flattening for us, and structurally can't: the schema is generated from protobuf descriptors with polymorphic single-table inheritance, so no generic tool knows the mapping. Every fast-load tool in the ecosystem (`psycopg` COPY, `pgcopy` binary COPY, `asyncpg.copy_records_to_table`, pandas/polars, ADBC) takes *flat tabular data* — i.e. they'd only replace the ~20% write step, not the flattening. `_collect_rows` traverses SQLAlchemy's own metadata (`relationships`, `local_remote_pairs`, `sorted_tables`), so it's traversal, not a reimplementation of the mapper.
+
+Decision: keep the COPY write (Postgres-only, bulk-load-once, and the natural sink for the future `from_proto` bypass). The only remaining write-side headroom is **binary COPY** (psycopg3 `FORMAT BINARY` / `pgcopy`); deferred, since `from_proto` — not the write — is the bottleneck.
+
 ## Conclusions / next steps
 
 The ORM is the right tool for serving/reading; it is the wrong tool for bulk loading. The read path confirms this: ord-interface queries the tables in raw SQL (`FROM ord.reaction …`), so the ORM *object* layer is used almost only by `from_proto` (ingest) and a now-minor `to_proto` (compound-derive fallback). Nothing reads through the ORM, so bypassing it for ingest costs no read-path behavior. Plan, highest-leverage first:
