@@ -155,6 +155,36 @@ appears:
 To verify before any split: ord-app's actual write QPS, and whether it reads ORD
 search data (cross-database coupling would complicate separation).
 
+## Validation run (2026-07-02)
+
+Ran the temporary-scale-up recommendation end to end, fully automated (scale
+writer up → start VM → ingest → stop VM → restore writer, with a
+guaranteed-cleanup trap that fires on success or any error/signal).
+
+- **Setup:** writer scaled `db.t4g.large` → `db.r7g.2xlarge` (8 vCPU, 64 GiB);
+  dev VM `c8i.4xlarge` (16 vCPU); sharded COPY loader
+  (`--stages ingest --n_jobs 16`) over all 53 parquet datasets into a fresh
+  `ord_20260630`.
+- **Ingest result: 2,428,291 reactions across 53 datasets in 1,010 s
+  (~16.8 min), ≈ 2,400 rxn/s.** All 53 datasets finalized; exit rc=0.
+- **The bottleneck moved off the database, as predicted.** Client load average
+  went from **1.68 / 16** in the June 30 run (idle, writer-bound at 2 vCPU) to
+  **~10 / 16** here — the 8-vCPU writer could finally keep the workers busy.
+  Memory a non-issue (~27 GB free of 30). The loader (#877 COPY, #879 sharding,
+  #881 partial indexes) was always client-ready; it just needed a writer that
+  could absorb the writes.
+- Client load ~10/16 means the 8-vCPU writer was still a *partial* limiter — a
+  16-vCPU writer (`db.r7g.4xlarge`) would likely push ingest under ~10 min, but
+  16.8 min is already a non-event.
+- **Cost / impact:** the big-writer window was ~30 min end to end (including two
+  ~6–7 min instance-class reboots) ≈ **$0.60** of r7g.2xlarge time; two brief
+  prod blips (the reboots). Cleanup verified: writer restored to `db.t4g.large`
+  (available), VM stopped.
+
+Net: the "temporary scale-up for bulk loads" recommendation holds with a
+concrete number — a full-ORD ingest is ~17 min on an 8-vCPU writer vs
+writer-bound-and-client-idle on the 2-vCPU steady-state instance.
+
 ## Conclusions / next steps
 
 1. **Read/write split (agreed).** Export `cluster.readerEndpoint` from
