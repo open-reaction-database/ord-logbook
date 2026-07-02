@@ -185,6 +185,29 @@ Net: the "temporary scale-up for bulk loads" recommendation holds with a
 concrete number — a full-ORD ingest is ~17 min on an 8-vCPU writer vs
 writer-bound-and-client-idle on the 2-vCPU steady-state instance.
 
+### Derived stage: same long pole, two of them
+
+Deriving SMILES + RDKit over the freshly ingested `ord_20260630` surfaced two
+issues:
+
+- **Writer-bound, like ingest.** Even the set-based SMILES pass ran the
+  `db.t4g.large` writer at 77–95% CPU with the client idle (load ~0.2–0.4/16);
+  scaling to `db.r7g.2xlarge` cut per-dataset SMILES from ~58–108 s/it to
+  ~14 s/it. So derivation also wants the temporary scale-up for bulk work.
+- **A single-worker-per-dataset long pole.** `derive_dataset` parallelized SMILES
+  only *across* datasets, so the 1.77M-reaction dataset was derived by one worker
+  while the other 15 sat idle — the exact pattern #879 fixed for ingest. Fixed by
+  sharding SMILES *within* a dataset (#883, progressing #882): a deterministic
+  `hashtextextended` hash-partition of the reaction/compound ids fanned out as a
+  flat `(dataset, shard)` work list across the pool.
+- **RDKit is a second, still-serial pole.** The RDKit cartridge pass
+  (`update_rdkit_tables`/`update_rdkit_ids`) runs in-Postgres on the writer and
+  serially per dataset (deadlock-avoidance), so it neither parallelizes across
+  the pool nor benefits fully from the scale-up. Sharding it is harder and
+  remains open in #882. The full derived run was stopped once these were
+  understood (the big dataset's single-worker SMILES was crawling), and the
+  writer/VM were torn down — so there is no end-to-end derived wall-clock yet.
+
 ## Conclusions / next steps
 
 1. **Read/write split (agreed).** Export `cluster.readerEndpoint` from
