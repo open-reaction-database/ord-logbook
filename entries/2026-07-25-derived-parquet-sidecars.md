@@ -90,9 +90,11 @@ and serialization claims were read from `ord-schema` at `67a63c7` and the curren
 `ord-interface` `main`.
 
 The sidecar cost in finding 6 is a real derivation, not an estimate. A tier-1 transform
-was run over all 53 parquet datasets (`scripts/derive_facts.py` in the
-session scratchpad): `parquet.iter_reactions` → flat columns, written with the same
-zstd codec the source uses. Reaction SMILES come from the stored `REACTION_SMILES`
+was run over all 53 parquet datasets — script, per-dataset results, and a reproduction
+guide in
+[`assets/2026-07-25-derived-parquet-sidecars/`](../assets/2026-07-25-derived-parquet-sidecars/)
+— reading `parquet.iter_reactions` → flat columns, written with the same zstd codec the
+source uses. Reaction SMILES come from the stored `REACTION_SMILES`
 identifier where present and from
 `message_helpers.get_reaction_smiles(generate_if_missing=True)` otherwise. All 52
 non-USPTO datasets were derived in full; USPTO was sampled at 200 evenly-spaced row
@@ -636,6 +638,8 @@ endpoint to detect it.
   matrix, USPTO special case), `.github/workflows/submission.yml`
   (`check_file_types`), `scripts/upload_to_huggingface.py` (`MIRROR_PATHSPECS`),
   `.lfsconfig`.
+- Derivation script, per-dataset results, and reproduction guide:
+  [`assets/2026-07-25-derived-parquet-sidecars/`](../assets/2026-07-25-derived-parquet-sidecars/).
 - LFS cost model behind finding 6: Git LFS stores whole objects with no delta encoding
   and `git lfs prune` only reclaims locally
   (<https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md>). Measured on `ord-data`
