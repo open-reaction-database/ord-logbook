@@ -21,6 +21,10 @@ Three of the seven scripts are ord-data pipeline or one-off ingestion code and s
 move; three are genuine schema use cases with documented audiences and should stay; one
 is probably dead.
 
+The same test places the new derived-views work — definition *and* CLI — in ord-schema.
+Traffic runs both ways across this boundary: ord-data sheds machinery that only it uses,
+and gains none of the code for a capability its data is merely the largest instance of.
+
 The decisive evidence is *what the documentation tells users to run*, not what the
 scripts' own docstrings claim. `process_dataset.py` describes itself as "a one-stop shop
 for preparing submissions," which reads as contributor-facing — but it appears **nowhere**
@@ -126,22 +130,38 @@ contributor submissions.
 This makes the harness a prerequisite rather than a nicety — and it is needed for the
 derived-views driver regardless.
 
-### 6. New code splits library from driver, and the contract requires it
+### 6. The views work is library code end to end, CLI included
 
-The derived-views work divides along the same line:
+Deriving views is not an ord-data use case. It is "turn ORD datasets into tabular
+columns," which anyone holding ORD datasets can want: a group with a private corpus, a
+reviewer checking a submission before it is merged, a downstream tool that never touches
+the production repository. By the discriminator in finding 1 — is there an audience
+outside ord-data? — both halves belong in the library:
 
 - **`ord_schema/views.py`** — the view *definition*: proto → columns, the unit basis, the
-  SMILES generation policy. Library code, versioned and testable.
-- **`ord-data/scripts/derive_views.py`** — the driver: walk `data/`, call the library,
-  stamp footers, upload to Hugging Face. Repo-specific.
+  SMILES generation policy. Versioned and testable.
+- **`ord_schema/scripts/derive_views.py`** — the CLI over it: take an input pattern,
+  write view Parquet, stamp footers.
+
+`ord_schema/orm/` is the precedent. It is generic machinery for loading ORD data into a
+relational database, and it carries its own `ord_schema/orm/scripts/add_datasets.py`
+rather than pushing that CLI into whichever repository happens to run it. Views follow
+the same shape; if the definition grows past one module, it becomes a subpackage with its
+own `scripts/` for the same reason.
+
+What is genuinely ord-data-specific is the *invocation*: walk `data/`, publish to the
+Hugging Face mirror, decide when to rebuild. That is a workflow, and it already lives in
+`.github/workflows/` alongside the existing `validate_dataset.py` invocation — the same
+arrangement finding 4 describes for validation.
 
 This is not merely tidy. The tier-1 contract states that views are *"reproducible from
-the source protos alone, with pinned open tooling (`ord-schema` + RDKit)."* If the view
-definition lived only in an ord-data script, reproducing a published view would require
-cloning a data repository rather than installing a library, which weakens the claim the
-whole design rests on. Putting the definition in the library also makes the derivation
-version an ord-schema version, and satisfies the dataset-card obligation to state the
-view definition by pointing at a versioned module.
+the source protos alone, with pinned open tooling (`ord-schema` + RDKit)."* A definition
+reachable only by cloning a data repository would weaken the claim the whole design rests
+on, and so would a CLI that only exists there — reproduction would mean reimplementing the
+driver. With both in the library, reproducing a published view is `pip install
+ord-schema==X` and one command, against any dataset. It also makes the derivation version
+an ord-schema version, and satisfies the dataset-card obligation to state the view
+definition by pointing at a versioned module.
 
 ## Conclusions / next steps
 
@@ -152,17 +172,20 @@ view definition by pointing at a versioned module.
 | **move to `ord-data/scripts/`** | `process_dataset.py` (+ test), `pb_to_parquet_dataset.py` (+ test), `parse_uspto.py` | pipeline and one-off ingestion; no documented user audience |
 | **keep in `ord-schema`** | `validate_dataset.py`, `enumerate_dataset.py`, `build_dataset.py` | documented schema use cases; `validate_dataset` has a pre-clone audience |
 | **confirm dead, then delete** | `check_pb.py` | compares two deprecated formats; undocumented and unreferenced |
+| **add to `ord-schema`** | `views.py`, `scripts/derive_views.py` | new code; deriving views is a schema use case, not an ord-data one (finding 6) |
 
 ### Sequence
 
-1. **Stand up pytest and a CI job in ord-data.** Prerequisite for everything below, and
-   for `derive_views.py` independently. Land it with at least one real test so the
-   harness is proven rather than merely present.
+1. **Stand up pytest and a CI job in ord-data.** Prerequisite for the moves below. Land
+   it with at least one real test so the harness is proven rather than merely present.
 2. **Move `process_dataset.py` with its tests intact**, then delete the `github` extra
    from `ord-schema`'s `pyproject.toml` and the corresponding `README.md` row.
 3. **Move `pb_to_parquet_dataset.py` and `parse_uspto.py`**; verify `check_pb.py` is
    unreferenced and delete it.
-4. **Implement the views work** on the library/driver split in finding 6.
+4. **Implement the views work in ord-schema** — `views.py` and
+   `scripts/derive_views.py` (finding 6). Independent of steps 1–3: it adds code rather
+   than moving any, and lands in a repository that already has a test harness. ord-data
+   gets only the workflow that runs the CLI over `data/` and publishes the results.
 
 ### What it buys
 
