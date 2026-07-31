@@ -2,7 +2,7 @@
 
 - **Date:** 2026-07-31
 - **Author:** Steven Kearnes
-- **Status:** draft (size and build time pending; every other dimension measured)
+- **Status:** final (decision: ship the projection; pure EAV is dominated)
 - **Tags:** ord-data, ord-schema, parquet, duckdb, agents, eav, indexing, design
 
 ## Question
@@ -20,22 +20,40 @@ every other identifier is kept. They differ only in shape.
 - **Normalized projection** — one row per reaction, the proto's nesting preserved as
   `STRUCT` / `LIST` / `MAP`. 393 leaf columns, 1,240.7 MB, 20.3 min.
 - **Normalized EAV** — one row per populated leaf: `reaction_id`, `path`, `entity_key`,
-  and typed value columns. Size and build time pending.
+  and typed value columns. 196,539,598 rows, 1,111.4 MB, 120.8 min.
+
+A third shape turns up partway through and turns out to matter more than either: the
+**pivoted fact table**, one row per *entity* with that entity's fields as columns
+(`role`, `component_index`, `smiles`, `identifier_type`, `identifier_value`). It is what
+[the previous entry](2026-07-31-projection-search-index.md) actually measured, and it is
+not a pure EAV.
 
 ## Summary
 
-**EAV wins the dimensions that decide whether an agent succeeds; the projection wins the
-dimensions that decide whether it succeeds *correctly*.** That is a real tension rather
-than a walkover, and it is why this entry does not hand down a verdict before the size
-measurement lands.
+**Ship the normalized projection. A total EAV is dominated.** It is 10.4% smaller and
+costs 6× the build time (120.8 minutes against 20.3) while being *slower* on the queries
+that matter, because any predicate spanning two fields of one entity needs a self-join
+that the nested form gets structurally.
 
-EAV is faster on selection (13×) *and* on multi-attribute analysis (2–3×), simpler to
-query, portable across tools where the projection is not, and self-describing through
-`SELECT DISTINCT path`. The projection has typed columns, a schema that is its own
-contract, and co-membership by construction rather than by join key.
+The design space turned out not to be binary, which is what the framing missed. The fast
+flat artifact measured in [the previous entry](2026-07-31-projection-search-index.md) is
+not a pure EAV — it *pivots* an entity's fields onto one row, which is why it answers in
+0.068 s where the total EAV needs 1.10 s for the same question. A pivoted table is
+per-entity-type by construction, so it is an index over specific paths, not a universal
+replacement. That is precisely the relationship the ORM's `derived.*` tables have to
+`ord.*`, arrived at independently.
 
-The single most consequential finding is one neither shape was chosen for: **the
-projection's headline advantage does not survive leaving DuckDB.** Deep scalar access is
+The flat shapes are simpler to query, portable across tools where the projection is not,
+and self-describing through `SELECT DISTINCT path`. The projection has typed columns, a
+schema that is its own contract, and co-membership by construction rather than by join
+key.
+
+The flat shapes still win several dimensions outright — single-leaf selection, schema discovery,
+interop, schema evolution — and those wins are real and worth carrying into how the
+projection is documented and indexed. But they do not add up to a replacement.
+
+One finding cuts the other way and should temper the verdict: **the projection's headline
+advantage does not survive leaving DuckDB.** Deep scalar access is
 milliseconds because Parquet prunes to struct leaves — but `pandas.read_parquet` cannot
 select a nested leaf by dotted path at all, so a pandas consumer reads the entire
 `conditions` tree and traverses dicts per row. The columnar-pruning argument is
@@ -61,19 +79,20 @@ comparison of shape, not of coverage.
 
 ## Findings
 
-### 1. Selection: EAV by 13×
+### 1. Selection: the pivoted fact table by 13×, the total EAV by 2×
 
-| query | projection | facts |
-| --- | ---: | ---: |
-| input named "THF" | 0.90 s | **0.068 s** |
-| input `smiles = 'C1CCOC1'` | 0.78 s | **0.052 s** |
-| output `smiles = 'C1CCOC1'` | 0.74 s | **0.031 s** |
+| query | projection | total EAV | pivoted facts |
+| --- | ---: | ---: | ---: |
+| input `smiles = 'C1CCOC1'` | 0.78 s | 0.395 s | **0.052 s** |
+| output `smiles = 'C1CCOC1'` | 0.74 s | 0.358 s | **0.031 s** |
+| input named "THF" | 0.90 s | 1.104 s | **0.068 s** |
 
-Both are interactive. The projection's 0.9 s is not a problem in isolation — it becomes
-one in a UI that issues several predicates per page render, and it is not a problem at
-all for an agent running an analysis.
+All three are interactive. The projection's 0.9 s is not a problem in isolation — it
+becomes one in a UI issuing several predicates per page render, and is no problem at all
+for an agent running an analysis. Note the total EAV loses the third row; finding 10
+explains why, and it is the result the entry turns on.
 
-### 2. Wide analysis: EAV again, against expectation
+### 2. Wide analysis: the flat shape again, against expectation
 
 Entity-attribute-value shapes are supposed to lose here, paying a self-join per attribute
 where a columnar layout pays one more column read. Measured on the same five reaction
@@ -187,30 +206,92 @@ pinned to a column list has to be revisited. Given that the projection is genera
 the descriptors precisely so that schema changes propagate automatically, EAV propagates
 them more gently.
 
-### 9. Size and build time: pending
+### 9. Size and build time: EAV is smaller and much more expensive to build
 
-The measurement in flight. The un-normalized total EAV cost 732.8 bytes per reaction on
-USPTO against the raw projection's 809.8; normalization took 22.3% off USPTO in the
-projection, so the open question is whether the same holds here. Against the normalized
-projection's 1,240.7 MB and 20.3 minutes.
+Full corpus, normalized both ways:
+
+| | rows | size | vs source | build |
+| --- | ---: | ---: | ---: | ---: |
+| source parquet | 2,428,291 | 1,256.5 MB | — | — |
+| normalized projection | 2,428,291 | 1,240.7 MB | 0.99× | **20.3 min** |
+| normalized total EAV | 196,539,598 | **1,111.4 MB** | **0.88×** | 120.8 min |
+
+The EAV is **10.4% smaller** — 80.9 facts per reaction at 457.7 bytes per reaction — and
+takes **6× as long to build**. Both figures come from unoptimized pure-Python descriptor
+walks, so the ratio is more trustworthy than either absolute; but the ratio is the
+problem. Two hours is outside what a routine CI job should carry, where twenty minutes
+is not.
+
+### 10. Query speed splits on whether co-membership is needed
+
+This is the finding that decides the entry, and it separates the *total* EAV from the
+partially-pivoted fact table that the previous entry measured.
+
+| query | projection | total EAV | component facts |
+| --- | ---: | ---: | ---: |
+| input `smiles = 'C1CCOC1'` | 0.78 s | **0.395 s** | 0.052 s |
+| output `smiles = 'C1CCOC1'` | 0.74 s | **0.358 s** | 0.031 s |
+| input **named** "THF" | **0.90 s** | 1.104 s | 0.068 s |
+
+A predicate on a single leaf is a filtered scan of one dense path slice, and the EAV wins
+it outright. A predicate spanning two fields of the *same entity* — matching
+`identifiers.type = 'NAME'` against `identifiers.value = 'THF'` — needs a self-join,
+because `entity_key` is per-leaf: `identifiers[0].type` and `identifiers[0].value` carry
+*different* keys. The join therefore has to derive the parent key by stripping the last
+path component with a regex, and the EAV loses.
+
+The 0.068 s column is not pure EAV and should not be read as one. The component fact
+table pivots `identifier_type` and `identifier_value` onto the same row, so the join
+never happens. That is why it is fifteen times faster than the total EAV at the same
+question — and also why it cannot generalize, since a pivoted table is specific to one
+entity type. This is exactly the shape of the ORM's `derived.*` tables, which are
+per-entity rather than universal.
+
+### 11. The silent-failure mode is not theoretical; it fired during this entry
+
+The first version of the "input named THF" query above joined on `entity_key` equality
+rather than the derived parent key. It returned **0**, which is a plausible-looking
+answer, not an error. The projection and the component fact table both say 145,285.
+
+That is the concrete cost of finding 7's abstraction. A shape whose wrong query returns a
+credible number is materially worse to hand to an agent than one whose wrong query is
+slow, because slowness is self-announcing and a wrong count is not. Once corrected, all
+four artifacts — tier-1 view, projection, component facts, total EAV — agree at 145,285.
 
 ## Conclusions / next steps
 
-Not yet settled — finding 9 decides it, and this section will be rewritten when it lands.
-What is already clear:
+- **D1 — Ship the normalized nested projection as the capability artifact.** 1,240.7 MB,
+  20.3 min, sub-second on every query tried. It answers arbitrary questions over the full
+  model, and co-membership is structural rather than reconstructed.
+- **D2 — Do not ship a total EAV.** It is dominated: 10.4% smaller for **6× the build
+  time**, and slower than the projection on any predicate spanning two fields of one
+  entity, which includes the most common question in the corpus. Its wins on single-leaf
+  selection and interop are real but do not add up to a replacement.
+- **D3 — Pivoted per-entity fact tables stay available as indexes.** The component table
+  from [the search-index entry](2026-07-31-projection-search-index.md) is 13× faster than
+  the projection at 186.2 MB and 8.7 min. It is per-entity-type by construction, so it
+  indexes specific paths rather than replacing the projection — the same relationship
+  `derived.*` has to `ord.*` in the ORM. Publish when a consumer needs it, not before.
+- **D4 — Document the `UNNEST` trap wherever the nested form ships.** Idiomatic and
+  27–200× slower. A consumer who writes it concludes the artifact is unusable.
+- **D5 — Document the pandas limitation too.** `read_parquet` cannot select a nested leaf
+  by dotted path, so the pruning that makes deep access free in DuckDB does not transfer.
+  Consumers doing pandas analysis should be pointed at the tier-1 view or a pivoted index
+  rather than the projection.
+- **D6 — Keep the tier-1 view as the flat starter table.** Its job is neither capability
+  nor speed but *approachability*: a column set a consumer can read at a glance, and the
+  only one of the three that previews usefully in Hugging Face Data Studio. That reframes
+  its near-empty columns — `pressure_kilopascals` (3 of 53 datasets) and
+  `conversion_percent` (6 of 53) — as cost without benefit, since both are reachable in
+  the projection regardless.
 
-- **If EAV lands at or below the projection's size**, ship EAV alone. Its wins are on the
-  axes that determine whether a consumer gets an answer at all; the projection's wins are
-  real but are addressable with documentation and a stamped path registry.
-- **If EAV lands well above**, keep both as
-  [the search-index entry](2026-07-31-projection-search-index.md) describes: projection as
-  the typed authority, EAV as the selection index.
-- **Either way, the `UNNEST` trap must be documented** wherever the nested form ships, and
-  **an entity key must be carried** wherever the flat form ships. Those two are
-  independent of the size result.
-- **Either way, the tier-1 view survives** as the flat starter table. Eleven columns that
-  a consumer can read at a glance is a different job from both candidates, and it is the
-  only one of the three that previews usefully in Hugging Face Data Studio.
+The methodological note worth keeping: every intuition this thread started with was
+wrong, and each was corrected only by building the thing. Nested queries were assumed
+slow (they are sub-second), EAV was assumed bad at wide analysis (it is faster), the
+artifacts were assumed to form a chain (they are peers), and a total EAV was assumed able
+to stand alone (it is dominated). The one prediction that held was that the fast flat
+table would beat the projection on selection — and even that turned out to be measuring a
+pivoted table rather than the EAV being argued about.
 
 ## References
 
