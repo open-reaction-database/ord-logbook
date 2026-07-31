@@ -45,8 +45,10 @@ graph**, so a total projection terminates and was built descriptor-driven: messa
 nobody enumerated in advance run in ordinary SQL —
 `conditions.temperature.setpoint.value > 300` in **0.006 s**,
 `provenance.record_created.person.organization` in **0.003 s** — because Parquet stores
-each struct leaf as its own column chunk, so depth costs nothing at query time. Only full
-structural explosion is expensive, and that is a large query rather than a format limit.
+each struct leaf as its own column chunk, so depth costs nothing at query time.
+Traversing the repeated levels costs more, but stays sub-second over the full corpus when
+written with list lambdas rather than `UNNEST`; see
+[2026-07-31](2026-07-31-projection-search-index.md).
 
 That reverses the instinct to ship a curated subset. Every field left out is a query
 nobody can write, which is exactly the failure mode being escaped, and the measurements
@@ -163,7 +165,7 @@ the complete reaction, in ordinary SQL, over 40,000 USPTO rows:
 | `conditions.stirring.type` group-by | 3 levels | 0.006 s |
 | `provenance.record_created.person.organization` | 4 levels | 0.003 s |
 | any `workups` element of type `DISTILLATION` | list scan | 0.216 s |
-| unnest `inputs` → `components` → `identifiers` | map → list → list | 5.608 s |
+| `inputs` → `components` → `identifiers`, counted | map → list → list | 0.198 s |
 
 Every one of these is unreachable through the current API, and three of them are
 unreachable through *any* fixed predicate list because they were invented while writing
@@ -172,9 +174,17 @@ this table. That is the point.
 The performance shape matters as much as the capability. Deep scalar access costs
 milliseconds because Parquet stores each leaf of a struct as its own column chunk, so
 `conditions.temperature.setpoint.value` reads one column and touches nothing else — the
-nesting is free at query time. Only full structural explosion (the last row, which
-materializes every identifier of every component of every input) costs real time, and
-that is a genuinely large query rather than a format limitation.
+nesting is free at query time.
+
+Traversing the repeated levels costs more, but far less than it first appears, and *how
+the query is written* dominates. The last row above runs in 0.198 s with
+`list_transform`/`list_filter` lambdas and **5.264 s** — 27× slower, same answer — when
+written as `UNNEST` in the `FROM` clause, which materializes the exploded rows instead of
+scanning the child arrays. Over the full corpus the gap is worse still: a `SELECT` for
+reactions with an input named "THF" returns in **0.90 s** as lambdas, and does not finish
+in four minutes as `UNNEST`. Neither figure describes the format; both describe a query
+plan. See
+[2026-07-31 does the projection need a search index?](2026-07-31-projection-search-index.md).
 
 This is the answer to "can sidecars reproduce what the ORM does." For *querying*, yes,
 and without joins. What a file cannot do is transactional write, referential enforcement,
