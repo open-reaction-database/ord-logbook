@@ -59,7 +59,9 @@ friction (finding 2b): united messages become canonical floats in unit-named col
 the structural identifiers collapse to a single canonical `smiles`. Every other
 identifier stays — collapsing them all would empty the **470,884 name-only compounds**,
 and **1,088,493 compounds carry more than one `NAME`**, so they stay a list rather than
-pivoting to named fields. That takes the schema from **490 to 393 leaf columns**.
+pivoting to named fields. That takes the schema from **490 to 393 leaf columns** and the
+artifact to **1,240.7 MB — 0.99× the source protos**, so the fully queryable form costs
+fractionally less than the opaque one, at 20.3 minutes to build.
 
 Structure search is the one capability that looks like it needs Postgres, and it does
 not. The corpus holds **1,432,318 distinct component structures**; with pattern
@@ -244,8 +246,22 @@ reaction means a dozen new `smiles` fields per row. Normalization is a query-sur
 decision that happens to pay for itself on the large datasets — not a compression
 technique.
 
-The cost is wall-clock: canonicalizing every component puts RDKit back on the critical
-path, running 2.2–3.8× the raw projection's conversion time per dataset.
+Over the whole corpus the large datasets dominate, and the artifact lands smaller than
+the protos it restates:
+
+| | size | vs source | build |
+| --- | ---: | ---: | ---: |
+| source parquet (wire-format protos) | 1,256.5 MB | — | — |
+| raw projection | 1,563.1 MB | 1.24× | 9.6 min |
+| **normalized projection** | **1,240.7 MB** | **0.99×** | 20.3 min |
+
+Normalization takes 21% off the raw projection and puts the queryable artifact
+fractionally *below* the opaque blob it derives from: 393 leaf columns of directly
+addressable structure, for slightly fewer bytes than the serialized protos.
+
+The cost is wall-clock. Canonicalizing every component puts RDKit back on the critical
+path, taking the full corpus from 9.6 to **20.3 minutes** — 2.2–3.8× the raw conversion
+time per dataset. Still CI-shaped, and still an unoptimized pure-Python descriptor walk.
 
 ### 3. ORD is small enough that structure search needs no index
 
@@ -489,8 +505,9 @@ blast-radius reasons anyway, but it should not be the mechanism protecting the q
   `SMILES`/`CXSMILES`/`INCHI`/`MOLBLOCK` collapse to one canonical `smiles`. `NAME`,
   `CAS_NUMBER`, `CUSTOM` and the rest stay, as a **list** rather than pivoted fields:
   collapsing everything would empty 470,884 name-only compounds, and 1,088,493 compounds
-  carry more than one `NAME`. Schema goes 490 → 393 leaf columns; the trade is RDKit back
-  on the critical path at 2.2–3.8× the raw conversion time.
+  carry more than one `NAME`. Schema goes 490 → 393 leaf columns and the corpus artifact
+  to 1,240.7 MB — 0.99× the source protos, and 21% below the raw projection. The trade is
+  RDKit back on the critical path: 20.3 minutes for a full build against 9.6 raw.
 - **D5 — Keep the mediated path and wrap it for agents.** `nl_query.py` already exists
   and is the right tool for lookup and search; MCP over it is small work. The sidecars
   serve analysis, which `MAX_RESULTS = 1000` makes impossible today.
