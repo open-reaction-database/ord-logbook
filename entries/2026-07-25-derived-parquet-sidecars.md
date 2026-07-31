@@ -2,7 +2,7 @@
 
 - **Date:** 2026-07-25
 - **Author:** Steven Kearnes
-- **Status:** draft (design settled; not yet implemented)
+- **Status:** draft (design settled; tier 1 implemented in ord-schema#914, not merged)
 - **Tags:** ord-data, ord-schema, parquet, derived, agents, huggingface, duckdb, design,
   data-contracts
 
@@ -67,7 +67,7 @@ committed to git.** The three parts of that:
    split on `>` cannot, because it loses role information and, for generated SMILES,
    silently drops components lacking structural identifiers.
 3. **Sidecars are HF-only, in the existing `ord-data` repo.** A full tier-1 derivation
-   was built and measured for this entry: **321.0 MB, or 26.8% of the source
+   was built and measured for this entry: **333.9 MB, or 26.6% of the source
    parquet corpus.** That is far too large for an append-only LFS store whose defining
    event is *wholesale invalidation on every derivation-version bump*. This reverses the
    position originally taken here; see finding 6. Keeping it in the same HF repo as the
@@ -75,7 +75,7 @@ committed to git.** The three parts of that:
    the Data Studio default (D5).
 
 The measurement also produced a simplification worth stating on its own: **the whole
-corpus derives in 1.8 minutes single-process.** Nothing about this pipeline is expensive
+corpus derives in 9.7 minutes single-process.** Nothing about this pipeline is expensive
 enough to need the caching and part-directory machinery earlier drafts designed around
 it — findings 3 and 4 are rewritten accordingly, and finding 9 drops the second
 published artifact entirely. That in turn removes the second consumer for native `data/`
@@ -85,34 +85,59 @@ Every decision is settled. See [the decision log](#conclusions--next-steps).
 
 ## Method
 
-Corpus facts were measured against `ord-data` `main` at `e017725` on 2026-07-25; API
-and serialization claims were read from `ord-schema` at `67a63c7` and the current
-`ord-interface` `main`.
+Corpus facts were measured against `ord-data` `main` at `e017725`, first on 2026-07-25
+and re-measured on 2026-07-30 against the same commit, so the two runs below see a
+byte-identical corpus. API and serialization claims were read from `ord-schema` at
+`67a63c7` and the current `ord-interface` `main`.
+
+Sizes here are decimal — MB is 10⁶ bytes, GB is 10⁹. Earlier revisions of this entry
+reported binary units under the same labels, which is why figures may read ~5% lower in
+the git history than they do now for identical files.
 
 The sidecar cost in finding 6 is a real derivation, not an estimate. A tier-1 transform
 was run over all 53 parquet datasets — script, per-dataset results, and a reproduction
 guide in
 [`assets/2026-07-25-derived-parquet-sidecars/`](../assets/2026-07-25-derived-parquet-sidecars/)
 — reading `parquet.iter_reactions` → flat columns, written with the same zstd codec the
-source uses. Reaction SMILES come from the stored `REACTION_SMILES`
-identifier where present and from
-`message_helpers.get_reaction_smiles(generate_if_missing=True)` otherwise. All 52
-non-USPTO datasets were derived in full; USPTO was sampled at 200 evenly-spaced row
-groups (200,000 of 1,771,032 rows, 11.3%) and extrapolated by row count — spaced rather
-than a leading prefix, since its row groups are in source order.
+source uses.
+
+Two runs stand behind the numbers here, and they differ enough to name separately:
+
+- **The scoping run** (`derive_facts.py`, in `assets/`) derived all 52 non-USPTO
+  datasets in full and sampled USPTO at 200 evenly-spaced row groups (200,000 of
+  1,771,032 rows, 11.3%) — spaced rather than a leading prefix, since its row groups are
+  in source order. It read component SMILES straight out of `SMILES` identifier values
+  without invoking RDKit, and took reaction SMILES from a stored `REACTION_SMILES`
+  identifier or `get_reaction_smiles(generate_if_missing=True)`.
+- **The shipped run** is `ord_schema.views.write_view` at
+  [`ord-schema#914`](https://github.com/open-reaction-database/ord-schema/pull/914)
+  `9925c1c`, over all 53 datasets with no sampling. It canonicalizes every component
+  through RDKit, prefers a stored `REACTION_CXSMILES` over `REACTION_SMILES`, and falls
+  back to deriving a component's SMILES from MOLBLOCK or InChI.
 
 Wall-clock was recorded alongside bytes, single-process on a laptop, and turned out to
 matter more than the byte figures for the design:
 
 | | rows | wall-clock | rate |
 | --- | --- | --- | --- |
-| 52 non-USPTO datasets (exact) | 657,259 | 78.6 s | 8,362 rxn/s |
-| uspto-grants (extrapolated) | 1,771,032 | 31.9 s | ~55,000 rxn/s |
-| **whole corpus** | **2,428,291** | **1.8 min** | — |
+| 52 non-USPTO datasets | 657,259 | 209.0 s | 3,144 rxn/s |
+| `uspto-grants` | 1,771,032 | 373.8 s | 4,738 rxn/s |
+| **whole corpus** | **2,428,291** | **9.7 min** | 4,166 rxn/s |
 
-Rate varies ~70× across datasets and tracks component count, not row count: USPTO
-reactions have few components, while HTE datasets carry a dozen or more (solvents,
-catalysts, ligands, standards) and each one costs an RDKit canonicalization.
+The scoping run reported 1.8 minutes for the same corpus. Most of that gap was an
+extrapolation error rather than a change in the work: USPTO's 31.9 s was the wall-clock
+for the 200,000-row *sample*, and it went into the table against the full 1,771,032-row
+count, which also produced the ~55,000 rxn/s figure. Extrapolated the way the byte
+figures were, the scoping run's corpus time was **6.0 minutes**. The remaining 6.0 → 9.7
+is real added work: a per-component RDKit parse and canonical write, partly offset by
+USPTO no longer regenerating reaction SMILES it had stored all along (see finding 8).
+
+Rate tracks component count, not row count. Across the six datasets big enough for the
+figure to mean anything (39k rows and up, ~96% of the corpus) it spans 1,039 rxn/s on
+Cernak C–N HTE to 5,054 rxn/s on a reaction-SMILES-only dataset — HTE reactions carry a
+dozen or more components (solvents, catalysts, ligands, standards) and each one costs an
+RDKit canonicalization, while USPTO reactions carry few. Below that size fixed costs
+dominate and the rate says more about startup than about chemistry.
 
 The corpus shape drives every decision below:
 
@@ -157,7 +182,7 @@ operationally important:
 
 | | **tier 1** — restatement | **tier 2** — genuine derivation |
 | --- | --- | --- |
-| contents | reaction SMILES, per-component input/output SMILES, yield, conversion, temperature, pressure, time, DOI, patent | `reaction_class`, `reaction_name`, later: embeddings, atom maps, retrosynthetic routes |
+| contents | reaction SMILES, per-component input/output SMILES, yield, conversion, temperature and pressure setpoints, reaction time, DOI, patent — [column by column below](#the-shipped-tier-1-columns-and-how-much-of-the-corpus-fills-them) | `reaction_class`, `reaction_name`, later: embeddings, atom maps, retrosynthetic routes |
 | adds information? | no — a re-projection of what the protos already say | **yes** — an assertion *about* a reaction |
 | reproducible offline? | yes, by anyone with `pip install ord-schema` | no — needs weights/GPU/service |
 | if it disagrees with source | **it is wrong**; source is authoritative | cannot disagree; it says something source does not |
@@ -173,6 +198,50 @@ reproducible by anyone. Conversely, transformer atom mapping *looks* like normal
 — "just add atom maps to a SMILES" — but is a model prediction, so it is tier 2. The
 test is not the shape of the output; it is whether the repo plus pinned open tooling can
 regenerate it.
+
+#### The shipped tier-1 columns, and how much of the corpus fills them
+
+Each column names exactly one source field. The schema offers several plausible
+readings of most of these — six `Time`-typed fields alone — so the column name has to
+say which one, or a consumer will guess wrong. Coverage is over all 2,428,291 rows of
+all 53 parquet datasets:
+
+| column | populated | rows | datasets | source field |
+| --- | ---: | ---: | ---: | --- |
+| `reaction_id` | 100% | 2,428,291 | 53/53 | `Reaction.reaction_id` |
+| `input_smiles` | 100% | 2,428,291 | 53/53 | per component, mean 4.75 per reaction |
+| `reaction_smiles` | 100% | 2,428,290 | 53/53 | stored `REACTION_CXSMILES`/`REACTION_SMILES`, else generated |
+| `output_smiles` | 100% | 2,428,068 | 53/53 | per component, mean 1.07 per reaction |
+| `doi` | 97.9% | 2,377,486 | 43/53 | `Reaction.provenance.doi` |
+| `patent` | 72.9% | 1,771,032 | 1/53 | `Reaction.provenance.patent` |
+| `yield_percent` | 45.0% | 1,093,772 | 36/53 | largest `YIELD` `ProductMeasurement` of outcome 0 |
+| `reaction_time_seconds` | 43.3% | 1,052,017 | 49/53 | `ReactionOutcome.reaction_time` |
+| `temperature_kelvin` | 25.0% | 607,307 | 45/53 | `conditions.temperature.setpoint` |
+| `pressure_kilopascals` | 0.3% | 7,026 | 3/53 | `conditions.pressure.setpoint` |
+| `conversion_percent` | 0.2% | 4,225 | 6/53 | `ReactionOutcome.conversion` |
+
+Two things follow. **Row coverage and dataset coverage disagree, and dataset coverage
+is the one that matters for a view.** `yield_percent` leads on rows but appears in only
+36 of 53 datasets, while `reaction_time_seconds` and `temperature_kelvin` appear in 49
+and 45 — the conditions columns are the most *broadly* applicable in the artifact even
+though fewer rows carry them. `patent` inverts this completely: 72.9% of rows, one
+dataset, because USPTO is 73% of the corpus.
+
+**Two columns are near-empty**: `pressure_kilopascals` (3 datasets) and
+`conversion_percent` (6). Their cost is not the argument for keeping or cutting them —
+an all-null column measures 762 KB across the corpus, so both together are under 1 MB
+against a 476 MB artifact. The argument is contract surface: a column that is null for
+99.7% of the corpus teaches a consumer to expect nulls everywhere.
+
+Naming carries real weight here, because the ORD schema has six `Time`-typed fields —
+`ReactionOutcome.reaction_time`, `ReactionInput.addition_time`,
+`ReactionInput.addition_duration`, `ReactionWorkup.duration`,
+`ReactionObservation.time`, and `ProductMeasurement.retention_time`. A column called
+`time_seconds` sitting next to `temperature_kelvin` reads as a *conditions* field, which
+it is not. It is the outcome's reaction time, and the column is named
+`reaction_time_seconds` so that it cannot be read any other way. The same reasoning
+keeps `setpoint` visible in the description of the temperature and pressure columns:
+they are what the experiment was *asked* to hold, not what it achieved.
 
 Two boundary cases the rule already answers: anything needing a **network service** (DOI
 → Crossref metadata, name resolution via PubChem) is tier 2, because a remote service is
@@ -207,7 +276,7 @@ prefix:
 | --- | --- | --- |
 | `.gitattributes` | `data/**/*.parquet filter=lfs` | a stray commit silently makes a view an LFS object — the exact outcome finding 6 forbids |
 | `upload_to_huggingface.py` | `MIRROR_PATHSPECS = ("data/**", …)` | HF `data/` diverges from git `data/`, so the reconciliation hazard in finding 2b becomes likely rather than latent |
-| `download_from_huggingface.py` | `DEFAULT_ALLOW_PATTERNS = ["data/**"]` | every source-only download silently grows by 26.8% |
+| `download_from_huggingface.py` | `DEFAULT_ALLOW_PATTERNS = ["data/**"]` | every source-only download silently grows by 26.6% |
 | `validation.yml` | `--input="data/*/*.parquet"` | views get fed to a validator expecting Dataset protos, needing a negative carve-out in a regex that already carries one |
 | `build_configs` | `glob("data/*/*.parquet")`, one config per file | views become bogus `ord_dataset-<id>` configs with a mismatched schema |
 
@@ -292,10 +361,12 @@ from writer settings (row-group size, compression), so the same logical content
 rewritten still hashes the same.
 
 The original reasoning made those stamps a *cache key* to avoid expensive rederivation.
-The measurement removes that motive: the whole corpus derives in **1.8 minutes**
-single-process. Nothing here is expensive enough to cache.
+The measurement removes that motive: the whole corpus derives in **9.7 minutes**
+single-process. Nothing here is expensive enough to cache — and note the conclusion is
+insensitive to the number, since the alternative is a cache whose correctness has to be
+defended on every schema change.
 
-What is still expensive is **fetching the source**. A full rebuild needs all 1.17 GB of
+What is still expensive is **fetching the source**. A full rebuild needs all 1.26 GB of
 source parquet pulled from GitHub LFS, whereas the mirror job today pulls only the
 objects a commit actually changed. So still derive only what changed — for bandwidth,
 not for CPU — and keep the stamps for what they are genuinely good at: **verifying** a
@@ -303,9 +374,10 @@ published sidecar against its source, rather than deciding whether to skip work.
 
 The corollary is that bumping the *derivation version* stops being frightening. Finding
 4 previously demanded a `workflow_dispatch` full rebuild carefully insulated from
-routine merges, lest one refactor turn a data merge into a 1.7M-reaction job. At 1.8
+routine merges, lest one refactor turn a data merge into a 1.7M-reaction job. At ten
 minutes of compute plus a one-time full-corpus pull, a whole-corpus rebuild is a routine
-operation.
+operation — comfortably inside a CI job, and cheap enough that rebuilding is the obvious
+response to any doubt about a published view.
 
 ### 5. The SMILES→class cache is corpus-wide, not a sidecar *(tier 2; post-v1)*
 
@@ -334,25 +406,30 @@ included (see Method):
 | dataset | rows | source | sidecar | % of source |
 | --- | --- | --- | --- | --- |
 | `1158e351…` uspto-grants *(sampled)* | 1,771,032 | 1061.2 MB | 231.6 MB | **21.8** |
-| `e7830cd6…` C8SC04228D train | 409,035 | 99.8 MB | 69.8 MB | **70.0** |
-| `488402f6…` C8SC04228D test | 40,000 | 9.8 MB | 6.8 MB | 70.0 |
-| `47eaacc4…` amide coupling 47k | 47,015 | 7.9 MB | 3.0 MB | 37.4 |
-| `54815500…` C8SC04228D validation | 30,000 | 7.3 MB | 5.1 MB | 69.8 |
-| `805ad863…` Cernak C–N HTE | 50,688 | 4.9 MB | 1.8 MB | 37.8 |
-| **corpus (53 datasets)** | **2,428,291** | **1.170 GB** | **321.0 MB** | **26.8** |
+| `e7830cd6…` C8SC04228D train | 409,035 | 104.6 MB | 73.2 MB | **69.9** |
+| `488402f6…` C8SC04228D test | 40,000 | 10.2 MB | 7.1 MB | 70.0 |
+| `47eaacc4…` amide coupling 47k | 47,015 | 8.2 MB | 3.0 MB | 37.2 |
+| `54815500…` C8SC04228D validation | 30,000 | 7.6 MB | 5.3 MB | 69.8 |
+| `805ad863…` Cernak C–N HTE | 50,688 | 5.0 MB | 1.9 MB | 37.4 |
+| **corpus (53 datasets)** | **2,428,291** | **1.257 GB** | **333.9 MB** | **26.6** |
 
 Per-component SMILES account for 75.5 MB of that (+31% over the same columns without
-them). They ship regardless — see D2 — so 321.0 MB is the number the location decision
+them). They ship regardless — see D2 — so 333.9 MB is the number the location decision
 has to absorb.
+
+The scoping run's extrapolation held up. It put the corpus at 26.8% of source against a
+measured 26.6%, and its 52 exact non-USPTO datasets came to 93.7 MB then and 93.7 MB
+now — USPTO's 11.3% sample predicted the other 88.7% to within a percent. Sizes were the
+one thing sampling estimated well; wall-clock it got wrong by 5× (see Method).
 
 Three things fall out:
 
-- **26.8% of the corpus is not a rounding error.** Against a repo whose HEAD is 2.43 GB
+- **26.6% of the corpus is not a rounding error.** Against a repo whose HEAD is 2.43 GB
   of LFS objects and whose history already holds 5.88 GB across 1,235 objects, the
-  initial sidecar commit adds ~321 MB — and **every derivation-version bump rewrites all
+  initial sidecar commit adds ~334 MB — and **every derivation-version bump rewrites all
   of it.** Finding 4 already establishes that such a bump invalidates the whole corpus.
-  In git that is ~321 MB of permanently unreachable LFS objects per bump: **13% of the
-  live corpus for one bump, ~39% after three.** LFS has no delta encoding and
+  In git that is ~334 MB of permanently unreachable LFS objects per bump: **14% of the
+  live corpus for one bump, ~41% after three.** LFS has no delta encoding and
   `git lfs prune` is local-only, so nothing reclaims it.
 - **The ratio is wildly non-uniform, so no threshold rescues it.** USPTO derives to
   21.8% because its protos are fat with provenance and atom-mapped SMILES; the
@@ -400,15 +477,30 @@ guard placed there inherits the same blind spot for branch PRs from maintainers.
 lift the guard out of the fork condition or accept that maintainer-authored edits to
 those paths are unchecked.
 
-### 8. Most datasets need SMILES generation, not lookup
+### 8. Generation is the common case per dataset, and a rounding error per reaction
 
-**44 of 52** non-USPTO datasets have no stored `REACTION_SMILES` identifier, and USPTO
-has none either — its sampled reactions were 100% generated. So
-`get_reaction_smiles(generate_if_missing=True)` is the main path, not a rare fallback,
-and RDKit sits on the critical path for essentially the whole corpus. Finding 1's cost
-model ("proto reads + RDKit canonicalization") holds, but the RDKit half dominates:
-throughput ranged from ~1,300 reactions/s on component-heavy HTE datasets to ~55,000/s
-on USPTO. Budget tier 1 as an RDKit job, not a parse job.
+**44 of 52** non-USPTO datasets store no reaction identifier at all, so
+`get_reaction_smiles(generate_if_missing=True)` is the main path *by dataset*. Those 44
+hold 90,000 rows between them. Counted by reaction, the picture inverts:
+
+| | reactions | share |
+| --- | ---: | ---: |
+| stored `REACTION_CXSMILES` (all USPTO) | 1,771,032 | 72.9% |
+| stored `REACTION_SMILES` (8 non-USPTO datasets) | 567,259 | 23.4% |
+| **generated** | **90,000** | **3.7%** |
+
+The scoping run reported USPTO as 100% generated. It is 100% *stored*: every USPTO
+reaction carries a `REACTION_CXSMILES` identifier, and `derive_facts.py` matched only
+`REACTION_SMILES`, so it regenerated 1.77M reaction SMILES the corpus already had. That
+one missed enum value is also why USPTO looked cheap.
+
+RDKit still sits on the critical path for essentially the whole corpus, but through a
+different door: the shipped view canonicalizes **every component** of every reaction, at
+a mean of 4.75 inputs and 1.07 outputs per row. That is ~14.1M canonicalizations against
+90,000 reaction-SMILES generations. Finding 1's cost model ("proto reads + RDKit
+canonicalization") holds and the RDKit half still dominates — budget tier 1 as an RDKit
+job, not a parse job — but the lever is component count, not whether a dataset stored
+its reaction SMILES.
 
 ### 9. Compacted views are unnecessary — column pushdown already does the work
 
@@ -418,22 +510,23 @@ live retires it. Per-column compressed sizes across the 53 derived files:
 
 | column | share of bytes |
 | --- | --- |
-| `reaction_smiles` | 61.5% |
-| `input_smiles` | 14.6% |
-| `reaction_id` | 13.2% |
-| `output_smiles` | 9.3% |
-| **all numeric/boolean filter columns combined** | **1.16%** |
+| `reaction_smiles` | 61.2% |
+| `input_smiles` | 14.1% |
+| `reaction_id` | 13.5% |
+| `output_smiles` | 8.8% |
+| **all numeric filter columns combined** | **1.88%** |
 
-SMILES are 85.4% of the corpus; `yield_pct` is 0.7%. So a predicate like `yield > 70`
-reads roughly **2 MB across the whole corpus**, because parquet projection pushdown
-never touches the SMILES column chunks. Sorting exists to make row-group pruning
-effective — but there is nothing worth pruning in 2 MB. Row-group statistics are also
-already written on every column chunk (verified `is_stats_set` on all 894 row groups in
-the derived output), so within-file pruning works today with no extra artifact.
+SMILES are 84.2% of the corpus; `yield_percent` is 1.06%. So a predicate like
+`yield_percent > 70` reads roughly **3.5 MB across the whole corpus**, because parquet
+projection pushdown never touches the SMILES column chunks. Sorting exists to make
+row-group pruning effective — but there is nothing worth pruning in 3.5 MB. Row-group
+statistics are also already written on every column chunk (verified `is_stats_set` on
+all 2,466 row groups in the derived output), so within-file pruning works today with no
+extra artifact.
 
 The one access pattern sorting would genuinely help is a *selective filter with a wide
 projection* — "reaction SMILES where yield > 90%" — where unsorted data means nearly
-every row group holds a match and the full 274 MB of SMILES gets read. At this corpus
+every row group holds a match and the full 277 MB of SMILES gets read. At this corpus
 size that is a few seconds against a CDN, which does not justify a second artifact with
 its own staleness, stamping, and verification surface.
 
@@ -485,14 +578,15 @@ in finding 1.
 
 Nothing is lost by cutting it. The discoverability problem was never the missing
 boolean — it was that yields were unreachable without deserializing every proto, which
-tier 1 fixes. A consumer writes `WHERE yield_pct < 5` and picks their own threshold, and
-finding 9 shows that predicate reads about **2 MB** corpus-wide because `yield_pct` is
-0.7% of the bytes. There is no materialization to save.
+tier 1 fixes. A consumer writes `WHERE yield_percent < 5` and picks their own threshold,
+and finding 9 shows that predicate reads about **3.5 MB** corpus-wide because
+`yield_percent` is 1.06% of the bytes. There is no materialization to save.
 
-The nullable `yield_pct` also dissolves the three-state awkwardness that made this a
-sub-question: `yield_pct IS NULL` already distinguishes "no measurement" from "measured
-zero," and it matters — **72.3% of rows carry no yield measurement at all**, so a
-boolean would have been null for nearly three-quarters of the corpus regardless.
+The nullable `yield_percent` also dissolves the three-state awkwardness that made this a
+sub-question: `yield_percent IS NULL` already distinguishes "no measurement" from
+"measured zero," and it matters — **55.0% of rows carry no yield measurement at all**
+(45.5% of USPTO, 80.3% of everything else), so a boolean would have been null for more
+than half the corpus regardless.
 
 **D5 — one repo: both derived tiers go in the existing `ord-data` HF dataset.** Not a
 separate `ord-data-derived`. The reasons are stronger than "it's simpler":
@@ -516,7 +610,7 @@ separate `ord-data-derived`. The reasons are stronger than "it's simpler":
 isolated repo's. That was the case for splitting. It is weaker than it looks — the HF
 repo is a mirror, not the source of truth, so its history can be squashed
 (`HfApi.super_squash_history`, available in the pinned `huggingface_hub`), which is
-precisely the escape hatch git does not have. At 2.43 GB + 321 MB the combined repo is
+precisely the escape hatch git does not have. At 2.43 GB + 334 MB the combined repo is
 also well within normal HF sizes.
 
 *Changes if:* derived data grows a lifecycle genuinely independent of the source — many
@@ -638,8 +732,11 @@ endpoint to detect it.
   matrix, USPTO special case), `.github/workflows/submission.yml`
   (`check_file_types`), `scripts/upload_to_huggingface.py` (`MIRROR_PATHSPECS`),
   `.lfsconfig`.
-- Derivation script, per-dataset results, and reproduction guide:
+- Scoping-run script, per-dataset results, and reproduction guide:
   [`assets/2026-07-25-derived-parquet-sidecars/`](../assets/2026-07-25-derived-parquet-sidecars/).
+- Shipped implementation, and the source of the re-measured figures: `ord-schema`
+  `ord_schema/views.py` and `ord_schema/scripts/derive_views.py`, in
+  [ord-schema#914](https://github.com/open-reaction-database/ord-schema/pull/914).
 - LFS cost model behind finding 6: Git LFS stores whole objects with no delta encoding
   and `git lfs prune` only reclaims locally
   (<https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md>). Measured on `ord-data`
