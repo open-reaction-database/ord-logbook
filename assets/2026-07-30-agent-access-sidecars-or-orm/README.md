@@ -23,6 +23,8 @@ them at `/tmp/views` before running. Run them from an environment with `ord-sche
 | `similarity_scan.py` | Morgan build time, Tanimoto scan time, structure-sidecar sizing (findings 3 and 4) |
 | `sqlite_comparison.py` | SQLite package size, build time, and query timings against the same data (finding 6) |
 | `total_projection.py` | descriptor-driven projection of the entire `Reaction` proto into nested Parquet, with size and conversion timings (finding 2) |
+| `normalized_projection.py` | the same projection with united messages converted to canonical floats and structural identifiers collapsed to one `smiles` (finding 2b) |
+| `identifier_census.py` | identifier-type distribution and how many compounds a full collapse would empty (finding 2b) |
 
 `total_projection.py` takes a source dataset path and an optional row limit, and reads
 the source parquet directly rather than the views:

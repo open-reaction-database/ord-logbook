@@ -50,9 +50,16 @@ structural explosion is expensive, and that is a large query rather than a forma
 
 That reverses the instinct to ship a curated subset. Every field left out is a query
 nobody can write, which is exactly the failure mode being escaped, and the measurements
-say curation buys little: a total projection runs **0.5–1.3× the size of the source
-protos** depending on dataset. Curation would be trading the entire point of the exercise
-for a fraction of an artifact that is already affordable.
+say curation buys little: a total projection of the whole corpus is **1,563 MB, or 1.24×
+the source protos**, built in 9.6 minutes. Curation would trade the entire point of the
+exercise for a fraction of an artifact that is already affordable.
+
+Two normalizations do earn their place, because they cost no query and remove real
+friction (finding 2b): united messages become canonical floats in unit-named columns, and
+the structural identifiers collapse to a single canonical `smiles`. Every other
+identifier stays — collapsing them all would empty the **470,884 name-only compounds**,
+and **1,088,493 compounds carry more than one `NAME`**, so they stay a list rather than
+pivoting to named fields. That takes the schema from **490 to 393 leaf columns**.
 
 Structure search is the one capability that looks like it needs Postgres, and it does
 not. The corpus holds **1,432,318 distinct component structures**; with pattern
@@ -171,6 +178,74 @@ This is the answer to "can sidecars reproduce what the ORM does." For *querying*
 and without joins. What a file cannot do is transactional write, referential enforcement,
 or concurrent multi-user access — none of which an agent reading a published corpus
 needs.
+
+### 2b. Normalize units and structural identifiers — but only those
+
+A raw projection is not the goal; a *queryable* one is, and two normalizations pay for
+themselves without costing any query.
+
+**Units become canonical floats.** Twelve message types carry a `{value, precision,
+units}` triple — `Temperature`, `Pressure`, `Time`, `Mass`, `Moles`, `Volume`,
+`Concentration`, `Current`, `Voltage`, `Length`, `FlowRate`, `Wavelength` — across 20
+fields. Projected raw, every one forces a consumer to convert in the query, and a
+`WHERE` on temperature silently misses every row recorded in Celsius. Projected
+canonical, each becomes one float in a column that names its unit, exactly as the
+tier-1 view already does. Nothing queryable is lost: a question in Celsius is still
+expressible against kelvin, while the reverse — comparing mixed units in SQL — is not.
+
+**Structural identifiers collapse to one canonical `smiles`.** `SMILES`, `CXSMILES`,
+`INCHI`, and `MOLBLOCK` all answer "what is this molecule," so the preference rules the
+tier-1 view already implements apply here too, and the projection carries `smiles`
+rather than making every consumer re-derive it.
+
+**Everything else stays.** This is the line that matters, and the census says why:
+
+| identifier type | compounds carrying it |
+| --- | ---: |
+| `SMILES` | 14,150,061 |
+| `NAME` | 11,134,078 |
+| `INCHI` | 9,476,647 |
+| `CUSTOM` | 1,147,292 |
+| `CAS_NUMBER` | 253,485 |
+| `MOLBLOCK` | 8,052 |
+| `MDL` | 2,736 |
+
+Collapsing *all* identifiers to SMILES would empty **470,884 compounds (3.2%)** — the
+name-only population, which
+[the name-only entry](https://github.com/open-reaction-database/ord-logbook/pull/9)
+inventories in the ORM at 864,997 rows across a larger corpus that includes `.pb.gz`.
+Those compounds are "crude product," "ice water," solvent eluents, plus a long tail of
+real reagents entered by name. They are unresolvable, not unimportant, and a query
+asking which reactions quench with ice water is exactly the kind the larger surface is
+meant to enable.
+
+The non-structural identifiers stay a **list**, not a pivot into named scalar fields,
+because **1,088,493 compounds carry two or more `NAME` identifiers** (and 42,826 carry
+multiple `CUSTOM`). Pivoting would have silently dropped one of each.
+
+One asymmetry worth recording: 11,949 compounds carry more than one `SMILES`, so the
+structural collapse has to pick. That is the same choice `smiles_from_compound` already
+makes, and identifier disagreement is already a validation check, so it is audited rather
+than silent.
+
+The result is a schema that is meaningfully smaller as well as easier to query — **490
+leaf columns raw, 393 normalized** — with size effects that are not uniform:
+
+| dataset | raw | normalized | change |
+| --- | ---: | ---: | ---: |
+| `1158e351…` USPTO | 809.8 B/row | 629.6 | **−22.3%** |
+| `e7830cd6…` C8SC04228D | 204.2 B/row | 200.2 | −2.0% |
+| `805ad863…` Cernak C–N HTE | 50.7 B/row | 56.3 | **+11.0%** |
+
+USPTO shrinks because dropping `INCHI` alongside `SMILES` removes a long, poorly
+compressible string from 9.5M compounds. The HTE dataset *grows*, because its components
+already stored bare SMILES and the canonical form is longer, while a dozen components per
+reaction means a dozen new `smiles` fields per row. Normalization is a query-surface
+decision that happens to pay for itself on the large datasets — not a compression
+technique.
+
+The cost is wall-clock: canonicalizing every component puts RDKit back on the critical
+path, running 2.2–3.8× the raw projection's conversion time per dataset.
 
 ### 3. ORD is small enough that structure search needs no index
 
@@ -405,10 +480,17 @@ blast-radius reasons anyway, but it should not be the mechanism protecting the q
   "needs a file." Tier 1 by the existing test.
 - **D4 — Project the whole proto, descriptor-driven; do not curate.** Every field left
   out is a query nobody can write, which is the failure mode being escaped. The graph has
-  no cycles so a total projection terminates, it costs 0.5–1.3× the source protos, and
+  no cycles so a total projection terminates, it costs 1.24× the source protos raw, and
   being generated from the descriptors means schema changes propagate without a judgement
   call about whether a new field is worth carrying. The eleven-column view survives
   alongside it as the flat starter table, not as the main artifact.
+- **D4b — Normalize units and structural identifiers; keep every other identifier.**
+  Twelve united message types become canonical floats in unit-named columns, and
+  `SMILES`/`CXSMILES`/`INCHI`/`MOLBLOCK` collapse to one canonical `smiles`. `NAME`,
+  `CAS_NUMBER`, `CUSTOM` and the rest stay, as a **list** rather than pivoted fields:
+  collapsing everything would empty 470,884 name-only compounds, and 1,088,493 compounds
+  carry more than one `NAME`. Schema goes 490 → 393 leaf columns; the trade is RDKit back
+  on the critical path at 2.2–3.8× the raw conversion time.
 - **D5 — Keep the mediated path and wrap it for agents.** `nl_query.py` already exists
   and is the right tool for lookup and search; MCP over it is small work. The sidecars
   serve analysis, which `MAX_RESULTS = 1000` makes impossible today.
@@ -421,11 +503,9 @@ blast-radius reasons anyway, but it should not be the mechanism protecting the q
 
 Open, and deliberately not decided here:
 
-- **Build cost.** The prototype's descriptor walk is pure Python and converts at roughly
-  5,000–10,000 reactions/s, which puts a full-corpus projection in the tens of minutes
-  rather than the ten the tier-1 views take. That is still CI-shaped, but it is the one
-  budget the total projection genuinely strains, and it is the obvious thing to optimize
-  before shipping.
+- **How much further normalization goes.** Finding 2b settles units and structural
+  identifiers; `Amount`'s oneof, `Percentage`, and the `CUSTOM` identifier's `details`
+  field are the remaining judgement calls.
 - **Whether the tier-1 view keeps its curated columns.** If the total projection ships,
   the argument for `pressure_kilopascals` (3 of 53 datasets) and `conversion_percent` (6)
   changes: they are reachable in the projection regardless, so the view can be trimmed to
