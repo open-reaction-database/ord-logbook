@@ -22,6 +22,14 @@ them at `/tmp/views` before running. Run them from an environment with `ord-sche
 | `substructure_scan.py` | pattern-fingerprint screen and verify timings (finding 3) |
 | `similarity_scan.py` | Morgan build time, Tanimoto scan time, structure-sidecar sizing (findings 3 and 4) |
 | `sqlite_comparison.py` | SQLite package size, build time, and query timings against the same data (finding 6) |
+| `total_projection.py` | descriptor-driven projection of the entire `Reaction` proto into nested Parquet, with size and conversion timings (finding 2) |
+
+`total_projection.py` takes a source dataset path and an optional row limit, and reads
+the source parquet directly rather than the views:
+
+```bash
+python total_projection.py /path/to/ord-data/data/11/ord_dataset-1158e351....parquet 40000
+```
 
 `substructure_scan.py` and `similarity_scan.py` sample the first 100,000 distinct
 structures and the entry projects to the full 1,432,318 by ratio; `sqlite_comparison.py`
