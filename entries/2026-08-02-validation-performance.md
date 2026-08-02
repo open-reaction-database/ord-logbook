@@ -216,7 +216,7 @@ key rather than a rewrite.
 ## Bigger structural changes
 
 Ranked by leverage per unit of risk. The memoization above is worth doing regardless —
-it is contained and behaviour-preserving — but these are what change the shape of the
+it is contained and behavior-preserving — but these are what change the shape of the
 problem.
 
 **1. Don't validate what hasn't changed.** The strongest lever, and it is orthogonal to
@@ -272,7 +272,7 @@ for completeness — I'd rather have (1) than a policy that quietly validates le
 
 ## Conclusions / next steps
 
-1. **Memoize by string in ord-schema** — contained, behaviour-preserving, ~2–3.6× on the
+1. **Memoize by string in ord-schema** — contained, behavior-preserving, ~2–3.6× on the
    dominant datasets. Cache the derived value (`(type, value) → canonical SMILES | None`)
    rather than the `Mol`, so nothing mutable is shared; key on `sanitize`, since
    `validate_compound_identifier` retries with `sanitize=False`. The `dateutil` cache is
