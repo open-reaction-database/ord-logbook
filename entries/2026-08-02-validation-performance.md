@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-02
 - **Author:** Steven Kearnes
-- **Status:** draft (profiling done; fixes not implemented)
+- **Status:** draft (profiling done; 2.86× in review, structural decisions recorded)
 - **Tags:** performance, validation, ord-schema, ord-data, ci, rdkit, profiling
 
 ## Question
@@ -17,9 +17,9 @@ sweep. Where does that time actually go, and how much of it is avoidable?
 recoverable without changing what validation checks.**
 
 - Validation compute is **>97%** of the uspto shard: LFS fetch 77 s, environment setup
-  6 s, `validate_dataset.py` **52 min and still running** at the time of writing.
-  Parquet decode is **1%** of validation and cross-reference `observe` is **0.2%** —
-  I/O and the dataset-level pass are not worth optimizing.
+  6 s, `validate_dataset.py` **~75 min**. Parquet decode is **1%** of validation and
+  cross-reference `observe` is **0.2%** — I/O and the dataset-level pass are not worth
+  optimizing.
 - Half the time is one call: **`Chem.MolFromInchi` is 51%** of `validate_message`.
   `dateutil.parser.parse` is 15%, `canonical_smiles` 11%.
 - The cause is **the same string being parsed twice per reaction by two call sites that
@@ -39,8 +39,13 @@ recoverable without changing what validation checks.**
   reachable in Python.
 - The bigger structural lever is orthogonal to all of this: **the corpus is immutable and
   append-mostly, so most of what the weekly sweep validates has already been validated,
-  unchanged, against the same schema version.** That, not a faster validator, is where an
-  order of magnitude lives.
+  unchanged, against the same library versions.** That, not a faster validator, is where
+  an order of magnitude lives — but it is deferred, because a fast enough validator makes
+  the machinery unnecessary.
+- **Shipped so far: 2.86×** (1.785 → 0.625 ms/reaction), across
+  [ord-schema#925](https://github.com/open-reaction-database/ord-schema/pull/925) and
+  [#926](https://github.com/open-reaction-database/ord-schema/pull/926). Message-level
+  deduplication was measured and **dropped** — it is 1.20× where memoization is 11×.
 
 ## Method
 
@@ -161,13 +166,17 @@ From the `validate_parquet (uspto)` job of run 30768225451:
 |---|---|
 | Fetch LFS shard from GitHub (1.1 GB) | 77 s |
 | Checkout + `setup-uv` + `uv sync` | 6 s |
-| Validate parquet datasets | **52 min, still running** |
+| Validate parquet datasets | **~75 min** |
 
 The local per-reaction cost extrapolates consistently with this once the runner's slower
 cores and its 4 vCPU (≈2 physical) are accounted for. Two incidental notes: the new
 lockfile-based setup ([ord-data#280](https://github.com/open-reaction-database/ord-data/pull/280))
 installs the schema library in 6 s where the previous checkout-and-`pip install .` took
 far longer, and the 77 s LFS fetch is a floor that no compute optimization touches.
+
+That run also answered a standing question: it was the first full-corpus sweep against
+`ord_schema` 0.8.0 rather than the v0.6.3 the workflow had pinned, and all eleven shards
+passed. Nothing the older library had been letting through.
 
 ### How much of this is even Python? (or: would a rewrite help?)
 
@@ -209,88 +218,131 @@ is reachable in Python. That is the argument against a rewrite: it would be a la
 change to correctness-critical code for the last ~1.4× of a shrinking remainder.
 
 **The order-of-magnitude win is not in the validator at all — it is in not running it.**
-A sweep over bytes that have not changed since the last sweep, against the same schema
-version, is ~100% redundant work. That is item 1 below, and it is a manifest plus a cache
-key rather than a rewrite.
+A sweep over bytes that have not changed since the last sweep, against the same library
+versions, is ~100% redundant work. That is item 1 below — a manifest plus a cache key
+rather than a rewrite — and it is deferred rather than dropped: if the validator gets fast
+enough, an O(corpus) sweep is affordable and the manifest buys nothing.
 
-## Bigger structural changes
+## Bigger structural changes — and what was decided
 
-Ranked by leverage per unit of risk. The memoization above is worth doing regardless —
-it is contained and behavior-preserving — but these are what change the shape of the
-problem.
+Six candidates were considered beyond the memoization. Two were done, one is deferred,
+three are dropped. The verdicts are recorded here with the reasoning, so they do not get
+re-litigated from scratch.
 
-**1. Don't validate what hasn't changed.** The strongest lever, and it is orthogonal to
-every micro-optimization. Validation output is a pure function of (file bytes,
-`ord_schema` version). Every dataset file is an LFS object that already has a sha256
-oid, and the corpus is append-mostly: a weekly sweep re-validates ~2.4 GB that is
-byte-identical to last week's. Key a manifest on `(oid, ord_schema version)` and skip
-files already recorded as passing; a schema bump invalidates everything, which is
-correct and is exactly when a full sweep is wanted. This turns the weekly job from
-O(corpus) into O(changed) in the common case.
+**1. Don't validate what hasn't changed. — DEFERRED.** Validation output is a pure
+function of (file bytes, library versions). Every dataset file is an LFS object that
+already has a sha256 oid, and the corpus is append-mostly: a weekly sweep re-validates
+~2.4 GB that is byte-identical to last week's. Keying a manifest on
+`(oid, ord_schema version, RDKit version)` and skipping files already recorded as passing
+turns the weekly job from O(corpus) into O(changed). The RDKit version has to be in the
+key, not just `ord_schema`'s — canonicalization output can change across RDKit releases,
+so a toolchain bump would otherwise silently reuse stale passes.
 
-The one thing to be careful about: the sweep's stated purpose is bit-rot detection, so
-skipping files must not skip *verifying* them. It doesn't — git-lfs already checks the
-object hash on checkout, so "did the bytes rot" is answered by the oid, and re-running
+Deferred because it may not be needed: if the validator gets fast enough, an O(corpus)
+sweep is affordable and the manifest is machinery with nothing to buy. Revisit if the
+full sweep is still uncomfortably long after the speedups land.
+
+Whenever it is built, one thing needs writing down: the sweep's stated purpose is bit-rot
+detection, and skipping files must not skip *verifying* them. It doesn't — git-lfs checks
+the object hash on checkout, so "did the bytes rot" is answered by the oid, and re-running
 the validator only ever answers "did the validator's opinion change", which the version
-key captures. Worth writing that reasoning down wherever the cache lands, because it is
-the part that looks unsafe and isn't.
+key captures. That is the part that looks unsafe and isn't.
 
-**2. Validate distinct sub-messages, not occurrences.** The memoization finding
-generalizes one level up: hash each `Compound` and validate the distinct set once per
-dataset rather than once per appearance. USPTO has ~8M compound occurrences across a far
-smaller distinct set. This subsumes the identifier caches and removes the whole class of
-problem instead of patching two call sites, but it needs the error channel fixed first
-(see 5) so a finding can be attributed back to every reaction that carries the compound.
+**2. Validate distinct sub-messages, not occurrences. — DROPPED, measured.** The idea was
+to hash each `Compound` and validate the distinct set once. It does not subsume the
+identifier caches; it is far weaker. Compound-validation cost per reaction on the uspto
+file:
 
-**3. Move canonicalization to write time.** Validation's expensive step is deriving a
-canonical SMILES to compare identifiers. That derivation is stable, so it could be
-computed once when the parquet is written and stored alongside — validation then
-compares strings and never builds a molecule. This is the same idea as the tier-1
-sidecars in [2026-07-25-derived-parquet-sidecars.md](2026-07-25-derived-parquet-sidecars.md)
-and should be folded into that design rather than pursued separately; the validation
-speedup is a second reason to want it, not a separate project.
+| | every occurrence | distinct only | gain from dedup |
+|---|---|---|---|
+| memoization off | 1.112 ms | 0.928 ms | **1.20×** |
+| memoization on | 0.100 ms | 0.077 ms | 1.31× |
 
-**4. Scale the one file out across machines.** The corpus is 73% one dataset, so
-row-group parallelism inside a single 4-vCPU runner is the binding constraint.
-[ord-schema#922](https://github.com/open-reaction-database/ord-schema/pull/922) already
-adds `--shard I/N`; pointing several matrix jobs at the uspto file with different shards
-converts wall-clock into (cheap) parallel job minutes with no correctness risk and no
-new code. Largest runners are the same lever with a bigger single box. This is the
-cheapest item on the list and is available today.
+Memoization alone takes that path 1.112 → 0.100 ms, an **11×**; hashing alone manages
+1.20×. Two reasons. A `Compound` carries amount, role and `is_limiting`, so the same
+solvent at a different amount is a *different message* — compounds repeat only **1.3×**
+where identifier values repeat 2.6×. And hashing cannot touch the within-compound double
+parse at all, since that happens on first sight of every distinct compound.
 
-**5. Replace the warnings channel with return values.** `validations` reports findings by
-`warnings.warn`, which forces a `catch_warnings()` context around every one of the ~77
-sub-messages per reaction and makes the collection global-state-dependent. Direct returns
-would remove that overhead (~5–10% on its own), but the real reason to do it is that it
-unblocks (2): deduplicated validation needs findings to be values that can be attached to
-many parents, not warnings raised in a particular stack.
+It is also worst where it would matter most. Compound reuse is 8.6× on `805ad863…` and
+2.1× on `e7830cd6…`/`488402f6…`, but 1.3× on uspto — the file that is 73% of the corpus
+and the whole CI long pole. On top of the memoization it is worth ~4% of total validation,
+in exchange for a cache of serialized message bytes, the correctness burden of replaying
+findings under re-anchored traces, and reconciling with `validate_message`'s documented
+license to modify messages in place.
 
-**6. Tier the checks.** Structural/scalar checks are microseconds; the RDKit and dateutil
-work is everything else. If the two tiers were separable, submission CI could run
-everything while the weekly sweep runs only the cheap tier plus (1)'s changed set. Listed
-for completeness — I'd rather have (1) than a policy that quietly validates less.
+**3. Move canonicalization to write time. — DROPPED.** Storing a canonical SMILES in the
+parquet at write time would let validation compare strings instead of building molecules.
+It is not available: canonicalization output can change across RDKit versions, so a stored
+value is only valid for the RDKit that wrote it, and validation would be comparing against
+a stale derivation after any upgrade. (The same fact is why item 1's cache key must
+include the RDKit version.) This does not affect the tier-1 sidecars in
+[2026-07-25-derived-parquet-sidecars.md](2026-07-25-derived-parquet-sidecars.md), which
+are derived views rather than a validation oracle.
+
+**4. Scale the one file out across machines. — DROPPED.** `--shard I/N` would let several
+matrix jobs split the uspto file. The complexity is not warranted for what it buys once
+the per-reaction cost comes down, and it adds a second sharding mechanism next to the
+existing row-group parallelism.
+[ord-schema#922](https://github.com/open-reaction-database/ord-schema/pull/922) is closed.
+The measurement it produced is worth keeping: the dataset-level cross-reference pass costs
+~0.2% of a run, so it should stay unconditional wherever validation is restructured.
+
+**5. Replace the warnings channel with return values. — DONE**
+([ord-schema#926](https://github.com/open-reaction-database/ord-schema/pull/926)).
+Findings now go to a list in a `ContextVar` instead of `warnings.warn` read back through
+`catch_warnings`, removing ~77 context managers per reaction: 0.670 → 0.625 ms/reaction.
+The original argument for it was that it unblocks (2), which is now dropped; it stands on
+removing the overhead and on `catch_warnings` mutating global state and being documented
+as not thread-safe.
+
+**6. Tier the checks. — NOT NOW.** Splitting cheap structural checks from the RDKit and
+dateutil work would let the weekly sweep run less. Better to have (1) than a policy that
+quietly validates less.
 
 ## Conclusions / next steps
 
-1. **Memoize by string in ord-schema** — contained, behavior-preserving, ~2–3.6× on the
-   dominant datasets. Cache the derived value (`(type, value) → canonical SMILES | None`)
-   rather than the `Mol`, so nothing mutable is shared; key on `sanitize`, since
-   `validate_compound_identifier` retries with `sanitize=False`. The `dateutil` cache is
-   safe as-is because `datetime` is immutable. Pin it with a test that a cached and an
-   uncached run produce identical findings.
-2. **Then (1) above** — the change that makes the weekly sweep stop re-doing last week's
-   work.
-3. **(4) is free today** and worth doing while the rest is designed.
-4. Do **not** optimize parquet decode or the cross-reference pass; together they are
-   ~1.2% of the run.
+Landed or in review:
+
+1. **Memoize by string** — [ord-schema#925](https://github.com/open-reaction-database/ord-schema/pull/925),
+   **2.66×** (1.785 → 0.670 ms/reaction). Caches the derived string keyed on
+   `(type, value)`, never the `Mol`, so nothing mutable is shared; the `sanitize=False`
+   retry is a second cache consulted only after a failure. The `dateutil` cache is safe
+   outright because `datetime` is immutable.
+2. **Collect findings directly** —
+   [ord-schema#926](https://github.com/open-reaction-database/ord-schema/pull/926),
+   cumulative **2.86×**. Verified by dumping every finding for 1000 uspto reactions before
+   and after: 3951 findings, byte-for-byte identical.
+3. **Deterministic messages** —
+   [ord-schema#927](https://github.com/open-reaction-database/ord-schema/pull/927). Found
+   while verifying (2): `check_compound_identifiers` rendered a Python set, so the same
+   code produced 314 differing lines across consecutive runs. Validation output that
+   cannot be diffed across runs is a liability in its own right, and would have quietly
+   undermined item 1 had that cache ever keyed on output rather than input.
+
+Standing conclusions:
+
+- Do **not** optimize parquet decode or the cross-reference pass; together they are ~1.2%
+  of the run.
+- Do **not** rewrite the validator in another language: ~73% of the time is already
+  compiled C++ inside RDKit, which bounds a rewrite at 1.37×.
+- Re-measure the full sweep once (1)–(3) are on `main`, and only then decide whether the
+  deferred manifest is worth building.
 
 ## References
 
 - [ord-data#280](https://github.com/open-reaction-database/ord-data/pull/280) — validation
-  runs from the locked `ord_schema`; source of the CI step timings here.
+  runs from the locked `ord_schema`; source of the CI step timings here. Merged, with all
+  eleven shards green under 0.8.0.
+- [ord-schema#925](https://github.com/open-reaction-database/ord-schema/pull/925) —
+  memoize identifier parsing (2.66×).
+- [ord-schema#926](https://github.com/open-reaction-database/ord-schema/pull/926) —
+  collect findings directly instead of through `warnings` (cumulative 2.86×).
+- [ord-schema#927](https://github.com/open-reaction-database/ord-schema/pull/927) —
+  deterministic ordering in the inconsistent-identifiers message.
 - [ord-schema#922](https://github.com/open-reaction-database/ord-schema/pull/922) —
-  `--shard I/N` for `validate_dataset.py`, and the measurements showing the dataset-level
-  cross-reference pass is nearly free.
+  `--shard I/N` for `validate_dataset.py`. **Closed**; kept for the measurement showing
+  the dataset-level cross-reference pass is nearly free.
 - [ord-schema#923](https://github.com/open-reaction-database/ord-schema/pull/923) —
   unreadable files reported against the file, found while doing this work.
 - Prior entry: [2026-06-30-ingest-derivation-performance.md](2026-06-30-ingest-derivation-performance.md)
