@@ -33,9 +33,14 @@ recoverable without changing what validation checks.**
   RDKit parse, canonicalization, and datetime caches are layered on.
 - **The prototype's Mol cache is not shippable**: it hands the same mutable RDKit `Mol`
   to every caller. The production shape is to memoize the derived *string*.
+- **A rewrite is not the answer.** ~73% of the time is already compiled C++ inside RDKit,
+  and the distinct-molecule set does not saturate (~1.3 new per reaction, 32k reactions
+  in), so the whole envelope for a faster validator is ~7–10× and nearly all of it is
+  reachable in Python.
 - The bigger structural lever is orthogonal to all of this: **the corpus is immutable and
   append-mostly, so most of what the weekly sweep validates has already been validated,
-  unchanged, against the same schema version.**
+  unchanged, against the same schema version.** That, not a faster validator, is where an
+  order of magnitude lives.
 
 ## Method
 
@@ -163,6 +168,50 @@ cores and its 4 vCPU (≈2 physical) are accounted for. Two incidental notes: th
 lockfile-based setup ([ord-data#280](https://github.com/open-reaction-database/ord-data/pull/280))
 installs the schema library in 6 s where the previous checkout-and-`pip install .` took
 far longer, and the 77 s LFS fetch is a floor that no compute optimization touches.
+
+### How much of this is even Python? (or: would a rewrite help?)
+
+The cache layers decompose the per-reaction cost by language, because each one removes a
+known call:
+
+| removed by | ms/reaction | implemented in |
+|---|---|---|
+| RDKit parse cache | 0.920 | C++ (`MolFromInchi`, IUPAC InChI library) |
+| canonicalization cache | 0.374 | C++ (`MolToCXSmiles`) |
+| dateutil cache | 0.180 | Python |
+| remainder (tree walk, protobuf, warnings) | 0.311 | Python |
+
+**~73% of validation is already compiled C++ inside RDKit.** A rewrite in another
+language does not make `MolFromInchi` faster — InChI parsing is the IUPAC C library
+whatever calls it, and no Rust cheminformatics stack approaches RDKit's coverage, so the
+chemistry would come back over FFI regardless. Eliminating *all* the Python and keeping
+RDKit bounds the win at **1.37×**.
+
+The dedup ceiling is also lower than the 93% row-group hit rate suggests. Sampling 32
+row groups spread across the whole uspto file:
+
+| reactions | InChI occurrences | distinct | new distinct/reaction |
+|---|---|---|---|
+| 4,000 | 21,250 | 7,147 | 1.68 |
+| 16,000 | 86,144 | 25,607 | 1.48 |
+| 32,000 | 171,355 | 48,667 | 1.32 |
+
+The distinct set **does not saturate** — new molecules keep arriving at ~1.3 per reaction
+32k reactions in, and the rate is barely declining. The high in-window hit rate is
+locality (shared solvents, reagents, catalysts), not corpus-wide redundancy; uspto
+products are largely unique. Perfect dedup still parses on the order of 1.5–2M distinct
+molecules at 0.116 ms each — roughly **4 minutes of irreducible native work** per full
+pass of this file.
+
+So the envelope for making the validator faster is about **7–10×** (53 min of
+single-core work → ~9 min memoized → ~5–8 min at the dedup floor), and nearly all of it
+is reachable in Python. That is the argument against a rewrite: it would be a large
+change to correctness-critical code for the last ~1.4× of a shrinking remainder.
+
+**The order-of-magnitude win is not in the validator at all — it is in not running it.**
+A sweep over bytes that have not changed since the last sweep, against the same schema
+version, is ~100% redundant work. That is item 1 below, and it is a manifest plus a cache
+key rather than a rewrite.
 
 ## Bigger structural changes
 
