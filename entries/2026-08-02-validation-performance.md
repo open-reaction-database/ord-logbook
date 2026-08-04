@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-02
 - **Author:** Steven Kearnes
-- **Status:** draft (profiling done; 2.86× in review, structural decisions recorded)
+- **Status:** draft (3.54× measured in CI; structural decisions recorded)
 - **Tags:** performance, validation, ord-schema, ord-data, ci, rdkit, profiling
 
 ## Question
@@ -229,7 +229,7 @@ Six candidates were considered beyond the memoization. Two were done, one is def
 three are dropped. The verdicts are recorded here with the reasoning, so they do not get
 re-litigated from scratch.
 
-**1. Don't validate what hasn't changed. — DEFERRED.** Validation output is a pure
+**1. Don't validate what hasn't changed. — NOT NEEDED (measured).** Validation output is a pure
 function of (file bytes, library versions). Every dataset file is an LFS object that
 already has a sha256 oid, and the corpus is append-mostly: a weekly sweep re-validates
 ~2.4 GB that is byte-identical to last week's. Keying a manifest on
@@ -238,9 +238,11 @@ turns the weekly job from O(corpus) into O(changed). The RDKit version has to be
 key, not just `ord_schema`'s — canonicalization output can change across RDKit releases,
 so a toolchain bump would otherwise silently reuse stale passes.
 
-Deferred because it may not be needed: if the validator gets fast enough, an O(corpus)
-sweep is affordable and the manifest is machinery with nothing to buy. Revisit if the
-full sweep is still uncomfortably long after the speedups land.
+Deferred on the bet that a fast enough validator would make it pointless, and the bet
+paid: the full sweep now runs in **~18 minutes** of wall clock (see the CI measurement
+below), which is affordable weekly. A manifest would add a cache key spanning two library
+versions, and a way to invalidate it, to save a job that is no longer expensive. Revive it
+only if the corpus grows enough to push the sweep back toward an hour.
 
 Whenever it is built, one thing needs writing down: the sweep's stated purpose is bit-rot
 detection, and skipping files must not skip *verifying* them. It doesn't — git-lfs checks
@@ -326,8 +328,32 @@ Standing conclusions:
   of the run.
 - Do **not** rewrite the validator in another language: ~73% of the time is already
   compiled C++ inside RDKit, which bounds a rewrite at 1.37×.
-- Re-measure the full sweep once (1)–(3) are on `main`, and only then decide whether the
-  deferred manifest is worth building.
+- The manifest in item 1 is **not needed**; see its entry for the measurement that
+  settled it.
+
+## CI measurement, after the fact
+
+[ord-data#282](https://github.com/open-reaction-database/ord-data/pull/282) moved the
+sweep to `ord_schema` 0.8.2. Comparing its run against
+[ord-data#280](https://github.com/open-reaction-database/ord-data/pull/280)'s, which used
+0.8.0 through the same lockfile path over a byte-identical corpus and unchanged shard
+definitions — `Validate …` step only, so LFS fetch and setup are excluded:
+
+| shard | 0.8.0 | 0.8.2 | speedup |
+|---|---:|---:|---:|
+| uspto | 81.8 min | 17.6 min | **4.65×** |
+| slowest pb shard | 15.8 min | 5.0 min | 3.15× |
+| total (core-min) | 184.5 | 52.1 | **3.54×** |
+
+Wall clock for the matrix is set by the longest shard, so a full sweep went from ~82 to
+~18 minutes.
+
+Read 3.54× as a floor. That run does *more* work than the baseline: it passes
+`--validate_ids`, and 0.8.2 also carries the whitespace and CXSMILES checks from
+ord-schema#917. It also beat the 2.84× measured on a laptop; the runner's cores differ
+from that machine's in ways that would shift the balance between the native RDKit work
+the memoization removes and the Python around it, but that mechanism is unverified — the
+honest statement is that the local figure was the conservative one.
 
 ## References
 
