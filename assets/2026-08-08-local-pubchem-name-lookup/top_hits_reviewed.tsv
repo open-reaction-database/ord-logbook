@@ -1,0 +1,61 @@
+rows	name	smiles	verdict	note
+42143	hexanes	CCCCCC	ok	n-hexane for the isomer mixture; the 2026-07-11 dictionary made the same call
+3690	SiO2	O=[Si]=O	ok	silica
+2046	Hexanes	CCCCCC	ok	same
+1283	heptanes	CCCCCCC	ok	n-heptane for the isomer mixture
+1245	4A	C1CNC(=NC1)C2=CC=CC=C2S	label	4A molecular sieves; returns a benzothiazine from some paper
+1092	cuprous iodide	[Cu+].[I-]	ok	
+1004	anhydride	C1=CN(C(=O)NC1=O)[C@H]2[C@@H]([C@@H]([C@H](O2)COP(=O)(O)OP(=O)(C[C@@H]3[C@@H]([C@H]([C@H]([C@H](O3)CO)O)O)O)O)O)O	label	functional class; returns a nucleotide
+810	NH4OAc	CC(=O)[O-].[NH4+]	ok	
+782	II	CC[C@H](C)[C@@H](C(=O)N[C@@H]([C@@H](C)CC)C(=O)O)N	label	roman-numeral compound label; returns a dipeptide
+735	cuprous chloride	Cl[Cu]	ok	
+719	dimethyl acetal	CC(OC)OC	label	functional class; returns 1,1-dimethoxyethane
+691	3A	CC(C)C1=C(C(=CC=C1)C(C)C)N=CC2=CC=CC=C2[O-].C1=CC=C(C=C1)P(C2=CC=CC=C2)C3=CC=CC=C3.C(Cl)Cl.C(Cl)Cl.[Cl-].[Pt+2]	label	3A molecular sieves; returns a rhodium phosphine complex
+651	NaH2PO4	OP(=O)(O)[O-].[Na+]	ok	
+592	PCy3	C1CCC(CC1)P(C2CCCCC2)C3CCCCC3	ok	
+588	imine	C1CC[C@H]2[C@H](C1)N=CC3=NC(=CC=C3)C=N[C@@H]4CCCC[C@H]4N=CC5=CC=CC(=N5)C=N2	label	functional class; returns a macrocyclic Schiff base
+498	stannous chloride dihydrate	O.O.Cl[Sn]Cl	ok	
+488	KHCO3	C(=O)(O)[O-].[K+]	ok	
+485	N,N'-carbonyldiimidazole	C1=CN(C=N1)C(=O)N2C=CN=C2	ok	
+484	peroxide	OO	label	returns hydrogen peroxide, which is a guess at what was meant
+481	stannous chloride	Cl[Sn]Cl	ok	
+469	Mg	[Mg]	ok	
+448	NaIO4	[O-]I(=O)(=O)=O.[Na+]	ok	
+404	cuprous cyanide	[C-]#N.[Cu+]	ok	
+389	ferric chloride	Cl[Fe](Cl)Cl	ok	
+383	[Rh(cod)2]BF4	[B-](F)(F)(F)F.C1/C=C\CC/C=C\C1.C1/C=C\CC/C=C\C1.[Rh]	ok	
+382	Si	[Si]	ok	
+365	Na2S2O5	[O-]S(=O)S(=O)(=O)[O-].[Na+].[Na+]	ok	
+356	PtO2	[O-2].[O-2].[Pt+4]	ok	
+333	nylon	CCCCCC(=O)N	label	polymer
+333	raw material	COC(=O)[C@@H](CC1=CN=CN1)N.Cl	label	returns histidine methyl ester hydrochloride
+315	epoxide	C[C@@]12CC[C@@H]3[C@H](CC3(C)C)C(=C)CC[C@H]1O2	label	functional class; returns a terpene epoxide
+307	nitro	N(=O)[O]	label	functional group
+301	reduced iron	[Fe]	ok	
+301	thiol	S	label	functional group; returns hydrogen sulfide
+282	stannic chloride	Cl[Sn](Cl)(Cl)Cl	ok	
+276	mercuric chloride	Cl[Hg]Cl	ok	
+262	Boc	CC1([C@@H]2[C@H]1[C@H](N(C2)C(=O)[C@H](C(C)(C)C)NC(=O)NC(C)(C)C)C(=O)NC(CC3CCC3)C(=O)C(=O)N)C	label	protecting group; returns a peptide
+257	sulfonamide	C1=CC(=CC=C1N)S(=O)(=O)N	label	functional class; returns sulfanilamide
+249	Pd(OAc)2	CC(=O)[O-].CC(=O)[O-].[Pd+2]	ok	
+248	mercuric acetate	CC(=O)[O-].CC(=O)[O-].[Hg+2]	ok	
+244	FeCl3	Cl[Fe](Cl)Cl	ok	
+237	mercuric oxide	O=[Hg]	ok	
+233	cuprous bromide	[Cu]Br	ok	
+228	1,1-carbonyldiimidazole	C1=CN(C=N1)C(=O)N2C=CN=C2	ok	CDI under a nonstandard spelling
+224	diethyl ester	CCOC(=O)C1=CC=CC=C1C(=O)OCC	label	functional class; returns diethyl phthalate
+218	5u	C1=CC=C2C(=C1)N(C3=C(S2)C=CC(=C3)C(F)(F)F)C(=O)CN4C(=N)SC(=N4)C5=CC=CS5	label	compound label from a paper
+213	diazonium	[NH+]#N	label	functional group
+204	cuprous oxide	[O-2].[Cu+].[Cu+]	ok	
+201	oxide	[O-2]	label	returns the bare oxide dianion
+200	CaSO4	[O-]S(=O)(=O)[O-].[Ca+2]	ok	
+199	N,N-dicyclohexylcarbodiimide	C1CCC(CC1)N=C=NC2CCCCC2	ok	DCC
+197	acetal	CCOC(C)OCC	label	functional class; returns 1,1-diethoxyethane
+192	ceric ammonium nitrate	[NH4+].[NH4+].[N+](=O)([O-])[O-].[N+](=O)([O-])[O-].[N+](=O)([O-])[O-].[N+](=O)([O-])[O-].[N+](=O)([O-])[O-].[N+](=O)([O-])[O-].[Ce+4]	ok	
+192	Na2SO4.10H2O	O.O.O.O.O.O.O.O.O.O.[O-]S(=O)(=O)[O-].[Na+].[Na+]	ok	
+185	IV	CCC(C)C(C(=O)NC(C(C)C)C(=O)O)N	label	roman-numeral compound label; returns a dipeptide
+183	cupric acetate	CC(=O)[O-].CC(=O)[O-].[Cu+2]	ok	
+181	2B	CCCCCCCCCCCCCCCCCC[N+](C)(C)CC1=CC=CC=C1.[Cl-]	label	returns benzalkonium chloride
+181	CrO3	O=[Cr](=O)=O	ok	
+171	E1	CC[C@H](C)[C@@H](C(=O)N[C@@H](CC1=CC=C(C=C1)O)C=O)NC(=O)[C@H](CO)NC(=O)[C@H](CCCN=C(N)N)NC(=O)[C@H](C(C)C)NC(=O)[C@@H]2CCCN2C(=O)[C@@H]3CCCN3C(=O)[C@H](C)N	label	returns a peptide
+169	BOC	CC1([C@@H]2[C@H]1[C@H](N(C2)C(=O)[C@H](C(C)(C)C)NC(=O)NC(C)(C)C)C(=O)NC(CC3CCC3)C(=O)C(=O)N)C	label	same
