@@ -221,12 +221,27 @@ under a second on ten cores.
   what lets it stay per-dataset.
 - **D3 — Element binding is mandatory.** Finding 4 rules out reaction-granularity
   intersection outright; 94% wrong on a natural query is not a tradeoff.
-- **D4 — Open: B or E.** Both correct, both fast enough, and the choice is about compiler
-  surface rather than speed. B costs a second relation shape and 158 MB; E costs a
-  `structure_id` column inside the projection, which cuts against the projection being a
-  total restatement of the proto and nothing else. That contract question is the real
-  decision and it is not yet made. The general element address (finding 5) is the
-  future-proof form of E; nothing yet justifies its cost over structure ids.
+- **D4 — Resolved: E.** Both designs are correct and both are fast enough, so the choice
+  was about compiler surface rather than speed. E's cost is one opaque integer column on
+  each structure-bearing element inside the projection — derived data in the same sense
+  as the precision columns admitted in
+  [ord-schema#947](https://github.com/open-reaction-database/ord-schema/pull/947) —
+  whereas B forks the compiler's target model into two relation shapes permanently. The
+  general element address (finding 5) is the future-proof form of E; nothing yet
+  justifies its cost over structure ids.
+- **D6 — Refuse SMARTS with explicit hydrogens.** An explicit-H pattern is doubly broken:
+  it fails to match implicit-H targets directly, and — measured — `[H]OC` *fails the
+  fingerprint screen* against methanol even though the `MergeQueryHs`-transformed query
+  matches it. Explicit hydrogens are the one case where the screen produces false
+  negatives, silently violating the completeness invariant everything else rests on.
+  Detection is one line (any atom with atomic number 1 after `MolFromSmarts`, covering
+  `[H]`, `[#1]`, and isotopes like `[2H]`), and the refusal can point at the H-count form
+  (`[OX2H]`, `[NH2]`), which both matches and screens correctly.
+- **D7 — Standardization is deferred, deliberately.** Canonical tautomers and protonation
+  states affect SMILES, fingerprints, and serialized molecules alike — a query for the
+  neutral amine should arguably find the hydrochloride salt's cation. That is a
+  corpus-standardization question, not a predicate-design question, and it gets its own
+  entry once this work lands.
 - **D5 — Design around verification, not around screening.** It is the dominant cost and
   it cannot be tuned away (finding 3), but it can be collapsed: narrow by the query's
   sibling conjuncts (finding 6, up to 4,639×), verify from serialized molecules rather
