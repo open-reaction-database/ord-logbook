@@ -229,14 +229,24 @@ under a second on ten cores.
   whereas B forks the compiler's target model into two relation shapes permanently. The
   general element address (finding 5) is the future-proof form of E; nothing yet
   justifies its cost over structure ids.
-- **D6 — Refuse SMARTS with explicit hydrogens.** An explicit-H pattern is doubly broken:
-  it fails to match implicit-H targets directly, and — measured — `[H]OC` *fails the
-  fingerprint screen* against methanol even though the `MergeQueryHs`-transformed query
-  matches it. Explicit hydrogens are the one case where the screen produces false
-  negatives, silently violating the completeness invariant everything else rests on.
-  Detection is one line (any atom with atomic number 1 after `MolFromSmarts`, covering
-  `[H]`, `[#1]`, and isotopes like `[2H]`), and the refusal can point at the H-count form
-  (`[OX2H]`, `[NH2]`), which both matches and screens correctly.
+- **D6 — Rewrite SMARTS with explicit hydrogens; refuse only what cannot be rewritten.**
+  The artifact stores molecules built from SMILES, so their hydrogens are implicit and an
+  explicit-H pattern matches almost nothing: the query returns empty and says nothing
+  about why. `MergeQueryHs` folds the hydrogens into heavy-atom H-count constraints, and
+  the folded form matches — measured, `[H]OC` becomes `[O&!H0]C`, which both matches
+  methanol and screens for it. So the pattern is rewritten and a warning issued, rather
+  than refused. A hydrogen the merge cannot fold — isotopic (`[2H]`), or with no heavy
+  neighbor (`[H][H]`) — survives as an atomic-number-1 atom and *is* refused, because
+  folding it would silently drop the isotope constraint and change what the pattern means.
+
+  **Correction (2026-08-08).** This entry first claimed explicit-H patterns break the
+  screen's completeness — that `[H]OC` fails the fingerprint screen against methanol
+  "even though the merged query matches it." That comparison was between two different
+  queries. Measured properly, `[H]OC` against methanol gives `match=False, screen=False`:
+  the screen and the exact match agree, and across 221 explicit-H query/target pairs the
+  screen rejected **zero** true matches. The completeness invariant in finding 1 holds
+  without exception; the hazard is the empty result described above, not a false
+  negative.
 - **D7 — Standardization is deferred, deliberately.** Canonical tautomers and protonation
   states affect SMILES, fingerprints, and serialized molecules alike — a query for the
   neutral amine should arguably find the hydrochloride salt's cation. That is a
