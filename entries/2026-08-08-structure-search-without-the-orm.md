@@ -57,6 +57,8 @@ Everything ran against the local corpus projection (53 datasets, 2,428,291 react
 - `binding_bench.py` — how far reaction-granularity intersection diverges from binding.
 - `binding_designs.py` — the two binding designs, measured head to head.
 - `fp_precision.py` — screen precision versus fingerprint width, against ground truth.
+- `verify_narrowing.py` — whether the query's other predicates shrink the verification
+  set.
 
 Fingerprints are RDKit `PatternFingerprint` for substructure screening and Morgan for
 similarity, stored as fixed-width `BLOB` and read back with `CAST(fp AS BITSTRING)`.
@@ -168,6 +170,46 @@ The gap is real but irrelevant: verification costs 4.34 s for the same query, **
 architecture decision about how many relation shapes the compiler targets, not a
 performance decision, and it should be argued on that basis.
 
+There is also a fully general form of E worth recording even though nothing needs it yet:
+give every **element of a repeated field** a unique address — `(reaction_id, path,
+ordinal)`, or a dense id enumerating that repeated level corpus-wide — rather than giving
+ids only to distinct structures. Any externally-evaluated predicate (a structure match, a
+learned model scoring components, a property lookup against an outside database) could
+then return a set of *element* addresses, and composition with the rest of the query
+stays plain set intersection at element granularity instead of the reaction granularity
+finding 4 disqualifies. Structure ids are the cheap specialization: a substructure match
+is a property of the structure alone, so 763K structure ids do the work of 11.5M element
+addresses, and the match set compresses to a 746 KB bitmap. The general address only
+earns its cost when a predicate's answer varies *per occurrence* rather than per
+structure — and an address must carry its repeated level, so that `inputs.components`
+addresses never intersect with `outcomes.products` addresses.
+
+### 6. The query's other predicates collapse the verification set
+
+Verification only has to consider structures that could change the answer. When a
+quantifier constrains the same element with scalar predicates, only structures that
+survive the screen *and* occur in an element passing those predicates need verifying:
+
+| scenario | screen survivors | narrowed | ratio | verify eager → narrowed |
+| --- | --- | --- | --- | --- |
+| pyridine, unconstrained | 577,105 | 577,105 | 1× | 4.45 s → 4.46 s |
+| pyridine, as SOLVENT | 577,105 | 370 | 1,560× | 4.50 s → 0.57 s |
+| pyridine, SOLVENT > 5 mL | 577,105 | 136 | 4,243× | 4.50 s → 0.56 s |
+| carboxylic acid, as REAGENT | 505,653 | 109 | 4,639× | 3.90 s → 0.56 s |
+| boronic acid, REACTANT > 1 mmol | 22,215 | 398 | 56× | 0.81 s → 0.57 s |
+
+Only ~370 distinct structures are ever used as solvents and screen positive for pyridine.
+The 0.56 s floor is process-pool spawn, not matching — a persistent worker pool turns the
+narrowed cases into milliseconds. Narrowing is sound only for conjuncts in the same
+quantifier scope: under `or` or `not` it would change the answer, so those fall back to
+eager verification — a rule in the same style as the compiler's existing ones.
+
+The remaining eager cost also shrinks if the artifact carries serialized molecules:
+verifying from `Mol.ToBinary()` blobs instead of re-parsing SMILES runs at **93,095
+structures/s on one core versus 18,812** (4.9×), for ~327 B/structure — roughly 250 MB
+corpus-wide. That prices the worst case (an unconstrained pyridine-class query) at well
+under a second on ten cores.
+
 ## Conclusions / next steps
 
 - **D1 — No GiST-like index, and none is needed.** Parquet cannot express one; a columnar
@@ -183,14 +225,17 @@ performance decision, and it should be argued on that basis.
   surface rather than speed. B costs a second relation shape and 158 MB; E costs a
   `structure_id` column inside the projection, which cuts against the projection being a
   total restatement of the proto and nothing else. That contract question is the real
-  decision and it is not yet made.
-- **D5 — Design around verification, not around screening.** It is the dominant cost, it
-  cannot be tuned away (finding 3), and it is the natural thing to cache: the structures
-  artifact is immutable and deduplicated, so the verified match set for a given canonical
-  SMARTS is stable and a repeated query is free.
+  decision and it is not yet made. The general element address (finding 5) is the
+  future-proof form of E; nothing yet justifies its cost over structure ids.
+- **D5 — Design around verification, not around screening.** It is the dominant cost and
+  it cannot be tuned away (finding 3), but it can be collapsed: narrow by the query's
+  sibling conjuncts (finding 6, up to 4,639×), verify from serialized molecules rather
+  than SMILES (4.9×), keep a persistent worker pool, and cache the verified match set
+  keyed by `(artifact version, canonical SMARTS)` — the artifact is immutable and
+  deduplicated, so a repeated query is free.
 
-Similarity search is unblocked by any of this and could ship first: no verification, no
-binding subtlety beyond what the IR already does, and an 86 ms scan.
+Substructure is the priority; similarity falls out of the same artifact for free (an
+86 ms scan with no verification step) but is not the driver.
 
 ## References
 
