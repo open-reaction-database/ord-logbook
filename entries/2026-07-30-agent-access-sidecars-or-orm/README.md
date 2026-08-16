@@ -557,7 +557,7 @@ Open, and deliberately not decided here:
   `ord_schema/scripts/derive_views.py` in
   [ord-schema#914](https://github.com/open-reaction-database/ord-schema/pull/914).
 - Measurement scripts and a reproduction guide:
-  [`assets/`](assets/).
+  [`ASSETS.md`](ASSETS.md).
 - Prior entry this builds on: [2026-07-25 derived parquet sidecars](../2026-07-25-derived-parquet-sidecars/README.md).
 - RDKit cartridge operators and their index backing:
   <https://www.rdkit.org/docs/Cartridge.html>.

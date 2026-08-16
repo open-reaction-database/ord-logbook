@@ -1,6 +1,6 @@
 # Measurement scripts
 
-Scripts behind [2026-07-31 does the projection need a search index?](../../2026-07-31-projection-search-index/README.md).
+Scripts behind [2026-07-31 does the projection need a search index?](../2026-07-31-projection-search-index/README.md).
 
 | script | produces |
 | --- | --- |
@@ -13,7 +13,7 @@ single Parquet file; it does not read the nested projection (finding 4). Point t
 at an `ord-data` checkout and adjust the output path at the top before running.
 
 The nested projection those queries run against comes from `normalized_projection.py` in
-[the previous entry's assets](../../2026-07-30-agent-access-sidecars-or-orm/assets/).
+[the previous entry's assets](../2026-07-30-agent-access-sidecars-or-orm/ASSETS.md).
 
 Timings are single-process on an Apple silicon laptop, DuckDB 1.5.5, cold. They are
 meaningful as ratios between query formulations and between artifacts, rather than as

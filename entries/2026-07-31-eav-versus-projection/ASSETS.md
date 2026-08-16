@@ -1,6 +1,6 @@
 # Measurement scripts
 
-Scripts behind [2026-07-31 normalized EAV versus normalized projection](../../2026-07-31-eav-versus-projection/README.md).
+Scripts behind [2026-07-31 normalized EAV versus normalized projection](../2026-07-31-eav-versus-projection/README.md).
 
 | script | produces |
 | --- | --- |
@@ -13,9 +13,9 @@ two artifacts differ only in shape. It reads source protos through
 `parquet.iter_reactions`; adjust the input glob and output path at the top.
 
 The nested projection it is compared against comes from `normalized_projection.py` in
-[the agent-access entry's assets](../../2026-07-30-agent-access-sidecars-or-orm/assets/); the
+[the agent-access entry's assets](../2026-07-30-agent-access-sidecars-or-orm/ASSETS.md); the
 selection and wide-analysis timings come from the scripts in
-[the search-index entry's assets](../../2026-07-31-projection-search-index/assets/).
+[the search-index entry's assets](../2026-07-31-projection-search-index/ASSETS.md).
 
 Timings are single-process on an Apple silicon laptop and are meaningful as ratios
 between shapes rather than as absolute figures.

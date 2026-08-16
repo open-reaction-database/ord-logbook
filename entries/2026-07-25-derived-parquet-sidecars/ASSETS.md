@@ -1,6 +1,6 @@
 # Facts-tier derivation measurements
 
-Supporting files for [`entries/2026-07-25-derived-parquet-sidecars.md`](../../2026-07-25-derived-parquet-sidecars/README.md).
+Supporting files for [`entries/2026-07-25-derived-parquet-sidecars.md`](../2026-07-25-derived-parquet-sidecars/README.md).
 
 ## Files
 

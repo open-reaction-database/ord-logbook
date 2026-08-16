@@ -49,8 +49,8 @@ with:
 ## Method
 
 Everything ran against the local corpus projection (53 datasets, 2,428,291 reactions,
-1.5 GB) with DuckDB 1.5.5 and RDKit, on a 10-core laptop. Scripts are in
-[`assets/`](assets/):
+1.5 GB) with DuckDB 1.5.5 and RDKit, on a 10-core laptop. Scripts sit beside this
+entry:
 
 - `fp_bench.py` — scan cost at 1M rows, and whether sort order buys pruning.
 - `real_bench.py` — screen and verify against real ORD structures.
@@ -272,8 +272,7 @@ Substructure is the priority; similarity falls out of the same artifact for free
   (projection/view parent-child derivation),
   [ord-schema#948](https://github.com/open-reaction-database/ord-schema/pull/948) (the query IR),
   [ord-schema#949](https://github.com/open-reaction-database/ord-schema/pull/949) (schema description).
-- Scripts and raw output:
-  [`assets/`](assets/).
+- Scripts and raw output: beside this entry.
 - DuckDB bit functions (`bit_count`, `get_bit`, `&` on `BITSTRING`):
   <https://duckdb.org/docs/stable/sql/functions/bitstring>.
 - RDKit fingerprints used for screening: <https://rdkit.org/docs/RDKit_Book.html#pattern-fingerprints>.

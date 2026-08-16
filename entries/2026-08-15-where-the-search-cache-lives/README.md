@@ -64,7 +64,7 @@ laptop, DuckDB 1.5.5, single process.
 `duckdb_memory()` filtered to `tag = 'IN_MEMORY_TABLE'`, taken as a delta across each
 `CREATE TABLE` — not `duckdb_tables().estimated_size`, which reports a row count.
 
-Scripts are in [`assets/`](assets/):
+Scripts are in [`ASSETS.md`](ASSETS.md):
 
 | script | what it measures |
 | --- | --- |
@@ -265,8 +265,8 @@ which is a smaller claim and a fully measured one.
 The pivot shipped as `ord_schema.search.pivot` in
 [ord-schema#965](https://github.com/open-reaction-database/ord-schema/pull/965); the
 design and the implementation plan are kept beside this entry as
-[the design](assets/pivoted-element-index-design.md)
-and [the plan](assets/pivoted-element-index-plan.md).
+[the design](pivoted-element-index-design.md)
+and [the plan](pivoted-element-index-plan.md).
 Three things it settled that this entry left open, and one it did not:
 
 **Quantifier semantics agree, and correlation needs the whole ordinal prefix.** Over the
@@ -325,6 +325,6 @@ is the fix and is not built.
   occurrence index, spent one quantifier at a time
 - [ord-schema#964](https://github.com/open-reaction-database/ord-schema/pull/964) — the
   narrow-table memory budget
-- Scripts: [`assets/`](assets/)
+- Scripts: [`ASSETS.md`](ASSETS.md)
 - [Streamlining access to tabular datasets stored in Amazon S3 Tables with DuckDB](https://aws.amazon.com/blogs/storage/streamlining-access-to-tabular-datasets-stored-in-amazon-s3-tables-with-duckdb/)
   — AWS Storage Blog, the S3 Tables walkthrough assessed in finding 8

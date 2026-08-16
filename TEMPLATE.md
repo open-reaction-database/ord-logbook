@@ -21,7 +21,8 @@ rather than pasting large blocks. Enough detail that the work is reproducible.
 
 ## Findings
 
-Results, figures, and tables. Put figures in this entry's `assets/`.
+Results, figures, and tables. Put figures in this entry's directory, beside this
+file.
 
 ## Conclusions / next steps
 

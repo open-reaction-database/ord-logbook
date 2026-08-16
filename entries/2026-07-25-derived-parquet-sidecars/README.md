@@ -97,13 +97,13 @@ the git history than they do now for identical files.
 The sidecar cost in finding 6 is a real derivation, not an estimate. A tier-1 transform
 was run over all 53 parquet datasets — script, per-dataset results, and a reproduction
 guide in
-[`assets/`](assets/)
+[`ASSETS.md`](ASSETS.md)
 — reading `parquet.iter_reactions` → flat columns, written with the same zstd codec the
 source uses.
 
 Two runs stand behind the numbers here, and they differ enough to name separately:
 
-- **The scoping run** (`derive_facts.py`, in `assets/`) derived all 52 non-USPTO
+- **The scoping run** ([`derive_facts.py`](derive_facts.py)) derived all 52 non-USPTO
   datasets in full and sampled USPTO at 200 evenly-spaced row groups (200,000 of
   1,771,032 rows, 11.3%) — spaced rather than a leading prefix, since its row groups are
   in source order. It read component SMILES straight out of `SMILES` identifier values
@@ -733,7 +733,7 @@ endpoint to detect it.
   (`check_file_types`), `scripts/upload_to_huggingface.py` (`MIRROR_PATHSPECS`),
   `.lfsconfig`.
 - Scoping-run script, per-dataset results, and reproduction guide:
-  [`assets/`](assets/).
+  [`ASSETS.md`](ASSETS.md).
 - Shipped implementation, and the source of the re-measured figures: `ord-schema`
   `ord_schema/views.py` and `ord_schema/scripts/derive_views.py`, in
   [ord-schema#914](https://github.com/open-reaction-database/ord-schema/pull/914).

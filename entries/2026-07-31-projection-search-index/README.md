@@ -75,7 +75,7 @@ Measured against the normalized total projection of `ord-data` `main` at `e01772
 fact table built for this entry. DuckDB 1.5.5, single laptop process, cold.
 
 The fact table is built by
-[`assets/component_facts.py`](assets/component_facts.py),
+[`component_facts.py`](component_facts.py),
 reading source protos through `parquet.iter_reactions` — *not* the projection. It emits
 one row per non-structural identifier per component, carrying the canonical `smiles`
 alongside, and one row for components that have no non-structural identifier at all, so
@@ -212,7 +212,7 @@ dominating, 186 MB and 8.7 minutes is a cheap answer waiting to be published.
   The un-normalized total EAV already undercuts the raw projection on USPTO bytes, so the
   two-artifact plan may be one artifact too many. What is needed is a normalized total
   EAV over the full corpus, measured for size, build time, and the same query set — the
-  prototypes in `assets/` do two datasets un-normalized. **This is the open decision; the
+  prototypes beside this entry do two datasets un-normalized. **This is the open decision; the
   rest of this log is contingent on it.**
 - **D3 — Document the `UNNEST` trap wherever the nested form ships.** A consumer reaching
   for the idiomatic form gets 27–200× worse performance and will conclude the artifact is
@@ -243,6 +243,6 @@ D4 needs revisiting rather than extending.
   because the foreign keys point at different parents), `ord_schema/orm/rdkit_mappers.py`
   (`RDKitMols`, role-agnostic and deduplicated by SMILES).
 - Fact-table builder and query scripts:
-  [`assets/`](assets/).
+  [`ASSETS.md`](ASSETS.md).
 - DuckDB list lambdas (`list_transform`, `list_filter`, `flatten`):
   <https://duckdb.org/docs/stable/sql/functions/lambda>.

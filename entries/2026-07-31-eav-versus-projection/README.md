@@ -68,7 +68,7 @@ Sizes are decimal.
 Both artifacts are built directly from the source protos, not from each other — see
 [finding 4 of the search-index entry](../2026-07-31-projection-search-index/README.md#4-the-two-artifacts-are-peers-not-a-chain).
 Scripts are in
-[`assets/`](assets/).
+[`ASSETS.md`](ASSETS.md).
 
 Two caveats on scope. The selection timings compare the projection against the
 *component* fact table from the previous entry (17,021,402 rows, 186.2 MB), which covers
@@ -299,6 +299,6 @@ pivoted table rather than the EAV being argued about.
   (the open decision this addresses), [2026-07-30 unlocking agents](../2026-07-30-agent-access-sidecars-or-orm/README.md)
   (the projection and its normalizations), [2026-07-25 derived parquet sidecars](../2026-07-25-derived-parquet-sidecars/README.md)
   (tier-1 contract and the sparsity that finding 2 turns on).
-- Scripts: [`assets/`](assets/),
+- Scripts: [`ASSETS.md`](ASSETS.md),
   and the projection and fact-table builders in the two prior entries' assets.
 - DuckDB list lambdas: <https://duckdb.org/docs/stable/sql/functions/lambda>.
