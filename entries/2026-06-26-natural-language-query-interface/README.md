@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft
 - **Tags:** ord-interface, search, llm, natural-language, claude, ux
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

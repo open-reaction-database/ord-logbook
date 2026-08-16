@@ -43,5 +43,11 @@ repos:
         entry: python3 .github/scripts/check_links.py
         language: system
         files: \.md$
-        # The checker walks every tracked file itself.
+        # The checkers walk every tracked file themselves.
+        pass_filenames: false
+      - id: check-metadata
+        name: check entry metadata
+        entry: python3 .github/scripts/check_metadata.py
+        language: system
+        files: ^entries/.*\.md$
         pass_filenames: false

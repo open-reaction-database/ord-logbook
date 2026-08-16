@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** final (pivot shipped in ord-schema#965; the cache is 381 MiB and belongs on S3)
 - **Tags:** ord-schema, agents, duckdb, projection, parquet, aws, fargate, s3, caching, indexing
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

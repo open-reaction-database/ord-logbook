@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft (3.54× measured in CI; structural decisions recorded)
 - **Tags:** performance, validation, ord-schema, ord-data, ci, rdkit, profiling
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

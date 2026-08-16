@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft
 - **Tags:** classification, rxno, namerxn, rxn-insight, rxnfp, syncat, reactionclassifier, atom-mapping, ontology, benchmark
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

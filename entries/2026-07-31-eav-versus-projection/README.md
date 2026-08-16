@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** final (decision: ship the projection; pure EAV is dominated)
 - **Tags:** ord-data, ord-schema, parquet, duckdb, agents, eav, indexing, design
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

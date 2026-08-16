@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft (proposal; prototype measured, not built)
 - **Tags:** ord-schema, agents, nl-query, duckdb, projection, design
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

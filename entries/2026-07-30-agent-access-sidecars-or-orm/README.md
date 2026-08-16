@@ -5,6 +5,7 @@
 - **Status:** draft (recommendation settled; scope of the expansion open)
 - **Tags:** ord-data, ord-schema, ord-interface, parquet, duckdb, agents, orm, rdkit,
   design, data-contracts
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

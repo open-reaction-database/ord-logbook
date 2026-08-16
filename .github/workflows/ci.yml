@@ -52,6 +52,13 @@ jobs:
       - name: Check relative Markdown links
         run: python3 .github/scripts/check_links.py
 
+  metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check entry metadata
+        run: python3 .github/scripts/check_metadata.py
+
   file-size:
     runs-on: ubuntu-latest
     env:

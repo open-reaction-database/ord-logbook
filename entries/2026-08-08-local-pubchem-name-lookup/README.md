@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft
 - **Tags:** resolvers, pubchem, name-resolution, duckdb, parquet, sqlite, rate-limits, data-packaging
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

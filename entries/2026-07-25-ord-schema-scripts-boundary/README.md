@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft (decided; migration not yet done)
 - **Tags:** ord-schema, ord-data, packaging, ci, testing, refactor
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

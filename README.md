@@ -18,9 +18,11 @@ entries/YYYY-MM-DD-slug/
 TEMPLATE.md   copy this to start a new entry
 ```
 
-CI lints Markdown, checks that relative links resolve, and rejects oversized files
-on every push and pull request (see `.github/workflows/ci.yml`). The same checks run
-locally via [pre-commit](https://pre-commit.com) — install once with:
+On every push and pull request, CI lints Markdown, checks that relative links
+resolve and that each entry's metadata block is filled in, verifies license headers
+on source files, and rejects oversized files (see `.github/workflows/ci.yml`). The
+same checks run locally via [pre-commit](https://pre-commit.com) — install once
+with:
 
 ```bash
 pre-commit install

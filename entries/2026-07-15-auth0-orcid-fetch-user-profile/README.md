@@ -4,6 +4,7 @@
 - **Author:** Claude Code (Fable 5), for Steven Kearnes
 - **Status:** archived reference
 - **Tags:** ord-app, auth0, orcid, authentication, configuration
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Context
 

@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft (one decision open: does the fact table replace the projection?)
 - **Tags:** ord-data, ord-schema, parquet, duckdb, agents, indexing, design
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

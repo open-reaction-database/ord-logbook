@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** draft
 - **Tags:** performance, ingest, orm, database, aurora, cost
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

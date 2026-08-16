@@ -4,6 +4,7 @@
 - **Author:** <name>
 - **Status:** draft | final
 - **Tags:** <comma-separated topics>
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

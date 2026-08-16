@@ -4,6 +4,7 @@
 - **Author:** Steven Kearnes
 - **Status:** in progress (structures artifact and projection ids shipped in [ord-schema#956](https://github.com/open-reaction-database/ord-schema/pull/956); the query predicate and executor are not yet built)
 - **Tags:** ord-schema, agents, nl-query, duckdb, projection, rdkit, structure-search
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

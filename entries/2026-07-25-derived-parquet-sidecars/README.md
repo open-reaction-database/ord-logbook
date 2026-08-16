@@ -5,6 +5,7 @@
 - **Status:** draft (design settled; tier 1 implemented in ord-schema#914, not merged)
 - **Tags:** ord-data, ord-schema, parquet, derived, agents, huggingface, duckdb, design,
   data-contracts
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 

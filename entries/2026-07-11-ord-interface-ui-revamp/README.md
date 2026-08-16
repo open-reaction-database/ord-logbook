@@ -5,6 +5,7 @@
 - **Status:** draft — PR open:
   [ord-interface#210](https://github.com/open-reaction-database/ord-interface/pull/210)
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, landing-page, code-reuse
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 
