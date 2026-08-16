@@ -51,7 +51,7 @@ This repository carries two licenses, because it holds both writing and code:
 | what | license | file |
 | --- | --- | --- |
 | The entries themselves, and the figures and data extracts beside them | [CC-BY-SA-4.0](LICENSE) | `LICENSE` |
-| The scripts under `entries/` and the workflows under `.github/` | [Apache-2.0](LICENSE-CODE) | `LICENSE-CODE` |
+| The scripts under `entries/`, and the workflows and scripts under `.github/` | [Apache-2.0](LICENSE-CODE) | `LICENSE-CODE` |
 
 CC-BY-SA-4.0 matches [ord-data](https://github.com/Open-Reaction-Database/ord-data),
 so a figure or table can move between the two repositories without a license change.
