@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-15
 - **Author:** Steven Kearnes
-- **Status:** approved, phase 1 and phase 2 in implementation
+- **Status:** implemented in ord-schema#965, with two departures noted below
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Problem
@@ -137,15 +137,22 @@ projection can still answer it.
 
 ### Not in phase 1
 
-- **Nested correlation.** A quantifier inside a quantifier keeps compiling to the
-  lambda form. The prefix-join machinery is real work, and the single-level route
-  already covers yield, color, temperature, role, and amounts.
-- **Subsuming the occurrence index.** A pivot carries `structure_id`, so
-  `get_bit($p, x.structure_id + offset) = 1` works against it, and it carries every
-  other scalar field besides — so it answers strictly more than `_index_condition`,
-  including bodies that decline today for binding a second field. Collapsing them is
-  the likely end state, but it should follow a measurement showing the occurrence index
-  no longer earns its 130 MiB, not happen as a side effect of this change.
+Both of these were deferred here, and both moved afterwards:
+
+- **Nested correlation.** Planned to keep compiling to the lambda form; **built**
+  instead. A quantifier inside a pivoted one now becomes a semi-join against the child
+  level's pivot, joined on the reaction and every ordinal the enclosing level carries.
+  It also had to be offered *before* the path is resolved, because inside a pivot it
+  cannot be: the enclosing element's type is pruned of exactly the repeated fields a
+  nested quantifier ranges over.
+- **Subsuming the occurrence index.** Still **not done**, and the measurement this
+  deferral asked for argues against it while pivots are built in process: the index is
+  130 MiB covering four structure paths, where the pivots replacing it are 0.45 and
+  1.61 GiB for two levels alone. What did have to be built first is coverage for
+  `outcomes.products.measurements.authentic_standard` — the one occurrence-indexed path
+  that is *not* a repeated level, which subsumption would otherwise have silently
+  dropped. A quantifier reaching a singular struct beneath a level is now answered from
+  that level's pivot.
 
 ## Phase 2 — the derived artifact
 
