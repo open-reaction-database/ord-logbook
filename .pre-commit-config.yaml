@@ -1,3 +1,17 @@
+# Copyright 2026 Open Reaction Database Project Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Run `pre-commit install` once to enable these hooks locally.
 # See https://pre-commit.com.
 repos:
@@ -11,3 +25,29 @@ repos:
       # Mirror the CI 1 MiB limit (maxkb is in KiB).
       - id: check-added-large-files
         args: [--maxkb=1024]
+  # Only reaches code: addlicense has no comment syntax for Markdown, so entries
+  # carry their CC-BY-SA-4.0 claim in README.md and LICENSE instead.
+  - repo: https://github.com/google/addlicense
+    rev: v1.2.0
+    hooks:
+      - id: addlicense
+        args:
+          - -c
+          - Open Reaction Database Project Authors
+          - -l
+          - apache
+  - repo: local
+    hooks:
+      - id: check-links
+        name: check relative Markdown links
+        entry: python3 .github/scripts/check_links.py
+        language: system
+        files: \.md$
+        # The checkers walk every tracked file themselves.
+        pass_filenames: false
+      - id: check-metadata
+        name: check entry metadata
+        entry: python3 .github/scripts/check_metadata.py
+        language: system
+        files: ^entries/.*\.md$
+        pass_filenames: false

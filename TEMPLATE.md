@@ -4,6 +4,7 @@
 - **Author:** <name>
 - **Status:** draft | final
 - **Tags:** <comma-separated topics>
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Question
 
@@ -21,7 +22,8 @@ rather than pasting large blocks. Enough detail that the work is reproducible.
 
 ## Findings
 
-Results, figures, and tables. Put figures in `assets/<entry-slug>/`.
+Results, figures, and tables. Put figures in this entry's directory, beside this
+file.
 
 ## Conclusions / next steps
 
@@ -29,4 +31,5 @@ What this means and what to do next, if anything.
 
 ## References
 
-Links to data, PRs, issues, prior entries (`entries/...`), and external sources.
+Links to data, PRs, issues, prior entries (`../<entry-slug>/README.md`), and
+external sources.
