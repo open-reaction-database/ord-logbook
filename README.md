@@ -46,6 +46,12 @@ moves and reads as one unit. Once there are enough supporting files that a reade
 would have to guess what they are, add an `ASSETS.md` saying what each one produces.
 For anything large or binary-heavy, link out rather than committing it here.
 
+Every Markdown file under `entries/` opens with a metadata block. An entry states
+its `Date`, `Author`, `Status`, `Tags`, and `License`; a supporting document beside
+it — a manifest, a design note, a plan — states `Date`, `Author`, and `License`,
+since status and tags describe the investigation rather than the file. The stated
+date is the entry's own, matching the directory name.
+
 ## License
 
 This repository carries two licenses, because it holds both writing and code:

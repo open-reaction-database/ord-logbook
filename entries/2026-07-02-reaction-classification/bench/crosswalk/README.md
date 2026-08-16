@@ -1,5 +1,9 @@
 # ReactionClassifier → RXNO crosswalk
 
+- **Date:** 2026-07-02
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Scopes and drafts a map from ReactionClassifier's private taxonomy (6,926
 operational classes) to the RXNO Name Reaction Ontology. See the entry's
 "Mapping ReactionClassifier → RXNO" section for results and interpretation.

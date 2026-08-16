@@ -1,5 +1,9 @@
 # Pivoted Element Index Implementation Plan
 
+- **Date:** 2026-08-15
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Answer quantifiers over repeated levels with a semi-join against a flat

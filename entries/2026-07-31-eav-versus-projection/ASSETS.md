@@ -1,5 +1,9 @@
 # Measurement scripts
 
+- **Date:** 2026-07-31
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Scripts behind [2026-07-31 normalized EAV versus normalized projection](../2026-07-31-eav-versus-projection/README.md).
 
 | script | produces |
