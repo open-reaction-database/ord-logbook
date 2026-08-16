@@ -109,37 +109,37 @@ Two further results, both independent of whether we build the index:
   a re-download rather than a diff. NCBI places no restrictions on redistribution.
   *Filtered* rather than *unfiltered* synonyms: the filtered list has names PubChem
   considers inconsistent with the structure already removed, and is 600 MB smaller.
-- **Index build** ([`build_index.py`](build_index.py)):
+- **Index build** ([`build_index.py`](assets/build_index.py)):
   DuckDB reads both gzip files directly, lowercases and trims each synonym, collapses to
   one CID per name, joins to the SMILES table, and writes a name-sorted ZSTD Parquet plus
   a `WITHOUT ROWID` SQLite table keyed on the name. Lowercasing matches the
   case-insensitivity of PubChem's REST name lookup. Where a name matches several CIDs the
   index keeps the lowest, PubChem's oldest record for that name, and stores the match
   count so a caller can treat an ambiguous hit differently.
-- **Evaluation set** ([`prep_testset.py`](prep_testset.py)):
+- **Evaluation set** ([`prep_testset.py`](assets/prep_testset.py)):
   the 46,831 names from [2026-07-11](../2026-07-11-name-only-compounds/README.md) that survived
   junk filtering, joined to their ORD row counts and to what OPSIN/CIR made of each. That
   entry ran with PubChem deliberately skipped, so its misses are exactly the population
   this index is supposed to serve.
-- **Live baseline** ([`probe_api.py`](probe_api.py)):
+- **Live baseline** ([`probe_api.py`](assets/probe_api.py)):
   the same URLs `_pubchem_resolve` and `_cactus_resolve` build, paced at 3
   requests/second against PubChem's documented ceiling of 5/second and 400/minute. Three
   samples: 400 names drawn from the 2026-07-11 misses, the 300 candidate names carrying
   the most ORD rows, and — against CIR — 400 names the local index failed to resolve.
   Each response's `X-Throttling-Control` header, line count, and wall time are recorded.
-- **Scoring** ([`eval_lookup.py`](eval_lookup.py)):
+- **Scoring** ([`eval_lookup.py`](assets/eval_lookup.py)):
   coverage by name and by ORD row; agreement with the live probes compared as RDKit
   canonical SMILES, which is the form `resolvers.canonicalize_smiles` writes, so two
   spellings of one molecule count as agreement and a different molecule does not; and
   lookup latency for both storage forms, cold and warm.
-- **Quality review** ([`review_top_hits.py`](review_top_hits.py)):
+- **Quality review** ([`review_top_hits.py`](assets/review_top_hits.py)):
   the 60 hits with the most ORD rows behind them, graded by hand as `ok` or `label`.
   Verdicts are recorded in the script so the judgement is visible and re-runnable.
-- **Local OPSIN** ([`bench_opsin.py`](bench_opsin.py)):
+- **Local OPSIN** ([`bench_opsin.py`](assets/bench_opsin.py)):
   `py2opsin` 1.2.0 on conda-forge `openjdk` 25.0.2, run both as one JVM over the whole
   candidate set and as one JVM per name, and swept across OPSIN's permissiveness flags
   against the 2026-07-11 web-service results.
-- **Other sources** ([`chembl_overlap.py`](chembl_overlap.py)):
+- **Other sources** ([`chembl_overlap.py`](assets/chembl_overlap.py)):
   `molecule_synonyms` joined to `compound_structures` from the ChEMBL 37 SQLite release,
   normalized the same way, scored against both the PubChem index and the ORD candidate
   names.
@@ -225,7 +225,7 @@ folds it; an index keyed on the lowercased string does not, because the bulk fil
 that synonym `n,n'-carbonyldiimidazole`.
 
 Folding lookalike punctuation on the query side
-([`normalize_gap.py`](normalize_gap.py) —
+([`normalize_gap.py`](assets/normalize_gap.py) —
 primes, curly quotes, the dash family, non-breaking and zero-width spaces) recovers
 **57 names and 2,643 ORD rows**, taking coverage from 3,436 to 3,493 names. It is
 query-side only: exactly **one** of the 117M index keys contains a foldable character, so
@@ -310,7 +310,7 @@ wherever the letters alone could begin a real name.
 ### 7. The index reproduces PubChem's label collisions, 20,000× faster
 
 Grading the 60 hits with the most ORD rows behind them
-([`top_hits_reviewed.tsv`](top_hits_reviewed.tsv)):
+([`top_hits_reviewed.tsv`](assets/top_hits_reviewed.tsv)):
 
 | verdict | names | rows | share of reviewed rows |
 | --- | --- | --- | --- |
@@ -371,7 +371,7 @@ deterministic in tests and in CI.
 
 `_opsin_resolve` posts to `https://www.ebi.ac.uk/opsin/ws/`, one request per name. OPSIN
 is a Java library; `py2opsin` runs the jar. Both shapes were measured
-([`bench_opsin.py`](bench_opsin.py)):
+([`bench_opsin.py`](assets/bench_opsin.py)):
 
 | shape | time |
 | --- | --- |
@@ -599,4 +599,4 @@ collapses back to the batch case, and the batch case is four hours of patience.
   (`chembl_37_sqlite.tar.gz`, 5.4 GB).
 - [`py2opsin`](https://pypi.org/project/py2opsin/) 1.2.0, wrapping the
   [OPSIN](https://github.com/dan2097/opsin) jar.
-- Scripts and data: [`ASSETS.md`](ASSETS.md).
+- Scripts and data: [`assets/`](assets/).

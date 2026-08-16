@@ -53,7 +53,7 @@ Four classifiers timed on the **same 1,572 real ORD reactions**, sampled from `o
 - The **rxnfp** head was trained on the bundled Schneider-50k fingerprints (**0.994** test accuracy).
 - **SynCat** runs its shipped `model_schneider.pt`; its output-index → NameRxn-code map was calibrated on the Schneider test split (**0.976** recovered; the paper reports 0.988).
 
-Scripts and a reproduction guide: [`bench/`](bench/).
+Scripts and a reproduction guide: [`assets/bench/`](assets/bench/).
 
 ### ReactionClassifier → RXNO crosswalk
 
@@ -62,7 +62,7 @@ Two passes over all 6,926 ReactionClassifier (RXC) classes, targeting RXNO's 653
 1. **String/synonym baseline** — match RXC class descriptions against RXNO and MOP names and synonyms.
 2. **LLM pass** — 47 parallel agents, one judgment per distinct reaction description, the full RXNO vocabulary in context, `sonnet`. Agents were instructed to prefer the most specific term, to never invent an ID, and to return **null** when no RXNO term genuinely matches.
 
-Scripts and the draft map: [`bench/crosswalk/`](bench/crosswalk/).
+Scripts and the draft map: [`assets/bench/crosswalk/`](assets/bench/crosswalk/).
 
 ## Findings
 
@@ -287,7 +287,7 @@ Treat that as a lead to test, not a settled result: these rates come from a sing
 ## References
 
 - Prior entry: [2026-07-02 Full-ORD end-to-end run](../2026-07-02-full-ord-e2e-run-classification-wall/README.md) (classification CPU wall).
-- Benchmark scripts and reproduction guide: [`bench/`](bench/); crosswalk scripts and draft map: [`bench/crosswalk/`](bench/crosswalk/).
+- Benchmark scripts and reproduction guide: [`assets/bench/`](assets/bench/); crosswalk scripts and draft map: [`assets/bench/crosswalk/`](assets/bench/crosswalk/).
 - Rxn-INSIGHT: paper <https://pmc.ncbi.nlm.nih.gov/articles/PMC10980627/>, repo <https://github.com/mrodobbe/Rxn-INSIGHT>
 - RXNO: OBO Foundry <https://obofoundry.org/ontology/rxno.html>, repo <https://github.com/rsc-ontologies/rxno>, browser <https://www.ebi.ac.uk/ols4/ontologies/rxno>
 - NameRxn (NextMove): <https://www.nextmovesoftware.com/namerxn.html>

@@ -76,7 +76,7 @@ Measured against the normalized total projection of `ord-data` `main` at `e01772
 fact table built for this entry. DuckDB 1.5.5, single laptop process, cold.
 
 The fact table is built by
-[`component_facts.py`](component_facts.py),
+[`component_facts.py`](assets/component_facts.py),
 reading source protos through `parquet.iter_reactions` — *not* the projection. It emits
 one row per non-structural identifier per component, carrying the canonical `smiles`
 alongside, and one row for components that have no non-structural identifier at all, so
@@ -244,6 +244,6 @@ D4 needs revisiting rather than extending.
   because the foreign keys point at different parents), `ord_schema/orm/rdkit_mappers.py`
   (`RDKitMols`, role-agnostic and deduplicated by SMILES).
 - Fact-table builder and query scripts:
-  [`ASSETS.md`](ASSETS.md).
+  [`assets/`](assets/).
 - DuckDB list lambdas (`list_transform`, `list_filter`, `flatten`):
   <https://duckdb.org/docs/stable/sql/functions/lambda>.
