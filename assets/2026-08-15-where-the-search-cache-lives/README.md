@@ -16,6 +16,12 @@ builds to take about half an hour over the full corpus.
 | `probe_flat_parquet.py` | the same queries read from Parquet, cold and warm, across memory limits | 3, 6 |
 | `probe_flat_subset.py` | the same sizes from a row sample, as a cheap stand-in for the full build | 5 |
 
+Beside them are the two documents the implementation was written from:
+`pivoted-element-index-design.md`, which settles what a pivot holds and why, and
+`pivoted-element-index-plan.md`, the task-by-task plan built from it. They live here
+rather than in ord-schema because they describe a decision and its reasoning rather than
+the code that resulted, which the repository already carries.
+
 `probe_flat_subset.py` samples by row. It replaces an earlier version that sampled four
 projection *directories*, which finding 5 describes: one directory holds 88% of this
 corpus, so that version drew 1,486 of 2,428,291 reactions and its extrapolation was noise.

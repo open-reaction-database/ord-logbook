@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-15
 - **Author:** Steven Kearnes
-- **Status:** final (recommendation: pivot the predicate paths; the cache is 381 MiB and belongs on S3)
+- **Status:** final (pivot shipped in ord-schema#965; the cache is 381 MiB and belongs on S3)
 - **Tags:** ord-schema, agents, duckdb, projection, parquet, aws, fargate, s3, caching, indexing
 
 ## Question
@@ -260,22 +260,59 @@ This closes, for the executor's purposes, the open question
 does not replace the projection, but it *does* replace the projection **as a query cache**,
 which is a smaller claim and a fully measured one.
 
-Next steps, in order:
+### What was built
 
-1. **Settle `forall` / `not exists` on the pivoted shape.** A reaction with no measurements
-   has no rows in `measurement`, so the anti-join must be written to agree with the nested
-   path's NULL-level semantics. This entry measured only `exists`-shaped predicates. Two
-   bugs of exactly this class have already shipped and been fixed in this stack.
-2. **Measure a genuinely cold read from real S3**, which finding 6 could not produce.
-3. **Derive the pivoted tables as stamped artifacts**, alongside the occurrence index and a
-   serialized `SubstructLibrary`, so a container loads rather than builds. The 32-minute
-   build belongs in a batch job — plausibly Athena.
-4. **Reassess the narrow-table subsystem.** If DuckDB's external file cache over flat
+The pivot shipped as `ord_schema.search.pivot` in
+[ord-schema#965](https://github.com/open-reaction-database/ord-schema/pull/965); the
+design and the implementation plan are kept beside this entry as
+[the design](../assets/2026-08-15-where-the-search-cache-lives/pivoted-element-index-design.md)
+and [the plan](../assets/2026-08-15-where-the-search-cache-lives/pivoted-element-index-plan.md).
+Three things it settled that this entry left open, and one it did not:
+
+**Quantifier semantics agree, and correlation needs the whole ordinal prefix.** Over the
+whole corpus, `exists`, `not exists`, `forall`, and a body whose leaf is NULL all return
+identical reaction-ID sets on both routes. The correlation is the part that had to be
+built rather than checked: "a desired product with a yield above 50%" answers 22,666
+reactions on `(reaction_id, outcome_index, product_index)` and **23,608** on anything
+less — 942 wrong. Since ORD is effectively single-outcome, dropping the *outcome*
+ordinal changes nothing at all, so only a corpus stating both products in one outcome
+exposes the product-level error.
+
+**Answered end to end, warm, against the same queries over the elements:**
+
+| query | pivot | elements |
+| --- | --- | --- |
+| a white product | 0.050s | 0.936s |
+| yield > 50% | 0.086s | 2.758s |
+| every product is desired | 0.070s | 2.055s |
+| **not** a yield above 50% | 0.098s | 3.480s |
+| a solvent input | 0.178s | 4.229s |
+
+**Building one is far more expensive than the column it competes with.** The question
+this entry left unmeasured now has an answer, and it is lopsided: a pivot over
+`outcomes.products` is **0.45 GiB built in 461 s**, where materializing the whole nested
+`outcomes` column is **3.23 GiB in 4.1 s**. Seven times smaller to hold, and a hundred
+times slower to build. That is the case for artifacts stated in numbers: the size win is
+real and the build belongs offline, which is what `scripts/derive_pivots.py` and
+`Corpus(pivots_dir=...)` are for.
+
+**Pruning only the repeated fields is too coarse.** A `workups` element carries a whole
+`ReactionInput` besides, so its pivot is **4.4 GiB** against the nested column's 5.08 —
+a 13% reduction, where five hand-picked leaves gave 0.78 GiB. It exceeds the 4 GiB
+default budget, is refused, and the projection answers. Pruning to referenced subtrees
+is the fix and is not built.
+
+### Still open
+
+1. **Measure a genuinely cold read from real S3**, which finding 6 could not produce.
+2. **Reassess the narrow-table subsystem.** If DuckDB's external file cache over flat
    Parquet performs as findings 2 and 3 suggest, the budget, LRU, eviction, and refusal
    machinery in [ord-schema#964](https://github.com/open-reaction-database/ord-schema/pull/964)
-   is replaced by `memory_limit`, at column-chunk granularity rather than whole top-level
-   columns. Not yet actionable — it rests on the unmeasured S3 step above, and #964 is
-   correct on its own terms.
+   is replaced by `memory_limit`, at column-chunk granularity rather than whole
+   top-level columns. It rests on the unmeasured S3 step above, and #964 is correct on
+   its own terms.
+3. **Derive a serialized `SubstructLibrary`** as an artifact too, so the ~1.5 GiB that
+   pins a resident process is loaded rather than built.
 
 ## References
 
