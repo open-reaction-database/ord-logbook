@@ -128,5 +128,5 @@ For the current run: **let it finish** — it is ~88% through the worst pass, an
 - [ord-schema#872](https://github.com/open-reaction-database/ord-schema/issues/872) — set-based compound SMILES derivation.
 - [ord-schema#873](https://github.com/open-reaction-database/ord-schema/issues/873) — COPY-based bulk ingest.
 - [ord-schema#864](https://github.com/open-reaction-database/ord-schema/pull/864) — batched derived passes (bounded the memory footprint; the pattern to extend to compounds).
-- Prior entry: [`entries/2026-06-24-aurora-io-optimized-storage-mode/README.md`](../2026-06-24-aurora-io-optimized-storage-mode/README.md) — its June I/O spike from "re-ingestion / optimization work" is this class of run.
+- Prior entry: [`2026-06-24-aurora-io-optimized-storage-mode/`](../2026-06-24-aurora-io-optimized-storage-mode/README.md) — its June I/O spike from "re-ingestion / optimization work" is this class of run.
 - Prod account 482491871729, region us-east-1, cluster `cluster`, database `ord_20260629`.

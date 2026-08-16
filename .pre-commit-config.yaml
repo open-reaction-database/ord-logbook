@@ -11,3 +11,12 @@ repos:
       # Mirror the CI 1 MiB limit (maxkb is in KiB).
       - id: check-added-large-files
         args: [--maxkb=1024]
+  - repo: local
+    hooks:
+      - id: check-links
+        name: check relative Markdown links
+        entry: python3 .github/scripts/check_links.py
+        language: system
+        files: \.md$
+        # The checker walks every tracked file itself.
+        pass_filenames: false

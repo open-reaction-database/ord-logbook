@@ -279,7 +279,7 @@ It is not available: canonicalization output can change across RDKit versions, s
 value is only valid for the RDKit that wrote it, and validation would be comparing against
 a stale derivation after any upgrade. (The same fact is why item 1's cache key must
 include the RDKit version.) This does not affect the tier-1 sidecars in
-[2026-07-25-derived-parquet-sidecars.md](../2026-07-25-derived-parquet-sidecars/README.md), which
+[2026-07-25-derived-parquet-sidecars/](../2026-07-25-derived-parquet-sidecars/README.md), which
 are derived views rather than a validation oracle.
 
 **4. Scale the one file out across machines. — DROPPED.** `--shard I/N` would let several
@@ -371,7 +371,7 @@ honest statement is that the local figure was the conservative one.
   the dataset-level cross-reference pass is nearly free.
 - [ord-schema#923](https://github.com/open-reaction-database/ord-schema/pull/923) —
   unreadable files reported against the file, found while doing this work.
-- Prior entry: [2026-06-30-ingest-derivation-performance.md](../2026-06-30-ingest-derivation-performance/README.md)
+- Prior entry: [2026-06-30-ingest-derivation-performance/](../2026-06-30-ingest-derivation-performance/README.md)
   — same corpus, same shape of finding (per-row work that should be set-based).
-- Prior entry: [2026-07-25-derived-parquet-sidecars.md](../2026-07-25-derived-parquet-sidecars/README.md)
+- Prior entry: [2026-07-25-derived-parquet-sidecars/](../2026-07-25-derived-parquet-sidecars/README.md)
   — where write-time canonicalization belongs.

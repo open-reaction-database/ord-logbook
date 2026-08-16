@@ -1,7 +1,7 @@
 # Scripts for "Where the agent search cache can live"
 
 Measurement probes for
-[`entries/2026-08-15-where-the-search-cache-lives.md`](../2026-08-15-where-the-search-cache-lives/README.md).
+[`2026-08-15-where-the-search-cache-lives/`](../2026-08-15-where-the-search-cache-lives/README.md).
 
 Each reads the local projection artifacts from `~/ord/projections/**/*.parquet` and writes
 scratch databases under `/tmp`. They are measurement probes rather than library code: run
