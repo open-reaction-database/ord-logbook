@@ -4,7 +4,7 @@
 - **Author:** Steven Kearnes
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
-Scripts behind [2026-08-08 a local PubChem name lookup](../2026-08-08-local-pubchem-name-lookup/README.md).
+Scripts behind [2026-08-08 a local PubChem name lookup](../../2026-08-08-local-pubchem-name-lookup/README.md).
 
 Run them from an environment with `duckdb` and `rdkit` installed. The build needs the
 two PubChem bulk files and roughly 25 GB of scratch (DuckDB spills ~18 GB while
@@ -45,7 +45,7 @@ python review_top_hits.py eval_local_hits.tsv 60 top_hits_reviewed.tsv
 | `chembl_overlap.py` | what ChEMBL's synonyms add over the PubChem index (finding 10) |
 
 `prep_testset.py` and `coverage_union.py` read the
-[2026-07-11 assets](../2026-07-11-name-only-compounds/README.md) by relative path, so run them
+[2026-07-11 assets](../../2026-07-11-name-only-compounds/README.md) by relative path, so run them
 from this directory.
 
 Data files committed here:

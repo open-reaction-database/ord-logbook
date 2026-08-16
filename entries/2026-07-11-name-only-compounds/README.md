@@ -54,31 +54,31 @@ them cheaply; this entry quantifies exactly what is being skipped.
 - **Extraction:** two `\copy` queries over `ord.compound_identifier` (~48.5M rows), one per owning
   foreign key (`compound_id`, `product_compound_id`): the `NAME` values of owners with no
   structural identifier, grouped by value and sorted by frequency. Outputs
-  [`name_only_compounds.tsv.gz`](name_only_compounds.tsv.gz)
+  [`name_only_compounds.tsv.gz`](assets/name_only_compounds.tsv.gz)
   and
-  [`name_only_product_compounds.tsv`](name_only_product_compounds.tsv)
+  [`name_only_product_compounds.tsv`](assets/name_only_product_compounds.tsv)
   (`count⇥name`, header, frequency-sorted).
 - **Union + junk filter:** dedup across both files (52,651 unique names), then drop obvious
   non-compounds — process/physical descriptors (mixtures, solutions, residues, color+form phrases
   like "pale yellow oil"), generic class terms ("amine", "ester"), and chromatography eluents
   ("EtOAc hexanes") — with
-  [`filter_names.py`](filter_names.py). Kept 46,831,
+  [`filter_names.py`](assets/filter_names.py). Kept 46,831,
   skipped 5,820. Real solvents/reagents and systematic names are retained.
-- **Automated resolver:** [`run_resolver.py`](run_resolver.py)
+- **Automated resolver:** [`run_resolver.py`](assets/run_resolver.py)
   drives `ord_schema.resolvers` with PubChem removed. It is resumable and distinguishes a genuine
   miss (404 / CIR-500) from a transient failure (429/5xx/timeout) so a rate-limit doesn't
   permanently mark a name unresolved. CIR was unreachable, so the effective backend was OPSIN
   (EBI web service), which returned zero rate-limiting over 46,831 names. Results:
-  [`resolver_results.tsv.gz`](resolver_results.tsv.gz)
+  [`resolver_results.tsv.gz`](assets/resolver_results.tsv.gz)
   (`name⇥smiles⇥resolver`).
-- **Manual dictionary:** [`manual_resolve.py`](manual_resolve.py)
+- **Manual dictionary:** [`manual_resolve.py`](assets/manual_resolve.py)
   hand-maps the frequent single-compound solvents/reagents from the top of the distribution,
   canonicalizing each through RDKit. Generic classes (amine, ester), undefined mixtures (petroleum
   ether, xylenes), supported catalysts (Pd/C), organometallic complexes, and polymers/materials
   are deliberately excluded. Two obvious typos are resolved to the intended reagent (`NaSO4` →
   Na₂SO₄, `Mg2SO4` → MgSO₄).
 - **Combined:** manual ∪ OPSIN, manual taking precedence on overlap, CIR dropped:
-  [`combined_resolved.tsv`](combined_resolved.tsv)
+  [`combined_resolved.tsv`](assets/combined_resolved.tsv)
   (`name⇥smiles⇥source`).
 
 ## Findings
@@ -145,12 +145,12 @@ names (need PubChem or a working CIR) and non-chemical labels.
 - ord-schema [#899](https://github.com/open-reaction-database/ord-schema/issues/899) (issue),
   [#900](https://github.com/open-reaction-database/ord-schema/pull/900) (skip reconstruction for
   underivable compounds), and `ord_schema/resolvers.py` (the resolver; PubChem → CIR → OPSIN).
-- Assets: [`name_only_compounds.tsv.gz`](name_only_compounds.tsv.gz),
-  [`name_only_product_compounds.tsv`](name_only_product_compounds.tsv),
-  [`filter_names.py`](filter_names.py),
-  [`run_resolver.py`](run_resolver.py),
-  [`resolver_results.tsv.gz`](resolver_results.tsv.gz),
-  [`manual_resolve.py`](manual_resolve.py),
-  [`manual_resolved.tsv`](manual_resolved.tsv),
-  [`combined_resolved.tsv`](combined_resolved.tsv).
+- Assets: [`name_only_compounds.tsv.gz`](assets/name_only_compounds.tsv.gz),
+  [`name_only_product_compounds.tsv`](assets/name_only_product_compounds.tsv),
+  [`filter_names.py`](assets/filter_names.py),
+  [`run_resolver.py`](assets/run_resolver.py),
+  [`resolver_results.tsv.gz`](assets/resolver_results.tsv.gz),
+  [`manual_resolve.py`](assets/manual_resolve.py),
+  [`manual_resolved.tsv`](assets/manual_resolved.tsv),
+  [`combined_resolved.tsv`](assets/combined_resolved.tsv).
 - Database: `ord_20260702` (Aurora; reached read-only via the bastion SSM tunnel).
