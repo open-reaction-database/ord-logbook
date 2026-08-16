@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-15
 - **Author:** Steven Kearnes
-- **Status:** final (pivot shipped in ord-schema#965; the cache is 381 MiB and belongs on S3)
+- **Status:** final (pivot shipped in ord-schema#965, footer cache in ord-schema#968; the four hot levels are 514 MB of Parquet and belong on S3)
 - **Tags:** ord-schema, agents, duckdb, projection, parquet, aws, fargate, s3, caching, indexing
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -27,8 +27,15 @@ resident, 381 MiB as Parquet**, and answers in **6–48 ms** where the nested fo
 
 That is a 200× speedup and a 32× size reduction, with **identical answers** — the flat and
 nested paths agree exactly on all four benchmark counts. The cache question dissolves:
-381 MiB goes on S3, and DuckDB's external file cache holds it in whatever memory the
-container has.
+the artifact goes on S3, and the container holds parsed Parquet footers rather than
+decoded columns.
+
+Two things in that paragraph were sharpened by what shipped, and both are worth reading
+before the figures above are quoted. The pivot that shipped holds every non-repeated leaf
+rather than the handful a benchmark touched, which is what makes a query the pivot cannot
+answer decline structurally — and costs 3.4× the size measured here (finding 12). And it
+is *not* DuckDB's external file cache that makes this work: that one is worth nothing at
+all, and `parquet_metadata_cache` is worth 17× (finding 10).
 
 This is not a new shape. It is the **pivoted fact table** that
 [the search-index entry](../2026-07-31-projection-search-index/README.md) measured and
@@ -73,6 +80,13 @@ Scripts are in [`assets/`](assets/):
 | `probe_flat.py` | resident size of pivoted tables for four repeated paths |
 | `probe_flat_query.py` | query latency against pivoted tables held in memory |
 | `probe_flat_parquet.py` | the same queries read from Parquet, cold and warm, across memory limits |
+| `probe_cache.py` | four cache configurations over the projections, raw DuckDB |
+| `probe_footer.py` | the same question through a real `Corpus`, with and without materialization |
+| `probe_struct_pushdown.py` | whether a scan pays for struct fields it does not name |
+| `probe_width.py` | where the bytes sit inside each level, read from the footers |
+| `probe_element.py` | what each field of a pivot’s element costs in memory |
+| `derive_probe_pivots.py` | derives the pivot artifacts the route benchmark reads |
+| `bench_artifacts.py` | pivots as artifacts, against in memory, against the elements |
 
 Four queries carry the comparison. Three are the mixed benchmark's projection-only
 clauses; the fourth is new and exists to test correctness rather than speed.
@@ -118,7 +132,13 @@ Full corpus, best of three, tables held in memory:
 The counts are the load-bearing part. `yield > 50%` returns **729,520** reactions and
 `a white product` returns **139,095** — matching the nested path exactly. The correlated
 query returns **23,608**, a sane subset of the 729,520 reactions carrying a >50% yield, so
-carrying `outcome_index` and `product_index` on the pivoted row preserves element binding.
+carrying the ordinals on the pivoted row preserves element binding.
+
+That 23,608 is wrong, and being sane is how it passed. The probe's `product` table was
+built without `WITH ORDINALITY`, so the correlation ran on `(reaction_id, outcome_index)`
+and answered for a *different product* of the same outcome. The right answer is
+**22,666**; see "What was built" below. The requirement stands and the number does not.
+
 This is the same requirement
 [the structure-search entry](../2026-08-08-structure-search-without-the-orm/README.md) found
 mandatory, where reaction-granularity intersection over-returned by 94%.
@@ -217,7 +237,8 @@ the RDKit library together.
 - **S3 + DuckDB** — the recommendation. 381 MiB of sorted Parquet, read with
   `enable_external_file_cache` (on by default in 1.5.5) and `parquet_metadata_cache`
   (off by default; turn it on). Container memory becomes an automatic LRU over column
-  chunks, sized by `memory_limit` alone.
+  chunks, sized by `memory_limit` alone. Finding 10 measures both settings: only the
+  second one does anything, and it does a great deal.
 - **RDS / Aurora** — works, and uniquely retires the RDKit floor via the cartridge and its
   GiST index. Costs a second compiler emitting joins over normalized tables. The only
   option that addresses finding 9.
@@ -233,7 +254,7 @@ the RDKit library together.
   finding 9 says we need one anyway. Athena *is* the right tool for **building** the
   pivoted artifact.
 - **S3 Tables / Iceberg** — not the win. Iceberg earns its keep on mutation; these
-  artifacts are immutable and versioned, and [`artifacts.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/artifacts.py)
+  artifacts are immutable and versioned, and [`artifacts/base.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/artifacts/base.py)
   already stamps them. It adds catalog and manifest round trips to the cold path, which is
   where this design is weakest, and DuckDB's support is read-only and in preview from
   nightly builds. Plain Parquet on plain S3 is readable by Athena and DuckDB both; a table
@@ -249,6 +270,176 @@ Substructure screening and verification are RDKit in-process, and
 that verification is irreducible. Postgres with the RDKit cartridge is the only option on
 this list that retires it.
 
+### 10. What a projection query costs is footer parsing, not reading
+
+Finding 8 named two DuckDB settings and recommended both. Measured over the full corpus,
+one of them does nothing at all:
+
+| configuration | temperature filter | stirring group-by | held |
+| --- | --- | --- | --- |
+| neither cache | 0.880 s | 0.879 s | — |
+| external file cache | 0.841 s | 0.839 s | 0.19 GB of file bytes |
+| file **and** metadata cache | 0.050 s | 0.049 s | + 0.20 GB of parsed footers |
+| materialized column | 0.003 s | 0.003 s | 1.28 GB table |
+
+The external file cache holds file *bytes*; nothing here was ever IO-bound, so holding
+them changes a query by less than 5%. What costs the time is *parsing* — a 442-leaf
+schema over 53 files, with statistics per row group, decoded again on every scan
+however few leaves the query then reads. `parquet_metadata_cache` holds the parsed
+result and removes it.
+
+Through a real `Corpus`, warm, with identical row counts on every route:
+
+| query | footers reparsed | footers held | held as a column set |
+| --- | --- | --- | --- |
+| temperature filter | 0.759 s | 0.096 s | 0.032 s |
+| group-by on stirring type | 0.728 s | 0.055 s | 0.003 s |
+| temperature and city | 0.712 s | 0.029 s | 0.002 s |
+| substring of a safety note | 0.713 s | 0.026 s | 0.001 s |
+
+The parsed footers cost ~200 MB across the whole corpus and are bounded by the *files*
+rather than by what is asked of them, which is what makes them worth spending
+unconditionally where a column set costs gigabytes apiece. Shipped in
+[ord-schema#968](https://github.com/open-reaction-database/ord-schema/pull/968), which
+also covers the invalidation this now leans on: a file rewritten under an open corpus is
+re-read, including a rewrite inside the same second.
+
+DuckDB's file cache is bounded by `memory_limit` and fills what it is given — 752 MB at a
+1 GiB limit, 2.66 GB at 3 GiB — and is evicted under pressure. The parsed footers do not
+shrink that way, so on a small limit they are a fifth of it.
+
+### 11. A query does not pay for the struct fields it does not name
+
+A pivot's `element` is one struct column holding every field the level's element carries,
+so a wide level makes a wide struct. Whether that costs a *query* anything decides
+whether pruning the element further is worth doing. Over 3,000,000 rows, a four-field
+struct, 193 MiB of zstd Parquet:
+
+| the query touches | time |
+| --- | --- |
+| the narrow field only | 0.003 s |
+| one wide field | 0.016 s |
+| three wide fields | 0.052 s |
+| the whole struct | 0.057 s |
+
+Parquet stores a struct's fields as separate columns and DuckDB reads only the ones
+named. A wide pivot artifact therefore costs disk, and nothing else.
+
+### 12. Generality cost 3.4×, and the width is not prunable
+
+The 2.68 GiB in finding 1 is not what shipped. That probe held a **hand-picked handful of
+scalar leaves** per level — five columns for `workups`, four for `outcomes.products` —
+chosen because the benchmark happened to touch them. The shipped pivot holds *every*
+non-repeated leaf, which is what lets a body reaching a dropped field fail to resolve and
+decline to the projection, rather than a second list of covered paths that someone has to
+keep honest. Forty leaves for `workups` rather than five, and 4.40 GiB rather than 0.78.
+
+Across the four levels that matter: **9.21 GiB against 2.68 GiB**, for a query surface
+that answers any predicate the level supports instead of the ones a benchmark used.
+
+So: can the difference be pruned back? Uncompressed Parquet bytes below each level, split
+into what the pivot keeps and what pruning the repeated fields already dropped:
+
+| level | kept | already pruned | the biggest kept field |
+| --- | --- | --- | --- |
+| `workups` | 0.373 GiB | 0.536 GiB | `details` 62.6% |
+| `inputs.components` | 0.235 GiB | 0.240 GiB | `smiles` 49.6% |
+| `outcomes.products` | 0.118 GiB | 0.310 GiB | `smiles` 85.1% |
+| `outcomes.products.measurements` | 0.108 GiB | 0.067 GiB | `authentic_standard` 29.9% |
+
+Nothing on that right-hand column is prunable without losing questions people ask.
+`workups.details` is the free text a `contains` predicate reads; `smiles` is the path a
+structure predicate is written against; `authentic_standard` is a compound a query
+reaches through. The weight is in the fields that earn their place.
+
+### 13. Parquet charges for data; DuckDB charges for shape
+
+The disk figures above do not explain the memory ones. A pruned `workups` element is
+0.373 GiB of uncompressed Parquet and 4.18 GiB once the pivot is built. Measured field by
+field, across four pivots built one per process:
+
+| level | rows | leaves | held | per row |
+| --- | --- | --- | --- | --- |
+| `workups` | 9,830,201 | 40 | 4.18 GiB | 457 B |
+| `inputs.components` | 11,950,037 | 18 | 2.64 GiB | 237 B |
+| `outcomes.products.measurements` | 3,007,896 | 48 | 1.34 GiB | 477 B |
+| `outcomes.products` | 2,673,037 | 7 | 0.39 GiB | 158 B |
+
+The tell is in two neighboring fields of a workup:
+
+| field | uncompressed Parquet | held in memory |
+| --- | --- | --- |
+| `duration_seconds` | 0.005 GiB | 0.099 GiB |
+| `duration_precision_seconds` | 0.002 GiB | 0.099 GiB |
+
+They are the same type and one of them is almost never populated. Parquet's
+run-length-encoded definition levels make an all-NULL column nearly free; DuckDB's
+in-memory column is a full-width vector plus a validity mask whether or not anything is
+in it. `outcomes.products.measurements` has the same pair in
+`wavelength_nanometers` and `wavelength_precision_nanometers`, both 0.030 GiB. The single
+largest field of any of these is `inputs.components.amount` at 1.064 GiB: nine mostly-NULL
+doubles per row, one for each way a quantity can be stated.
+
+So the in-memory cost tracks **leaf count**, not data. That is why the width matters when a
+pivot is held and stops mattering when it is a file — and it is why the prune that would
+actually pay is dropping empty leaves, which is a prune on the *data* rather than the
+schema, and would give two shards of one corpus different schemas.
+
+A fixed cost worth naming: `reaction_id` plus the ordinals is 0.453 GiB for `workups` and
+0.623 GiB for `inputs.components`, 11% and 24% of those pivots. Held as Parquet the
+`reaction_id` string compresses; held in memory it does not.
+
+### 14. As artifacts the pivots are 514 MB, and answer as fast as held ones
+
+The four levels derived to Parquet with `scripts/derive_pivots.py`, one file per
+projection:
+
+| level | held | as an artifact |
+| --- | --- | --- |
+| `workups` | 4.18 GiB | 149 MB |
+| `inputs.components` | 2.64 GiB | 224 MB |
+| `outcomes.products` | 0.39 GiB | 104 MB |
+| `outcomes.products.measurements` | 1.34 GiB | 37 MB |
+| **total** | **9.21 GiB** | **514 MB** |
+
+The ratios invert between levels exactly as finding 13 predicts. `workups` is 28× smaller
+as a file — 40 leaves, most NULL in most rows. `outcomes.products` is only 4× smaller: 7
+leaves dominated by `smiles`, high-entropy text neither representation compresses away.
+
+Then the same query set on all three routes, warm, through a real `Corpus`:
+
+| query | artifacts | in memory | elements |
+| --- | --- | --- | --- |
+| a white product | 0.061 s | 0.054 s | 0.737 s |
+| `yield > 50%` | 0.099 s | 0.085 s | 2.384 s |
+| every product is desired | 0.076 s | 0.070 s | 1.781 s |
+| **not** a yield above 50% | 0.114 s | 0.093 s | 3.113 s |
+| an extraction workup | 0.114 s | 0.103 s | 2.341 s |
+| "reflux" in a workup | 0.147 s | 0.105 s | 2.239 s |
+| a solvent input | 0.176 s | 0.155 s | 1.794 s |
+| above 350 K | 0.033 s | 0.033 s | 0.032 s |
+
+Identical row counts on all three. `above 350 K` is the control — a scalar path with no
+quantifier, where no pivot is involved and nothing moves.
+
+**A pivot read from Parquet is within tens of milliseconds of the same pivot held in
+memory**, and 6–27× faster than the elements. Publishing all four as views took **0.9
+seconds and no memory**, against **32 minutes and 9.21 GiB** to build them in process.
+
+The three routes held, at the end of the run:
+
+| route | in-memory tables | parsed footers | DuckDB file cache |
+| --- | --- | --- | --- |
+| artifacts | 1.91 GB | 0.21 GB | 1.37 GB |
+| in memory | 11.13 GB | 0.20 GB | 6.76 GB |
+| elements | 1.78 GB | 0.20 GB | 4.57 GB |
+
+The artifact route's 1.91 GB is column sets the queries materialized, not pivots — the
+pivots are files. Adding 212 pivot artifacts to the corpus moved the parsed footers by
+10 MB.
+
+So the answer to a wide level is not a narrower pivot. It is a pivot that is a file.
+
 ## Conclusions / next steps
 
 The survey question — *where else can the cache live?* — had an answer nobody was looking
@@ -263,7 +454,7 @@ which is a smaller claim and a fully measured one.
 
 ### What was built
 
-The pivot shipped as `ord_schema.search.pivot` in
+The pivot shipped as `ord_schema.artifacts.pivot` in
 [ord-schema#965](https://github.com/open-reaction-database/ord-schema/pull/965); the
 design and the implementation plan are kept beside this entry as
 [the design](assets/pivoted-element-index-design.md)
@@ -313,20 +504,33 @@ the 4 GiB default budget, so it is refused and the projection answers.
 The two do not line up, which is what makes this worth stating separately. `workups` is
 the cheapest pivot to build and the worst on size; `outcomes.products` is the opposite.
 So deriving pivots offline is a strong argument for deep levels and nearly a moot one
-for shallow ones, and what would make the wide ones worth holding is pruning to
-referenced subtrees — which is not built.
+for shallow ones — and the wide ones are the reason to derive *all* of them, since
+findings 11 through 14 show the width stops costing anything the moment a pivot is a
+file rather than a table.
 
 ### Still open
 
 1. **Measure a genuinely cold read from real S3**, which finding 6 could not produce.
-2. **Reassess the narrow-table subsystem.** If DuckDB's external file cache over flat
-   Parquet performs as findings 2 and 3 suggest, the budget, LRU, eviction, and refusal
-   machinery in [ord-schema#964](https://github.com/open-reaction-database/ord-schema/pull/964)
-   is replaced by `memory_limit`, at column-chunk granularity rather than whole
-   top-level columns. It rests on the unmeasured S3 step above, and #964 is correct on
-   its own terms.
+   Deferred deliberately: everything above is local, and the artifact sizes are small
+   enough that the cold path is the only remaining unknown.
+2. **Decide whether the column-set path stays at all.** Finding 10 settles the mechanism
+   but not the design. With the footers held, a materialized column set is worth 25–65 ms
+   for 1.5+ GB apiece and a 1.2–2.6 s stall on the query that builds it. The budget, LRU,
+   eviction, and refusal machinery in
+   [ord-schema#964](https://github.com/open-reaction-database/ord-schema/pull/964) is
+   still needed by the pivots, which are worth seconds — so the question is whether
+   `_narrowed_table` and its second compile pass earn their place, not whether the cache
+   does.
 3. **Derive a serialized `SubstructLibrary`** as an artifact too, so the ~1.5 GiB that
-   pins a resident process is loaded rather than built.
+   pins a resident process is loaded rather than built. This is now the *largest*
+   remaining resident cost by a wide margin: with the pivots on disk and the footers at
+   200 MB, the library is most of the floor.
+4. **Consider deriving a missing pivot to disk rather than to memory.** A corpus given a
+   `pivots_dir` with no artifacts for a level builds that level in process, at up to
+   4.18 GiB and 14 minutes. Writing it to the same directory instead would cost the same
+   minutes once, no memory, and leave a real artifact behind for the next process. It
+   turns `pivots_dir` from read-only into a cache, which is a semantic change worth
+   deciding on rather than assuming.
 
 ## References
 
