@@ -14,9 +14,9 @@
 
 """Can a pivot answer what the occurrence index answers, now that pivots are artifacts?
 
-The index was kept because it is 130 MB where the pivots it would replace were gigabytes.
-As artifacts the pivots cost no memory at all, so the measurement that settled it no
-longer holds and the question is open again.
+The index was kept because it was believed to be 130 MB where the pivots it would replace
+were gigabytes. It is 1.19 GiB, and as artifacts the pivots cost no memory at all, so
+neither half of that comparison survives and the question is open again.
 
 The structure predicate compiles to a bit test on ``element.structure_id`` plus the
 row's ``structure_offset``. Inside a pivot's semi-join that offset is unqualified and

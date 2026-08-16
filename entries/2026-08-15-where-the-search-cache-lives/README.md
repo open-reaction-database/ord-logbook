@@ -271,6 +271,17 @@ Substructure screening and verification are RDKit in-process, and
 that verification is irreducible. Postgres with the RDKit cartridge is the only option on
 this list that retires it.
 
+**The index figure here is wrong, and the heading with it.** Measured directly rather
+than carried forward, the occurrence index is **18,847,978 rows and 1.19 GiB**, built in
+58 s — nine times the 130 MiB stated above, which had been repeated into
+[the design note](assets/pivoted-element-index-design.md) and the ord-schema README
+before anyone put a number on it. A row is three strings and an integer, and finding 13
+is why that is expensive: an in-memory string is not a Parquet one.
+
+So the floor is the library at ~1.5 GiB *and* the index at 1.19 GiB, and the index is not
+chemistry — it is reaction lookup. Call the resident floor 4 GB rather than 3. The
+irreducible-verification claim stands; "the chemistry is the only thing" does not.
+
 ### 10. What a projection query costs is footer parsing, not reading
 
 Finding 8 named two DuckDB settings and recommended both. Measured over the full corpus,
@@ -445,7 +456,9 @@ So the answer to a wide level is not a narrower pivot. It is a pivot that is a f
 
 The index was kept because it is 130 MB where the pivots that would replace it were
 gigabytes held. Finding 14 removes that argument entirely, so the question was reopened
-and measured properly.
+and measured properly — and the premise turned out to be wrong twice over, since the
+index is 1.19 GiB rather than 130 MB (finding 9). Memory was never the axis that
+separated them, and on the axis it was argued on they are within 30% of each other.
 
 The pivot route answers a structure predicate **correctly**. A structure predicate
 compiles to a bit test on `element.structure_id` plus the row's `structure_offset`, and
