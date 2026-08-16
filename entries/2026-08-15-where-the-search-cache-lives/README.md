@@ -87,6 +87,7 @@ Scripts are in [`assets/`](assets/):
 | `probe_element.py` | what each field of a pivot’s element costs in memory |
 | `derive_probe_pivots.py` | derives the pivot artifacts the route benchmark reads |
 | `bench_artifacts.py` | pivots as artifacts, against in memory, against the elements |
+| `probe_subsume.py` | structure queries on the index, the pivots, and the elements |
 
 Four queries carry the comparison. Three are the mixed benchmark's projection-only
 clauses; the fourth is new and exists to test correctness rather than speed.
@@ -439,6 +440,40 @@ pivots are files. Adding 212 pivot artifacts to the corpus moved the parsed foot
 10 MB.
 
 So the answer to a wide level is not a narrower pivot. It is a pivot that is a file.
+
+### 15. The occurrence index survives, on latency rather than on memory
+
+The index was kept because it is 130 MB where the pivots that would replace it were
+gigabytes held. Finding 14 removes that argument entirely, so the question was reopened
+and measured properly.
+
+The pivot route answers a structure predicate **correctly**. A structure predicate
+compiles to a bit test on `element.structure_id` plus the row's `structure_offset`, and
+inside a pivot's semi-join that offset is unqualified and binds to the correlated
+reaction — which sits in exactly one projection file, so it is already the right offset.
+No plumbing was needed to find this out; it works today.
+
+| query | index | pivots | elements | rows |
+| --- | --- | --- | --- | --- |
+| pyridine anywhere | 0.070 s | 0.958 s | 2.376 s | 660,352 |
+| pyridine as the solvent | 0.015 s | 0.597 s | 1.589 s | 25,805 |
+| pyridine solvent, above 350 K | 0.021 s | 0.476 s | 1.022 s | 2,143 |
+| a pyridine product | 0.165 s | 0.273 s | 3.427 s | 551,210 |
+
+Identical row counts on all three routes. And the index is **4–40× faster than the
+pivots**, so subsuming it would be a large regression on exactly the queries the whole
+system exists to answer.
+
+The reason is shape. The index is one narrow in-memory table — reaction ID, path,
+corpus-wide structure ID, `reaction_role` — with nothing else on the row. The pivot is a
+file holding every leaf of the element, and answering a structure predicate from it means
+decoding two of them for 11.95M rows and testing each against a 2 MB bitstring. Being
+free to hold is not the same as being cheap to read.
+
+So: **keep the index.** That is the same conclusion reached before finding 14, for a
+reason that is not the one given at the time. The memory argument was never the load-
+bearing one, and had the pivots been artifacts from the start it would have pointed the
+wrong way.
 
 ## Conclusions / next steps
 
