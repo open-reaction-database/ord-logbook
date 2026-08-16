@@ -1,5 +1,9 @@
 # Facts-tier derivation measurements
 
+- **Date:** 2026-07-25
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Supporting files for [`2026-07-25-derived-parquet-sidecars/`](../2026-07-25-derived-parquet-sidecars/README.md).
 
 ## Files

@@ -1,5 +1,9 @@
 # Benchmark assets
 
+- **Date:** 2026-07-02
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Scripts behind the "Hands-on benchmark" section of the entry: four reaction
 classifiers timed on the same 1,572 ORD reactions (single CPU process, isolated
 venv, dev Mac, 2026-07-02). Kept for reproducibility; paths are relative to a

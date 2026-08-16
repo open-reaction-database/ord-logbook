@@ -1,5 +1,9 @@
 # Measurement scripts
 
+- **Date:** 2026-08-08
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Scripts behind [2026-08-08 a local PubChem name lookup](../2026-08-08-local-pubchem-name-lookup/README.md).
 
 Run them from an environment with `duckdb` and `rdkit` installed. The build needs the

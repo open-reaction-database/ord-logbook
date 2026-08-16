@@ -1,7 +1,9 @@
 # Pivoted element index
 
 - **Date:** 2026-08-15
+- **Author:** Steven Kearnes
 - **Status:** approved, phase 1 and phase 2 in implementation
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## Problem
 

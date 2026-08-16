@@ -1,5 +1,9 @@
 # Scripts for "Where the agent search cache can live"
 
+- **Date:** 2026-08-15
+- **Author:** Steven Kearnes
+- **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 Measurement probes for
 [`2026-08-15-where-the-search-cache-lives/`](../2026-08-15-where-the-search-cache-lives/README.md).
 
