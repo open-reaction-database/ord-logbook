@@ -91,6 +91,8 @@ Scripts are in [`assets/`](assets/):
 | `probe_floor.py` | process residency of each startup step, at three DuckDB limits |
 | `probe_index_limit.py` | where the index build's memory floor sits, and what it spills |
 | `probe_index_shape.py` | whether building the index path by path lowers that floor |
+| `probe_index_chunked.py` | the same build one projection file at a time |
+| `probe_index_default.py` | both build shapes where nothing is constrained |
 
 Four queries carry the comparison. Three are the mixed benchmark's projection-only
 clauses; the fourth is new and exists to test correctness rather than speed.
@@ -540,8 +542,48 @@ queries, and raises at whoever runs the first substructure search.
 That last part is fixed rather than documented:
 [ord-schema#969](https://github.com/open-reaction-database/ord-schema/pull/969) adds
 `Corpus.check_index()`, the sibling of `check_pivots()`, so the refusal lands on a
-deployment instead of on a request. Lowering the floor itself — by chunking the build per
-projection file rather than per path — is untested and left open.
+deployment instead of on a request.
+
+### 17. Chunking the build lowers the floor and is still not worth it
+
+The lever finding 16 left open — building per *projection file* rather than per path, so
+one file goes through the unnest instead of 2.4M reactions — works. It is also the fourth
+remedy tried and the first that does anything, which is why it was worth trying: the
+three before it all left the whole corpus in flight.
+
+| `memory_limit` | one statement | per projection file |
+| --- | --- | --- |
+| 1 GB | fails | fails |
+| 2 GB | fails | **166 s**, 9.05 GiB spilled |
+| 4 GB | fails | **134 s**, 7.84 GiB spilled |
+| 5 GB | 114 s, 15.79 GiB spilled | — |
+| 6 GB | 65 s, 16.10 GiB spilled | — |
+
+The floor drops from about 5 GB to about 2 GB and the spill roughly halves. Both shapes
+produce 18,847,978 rows reaching exactly 2,016,224 distinct structures — the corpus
+total, which is the invariant the build already asserts, so the per-file offsets are right
+rather than merely row-count-equal.
+
+Then the configuration most deployments actually run, with nothing constrained:
+
+| at DuckDB's default 19.1 GiB | time | table | process | spilled |
+| --- | --- | --- | --- | --- |
+| one statement | 57 s | 1.17 GiB | 8.03 GiB | 6.37 GiB |
+| per projection file | 96 s | 1.57 GiB | 10.50 GiB | 0.00 GiB |
+
+Chunked is 68% slower, holds 2.5 GiB more, and leaves a 34% larger table — 265 separate
+inserts store less compactly than one scan, and it costs *more* memory precisely because
+it never has to spill.
+
+**So: leave the build alone.** Chunking rescues a container below the floor by penalizing
+every deployment above it, and the container it rescues is one finding 7 already argues
+against — Fargate memory is among the cheapest RAM in AWS, and this workload wants ~8 GB
+for the library and the index whatever the build does. Sizing the task correctly is
+cheaper than making every startup slower.
+
+What changes that: a deployment target capped below ~5 GB that cannot be raised. Chunking
+is measured and correct, and would go in as a fallback after `OutOfMemoryException`
+rather than as the default path.
 
 ## Conclusions / next steps
 
