@@ -19,6 +19,22 @@ builds to take about half an hour over the full corpus.
 | `probe_flat_query.py` | query latency against pivoted tables held in memory | 2 |
 | `probe_flat_parquet.py` | the same queries read from Parquet, cold and warm, across memory limits | 3, 6 |
 | `probe_flat_subset.py` | the same sizes from a row sample, as a cheap stand-in for the full build | 5 |
+| `probe_cache.py` | four cache configurations over the projections, raw DuckDB | 10 |
+| `probe_footer.py` | the same question through a real `Corpus`, with and without materialization | 10 |
+| `probe_struct_pushdown.py` | whether a scan pays for struct fields it does not name | 11 |
+| `probe_width.py` | where the bytes sit inside each level, read from the footers | 12 |
+| `probe_element.py` | what each field of a pivot's element costs in memory | 13 |
+| `derive_probe_pivots.py` | derives the pivot artifacts the route benchmark reads | 14 |
+| `bench_artifacts.py` | pivots as artifacts, against in memory, against the elements | 14 |
+
+`probe_width.py` reads only Parquet footers, so it is the one script here that finishes in
+seconds. `probe_element.py` builds all four pivots and takes about 40 minutes;
+`derive_probe_pivots.py` and `bench_artifacts.py` together take a couple of hours.
+
+`derive_probe_pivots.py` stubs out the staleness check, because the local projections were
+written by an older `ord_schema` than the one installed and `write_pivot` refuses a stale
+parent. That is correct behavior being worked around for a measurement, not a suggestion:
+the corpus it feeds is opened with `require_current=False` and nothing it writes ships.
 
 Beside them are the two documents the implementation was written from:
 `pivoted-element-index-design.md`, which settles what a pivot holds and why, and
