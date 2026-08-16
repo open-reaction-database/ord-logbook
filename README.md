@@ -11,9 +11,10 @@ history when you need to see how a conclusion evolved.
 ## Layout
 
 ```text
-entries/    one Markdown file per entry, named YYYY-MM-DD-slug.md
-assets/     figures, data extracts, and other files referenced by entries
-TEMPLATE.md copy this to start a new entry
+entries/YYYY-MM-DD-slug/
+  README.md   the entry itself
+  assets/     figures, data extracts, and scripts the entry references
+TEMPLATE.md   copy this to start a new entry
 ```
 
 CI lints Markdown and rejects oversized files on every push and pull request
@@ -27,16 +28,19 @@ pre-commit install
 ## Adding an entry
 
 ```bash
-cp TEMPLATE.md entries/$(date +%Y-%m-%d)-short-slug.md
-# write it up, drop any figures in assets/
-git add entries assets
+entry=entries/$(date +%Y-%m-%d)-short-slug
+mkdir -p "$entry"
+cp TEMPLATE.md "$entry/README.md"
+# write it up, drop any figures and scripts in "$entry/assets/"
+git add "$entry"
 git commit -m "Add entry: short description"
 git push
 ```
 
-Keep figures and large outputs under `assets/<entry-slug>/` so each entry's files
-are easy to find. For anything large or binary-heavy, link out rather than committing
-it here.
+Everything an entry references — figures, data extracts, the scripts that produced
+them — belongs in that entry's own `assets/` directory, so the whole of a piece of
+work moves and reads as one unit. For anything large or binary-heavy, link out
+rather than committing it here.
 
 ## License
 
@@ -44,8 +48,8 @@ This repository carries two licenses, because it holds both writing and code:
 
 | what | license | file |
 | --- | --- | --- |
-| The entries under `entries/`, and the figures and data extracts under `assets/` | [CC-BY-SA-4.0](LICENSE) | `LICENSE` |
-| The scripts under `assets/` and the workflows under `.github/` | [Apache-2.0](LICENSE-CODE) | `LICENSE-CODE` |
+| The entries themselves (`entries/*/README.md`), and the figures and data extracts beside them | [CC-BY-SA-4.0](LICENSE) | `LICENSE` |
+| The scripts under `entries/*/assets/` and the workflows under `.github/` | [Apache-2.0](LICENSE-CODE) | `LICENSE-CODE` |
 
 CC-BY-SA-4.0 matches [ord-data](https://github.com/Open-Reaction-Database/ord-data),
 so a figure or table can move between the two repositories without a license change.
