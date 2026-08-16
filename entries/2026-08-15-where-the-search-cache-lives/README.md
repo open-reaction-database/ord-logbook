@@ -289,19 +289,32 @@ exposes the product-level error.
 | **not** a yield above 50% | 0.098s | 3.480s |
 | a solvent input | 0.178s | 4.229s |
 
-**Building one is far more expensive than the column it competes with.** The question
-this entry left unmeasured now has an answer, and it is lopsided: a pivot over
-`outcomes.products` is **0.45 GiB built in 461 s**, where materializing the whole nested
-`outcomes` column is **3.23 GiB in 4.1 s**. Seven times smaller to hold, and a hundred
-times slower to build. That is the case for artifacts stated in numbers: the size win is
-real and the build belongs offline, which is what `scripts/derive_pivots.py` and
-`Corpus(pivots_dir=...)` are for.
+**Build cost is depth; size saving is width.** The question this entry left unmeasured
+turned out to have two answers rather than one, and reading it as one was wrong: an
+early partial run said "minutes per level", which is true of a deep pivot and false of a
+shallow one. Measured one build per process, so eviction cannot corrupt the memory delta
+a build is read from, beside the top-level column a query would otherwise materialize
+(GiB):
 
-**Pruning only the repeated fields is too coarse.** A `workups` element carries a whole
-`ReactionInput` besides, so its pivot is **4.4 GiB** against the nested column's 5.08 —
-a 13% reduction, where five hand-picked leaves gave 0.78 GiB. It exceeds the 4 GiB
-default budget, is refused, and the projection answers. Pruning to referenced subtrees
-is the fix and is not built.
+| level | unnests | pivot | build | column | | build |
+| --- | --- | --- | --- | --- | --- | --- |
+| `workups` | 1 | 4.40 | 42 s | `workups` | 5.20 | 3.3 s |
+| `outcomes.products` | 2 | 0.45 | 461 s | `outcomes` | 3.23 | 4.1 s |
+| `inputs.components` | 2 | 2.75 | 626 s | `inputs` | 4.05 | 2.5 s |
+| `outcomes.products.measurements` | 3 | 1.61 | 854 s | `outcomes` | 3.23 | 4.1 s |
+
+One unnest is 42 seconds, and each further repeated level costs roughly an order of
+magnitude, where materializing a column is 2.5–4.1 s whatever it holds. Independently of
+that, how much a pivot saves depends on how much of its column an element still carries
+once the repeated fields are pruned away: **86%** for `outcomes.products`, **15%** for
+`workups`, whose elements carry a whole `ReactionInput` besides. That 4.40 GiB exceeds
+the 4 GiB default budget, so it is refused and the projection answers.
+
+The two do not line up, which is what makes this worth stating separately. `workups` is
+the cheapest pivot to build and the worst on size; `outcomes.products` is the opposite.
+So deriving pivots offline is a strong argument for deep levels and nearly a moot one
+for shallow ones, and what would make the wide ones worth holding is pruning to
+referenced subtrees — which is not built.
 
 ### Still open
 
