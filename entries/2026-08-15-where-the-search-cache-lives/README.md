@@ -88,6 +88,9 @@ Scripts are in [`assets/`](assets/):
 | `derive_probe_pivots.py` | derives the pivot artifacts the route benchmark reads |
 | `bench_artifacts.py` | pivots as artifacts, against in memory, against the elements |
 | `probe_subsume.py` | structure queries on the index, the pivots, and the elements |
+| `probe_floor.py` | process residency of each startup step, at three DuckDB limits |
+| `probe_index_limit.py` | where the index build's memory floor sits, and what it spills |
+| `probe_index_shape.py` | whether building the index path by path lowers that floor |
 
 Four queries carry the comparison. Three are the mixed benchmark's projection-only
 clauses; the fourth is new and exists to test correctness rather than speed.
@@ -487,6 +490,58 @@ So: **keep the index.** That is the same conclusion reached before finding 14, f
 reason that is not the one given at the time. The memory argument was never the load-
 bearing one, and had the pivots been artifacts from the start it would have pointed the
 wrong way.
+
+### 16. The index cannot be built in a small container, and says so late
+
+Findings 9 and 15 measure what the index costs to *hold*. What it costs to *build* is a
+separate number and a larger one, and it decides whether a container can run substructure
+search at all.
+
+Process resident size, building each part in the order a first substructure query would,
+with the pivots read as artifacts and nothing materialized:
+
+| after | resident |
+| --- | --- |
+| the interpreter | 0.15 GiB |
+| the corpus is open | 1.09 GiB |
+| the pivots are published | 1.22 GiB |
+| the library is built (8 s) | 3.46 GiB |
+| the index is built (57 s) | 7.28 GiB |
+
+The last step adds 3.82 GiB for a table that is 1.19 GiB. Most of the difference is
+DuckDB's own caches filling what `memory_limit` allows, and `Corpus` sets no limit, so
+DuckDB takes its default share of whatever machine it finds — 19.1 GiB of this 24 GiB
+laptop.
+
+Constrain it and the build does not slow down; it stops:
+
+| `memory_limit` | result | temporary files |
+| --- | --- | --- |
+| 4 GB | `OutOfMemoryException` after 64 s | — |
+| 5 GB | built in 114 s | 15.79 GiB |
+| 6 GB | built in 65 s | 16.10 GiB |
+| 8 GB | built in 64 s | 25.28 GiB |
+
+**Three remedies do not move the floor.** `preserve_insertion_order=false`, which is what
+DuckDB's own error message suggests; a `temp_directory` to spill into, which does spill —
+16 to 25 GiB of it — and still fails at 4 GB; and building the five indexed paths one at a
+time with `INSERT` instead of one `UNION ALL`, which fails 33 s sooner because
+`inputs.components` alone is 11.95M elements. The failure is "failed to pin block", and a
+block that cannot be pinned is not one that can be spilled. The shape of the statement is
+not what costs.
+
+Two things follow for a deployment. The scratch requirement is the awkward one: a Fargate
+task carries **20 GB** of ephemeral storage by default, so the configurations that
+survive the memory floor are the ones that may not survive the disk. And the failure
+arrives at the worst moment — the index is built by the first query that can spend it, so
+a container short of the floor starts cleanly, passes `check_pivots()`, answers scalar
+queries, and raises at whoever runs the first substructure search.
+
+That last part is fixed rather than documented:
+[ord-schema#969](https://github.com/open-reaction-database/ord-schema/pull/969) adds
+`Corpus.check_index()`, the sibling of `check_pivots()`, so the refusal lands on a
+deployment instead of on a request. Lowering the floor itself — by chunking the build per
+projection file rather than per path — is untested and left open.
 
 ## Conclusions / next steps
 

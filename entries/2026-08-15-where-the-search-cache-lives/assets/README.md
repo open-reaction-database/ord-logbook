@@ -27,6 +27,9 @@ builds to take about half an hour over the full corpus.
 | `derive_probe_pivots.py` | derives the pivot artifacts the route benchmark reads | 14 |
 | `bench_artifacts.py` | pivots as artifacts, against in memory, against the elements | 14 |
 | `probe_subsume.py` | structure queries on the index, the pivots, and the elements | 15 |
+| `probe_floor.py` | process residency of each startup step, at three DuckDB limits | 16 |
+| `probe_index_limit.py` | where the index build's memory floor sits, and what it spills | 16 |
+| `probe_index_shape.py` | whether building the index path by path lowers that floor | 16 |
 
 `probe_width.py` reads only Parquet footers, so it is the one script here that finishes in
 seconds. `probe_element.py` builds all four pivots and takes about 40 minutes;
