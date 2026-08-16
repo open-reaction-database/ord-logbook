@@ -53,7 +53,7 @@ speed, and refuses at compile time a class of ambiguity that SQL accepts silentl
 ## Method
 
 Prototype at
-[`ir.py`](ir.py)
+[`ir.py`](assets/ir.py)
 — roughly 100 lines covering paths, comparisons, boolean combinators, `exists`/`forall`,
 and a `group_by` aggregate. Paths resolve against `projection.SCHEMA`, so every column
 reference and every quantifier position is checked against the real 442-leaf shape

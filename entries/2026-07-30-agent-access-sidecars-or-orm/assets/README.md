@@ -4,7 +4,7 @@
 - **Author:** Steven Kearnes
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
-Scripts behind [2026-07-30 unlocking agents](../2026-07-30-agent-access-sidecars-or-orm/README.md).
+Scripts behind [2026-07-30 unlocking agents](../../2026-07-30-agent-access-sidecars-or-orm/README.md).
 
 They read the tier-1 views produced by `ord_schema.views.write_view`
 ([ord-schema#914](https://github.com/open-reaction-database/ord-schema/pull/914)), so

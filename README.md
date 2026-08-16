@@ -12,10 +12,10 @@ history when you need to see how a conclusion evolved.
 
 ```text
 entries/YYYY-MM-DD-slug/
-  README.md   the entry itself
-  ASSETS.md   what each supporting file is, when there are enough to need a guide
-  *           figures, data extracts, and scripts the entry references
-TEMPLATE.md   copy this to start a new entry
+  README.md       the entry itself
+  assets/         figures, data extracts, and scripts the entry references
+    README.md     what each of those files is, when there are enough to need a guide
+TEMPLATE.md       copy this to start a new entry
 ```
 
 On every push and pull request, CI lints Markdown, checks that relative links
@@ -34,23 +34,24 @@ pre-commit install
 entry=entries/$(date +%Y-%m-%d)-short-slug
 mkdir -p "$entry"
 cp TEMPLATE.md "$entry/README.md"
-# write it up, drop any figures and scripts alongside it in "$entry"
+# write it up, drop any figures and scripts in "$entry/assets"
 git add "$entry"
 git commit -m "Add entry: short description"
 git push
 ```
 
 Everything an entry references — figures, data extracts, the scripts that produced
-them — sits in that entry's directory beside the write-up, so a whole piece of work
-moves and reads as one unit. Once there are enough supporting files that a reader
-would have to guess what they are, add an `ASSETS.md` saying what each one produces.
-For anything large or binary-heavy, link out rather than committing it here.
+them — lives in that entry's `assets/`, so a whole piece of work moves and reads as
+one unit while the entry directory leads with the write-up rather than a wall of
+files. Once there are enough supporting files that a reader would have to guess
+what they are, add an `assets/README.md` saying what each one produces. For anything
+large or binary-heavy, link out rather than committing it here.
 
 Every Markdown file under `entries/` opens with a metadata block. An entry states
-its `Date`, `Author`, `Status`, `Tags`, and `License`; a supporting document beside
-it — a manifest, a design note, a plan — states `Date`, `Author`, and `License`,
-since status and tags describe the investigation rather than the file. The stated
-date is the entry's own, matching the directory name.
+its `Date`, `Author`, `Status`, `Tags`, and `License`; a supporting document — a
+manifest, a design note, a plan — states `Date`, `Author`, and `License`, since
+status and tags describe the investigation rather than the file. The stated date is
+the entry's own, matching the directory name.
 
 ## License
 
