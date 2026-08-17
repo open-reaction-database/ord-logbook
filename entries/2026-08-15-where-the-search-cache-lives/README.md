@@ -585,6 +585,36 @@ What changes that: a deployment target capped below ~5 GB that cannot be raised.
 is measured and correct, and would go in as a fallback after `OutOfMemoryException`
 rather than as the default path.
 
+### 18. Across a mixed workload the index is 2–24× ahead, and the gap is where the other clause is cheap
+
+Finding 15 compared the routes on four structure queries. The shape a deployment actually
+serves is a structure clause paired with one the index cannot carry, so the same
+comparison was run over ten of those, warm, with the pivots read as artifacts and the
+default budget. The second column refuses the index, which is where a corpus without one
+lands — the pivots take every quantifier rather than the elements:
+
+| query | index | pivots alone |
+| --- | --- | --- |
+| pyridine solvent, above 350 K | 0.020 s | 0.484 s |
+| pyridine solvent, yield > 50% | 0.033 s | 0.105 s |
+| pyridine solvent, white product | 0.028 s | 0.101 s |
+| pyridine solvent, "reflux" in the procedure | 0.054 s | 0.493 s |
+| yields by product color (grouped) | 0.036 s | 0.104 s |
+| hottest with a yield (ordered, limited) | 0.033 s | 0.105 s |
+| boronic acid, pyridine solvent, yield > 50% | 0.041 s | 0.142 s |
+| any aromatic carbon, yield > 50% | 0.153 s | 0.259 s |
+| a benzene ring, yield > 50% | 0.142 s | 0.241 s |
+| **not** pyridine anywhere, with a yield | 0.123 s | 0.218 s |
+
+Same answers on both routes. The gap is widest where the *other* clause is cheap — a
+scalar path, or a substring — because there the whole query is the structure clause and
+the index is answering all of it. Where the other clause is itself a quantifier a pivot
+answers, the two converge to within about 3×, since both routes are then paying for the
+same pivot semi-join.
+
+This does not change finding 15's conclusion; it widens the evidence under it from four
+queries of one shape to ten of the shape a server sees.
+
 ## Conclusions / next steps
 
 The survey question — *where else can the cache live?* — had an answer nobody was looking
