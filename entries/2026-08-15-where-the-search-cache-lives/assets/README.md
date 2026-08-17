@@ -32,6 +32,7 @@ builds to take about half an hour over the full corpus.
 | `probe_index_shape.py` | whether building the index path by path lowers that floor | 16 |
 | `probe_index_chunked.py` | the same build one projection file at a time | 17 |
 | `probe_index_default.py` | both build shapes where nothing is constrained | 17 |
+| `bench_mixed.py` | a mixed workload on the index, against the pivots alone | 18 |
 
 `probe_width.py` reads only Parquet footers, so it is the one script here that finishes in
 seconds. `probe_element.py` builds all four pivots and takes about 40 minutes;
