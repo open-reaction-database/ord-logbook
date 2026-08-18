@@ -194,6 +194,7 @@ Three things to do in order:
 ## References
 
 - [`assets/nl-search-design.md`](assets/nl-search-design.md) — the design this entry argues for
+- [`assets/nl-search-plan.md`](assets/nl-search-plan.md) — the task-by-task plan built from it
 - [Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) — recursion unsupported; limits undocumented
 - [anthropic-sdk-python#1185](https://github.com/anthropics/anthropic-sdk-python/issues/1185) — the optional-property state-space report
 - [ord-schema#966](https://github.com/open-reaction-database/ord-schema/pull/966) — the split that renamed `agent` to `search`

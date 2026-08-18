@@ -4,8 +4,9 @@
 - **Author:** Steven Kearnes
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
-Probes for [the entry beside them](../README.md), and the design they argue for,
-[`nl-search-design.md`](nl-search-design.md).
+Probes for [the entry beside them](../README.md), the design they argue for
+([`nl-search-design.md`](nl-search-design.md)), and the plan that implements it
+([`nl-search-plan.md`](nl-search-plan.md)).
 
 Every probe but the first makes live Messages API calls. Run them with `ord_schema`
 importable and a key in the environment; the interface deployment's key works, and is
