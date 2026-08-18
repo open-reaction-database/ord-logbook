@@ -615,6 +615,64 @@ same pivot semi-join.
 This does not change finding 15's conclusion; it widens the evidence under it from four
 queries of one shape to ten of the shape a server sees.
 
+### 19. DuckDB reads the cgroup, and the default it picks from it is still fatal
+
+Finding 16 measured the build's floor on a laptop and left one question open: does
+DuckDB's default `memory_limit` come from the container's cap or from the host? If the
+host, a constrained deployment is OOM-killed with nothing in the log; if the cgroup, it
+raises `OutOfMemoryException` and `check_index()` surfaces it at startup.
+
+It reads the cgroup. A container is given a limit sized to its own cap, and `threads`
+follows `--cpus` the same way:
+
+| `--memory` | `--cpus` | `memory_limit` | `threads` |
+| --- | --- | --- | --- |
+| 512m | — | 409.5 MiB | 18 |
+| 2g | — | 1.5 GiB | 18 |
+| 4g | — | 3.1 GiB | 18 |
+| 6g | — | 4.7 GiB | 18 |
+| 6g | 2 | 4.7 GiB | 2 |
+| 8g | — | 6.3 GiB | 18 |
+
+**And it does not help.** The limit bounds DuckDB's buffers; the cap bounds the process,
+which is also holding the interpreter, RDKit, the paired footers, and whatever the build
+allocates outside DuckDB's accounting. Running `check_index()` over the full corpus in a
+capped container:
+
+| cap | `memory_limit` | outcome | peak RSS |
+| --- | --- | --- | --- |
+| 4 GiB | 3.1 GiB (default) | **killed**, exit 137 | — |
+| 4 GiB | 2 GiB | **killed**, exit 137, after 25 GB of spill | — |
+| 4 GiB | 1 GiB | `OutOfMemoryException` at 195 s | 3.91 GiB |
+| 8 GiB | 6.3 GiB (default) | **killed**, exit 137, 85 s in | — |
+| 12 GiB | 5 GiB | `OutOfMemoryException` at 194 s | 8.65 GiB |
+| 12 GiB | 6500 MiB | built, 18,847,978 occurrences | 9.29 GiB |
+
+The process ran 2.8–2.9 GiB above whatever DuckDB was allowed: 3.91 GiB peak against a
+1 GiB limit, 9.29 GiB against 6.5 GiB. Since DuckDB's default claims about 80% of the cap
+for itself, **the default is over the cap by construction at every size measured**, and
+the failure it produces is the kind finding 16 was trying to avoid — no exception, no log
+line, exit 137. The clean `OutOfMemoryException` arrives only where the limit is roughly
+half the cap or less, and even the 4 GiB / 1 GiB run reached 3.91 GiB of its 4 GiB cap.
+
+So the container floor for building the index over ORD is about **12 GiB, with DuckDB
+explicitly held to 6.5 GiB** — not the 5 GB of DuckDB memory finding 16 reports, which is
+DuckDB's share rather than the process's.
+
+Two things follow, both shipped in
+[ord-schema#977](https://github.com/open-reaction-database/ord-schema/pull/977). `Corpus`
+takes a `memory_limit`, which it previously offered no way to set; and it reads the cgroup
+at open, warning when the cap leaves less than 4 GB above the limit, since a deployment
+that will be killed should hear so before it starts rather than never.
+
+One number here disagrees with finding 16 and is left unexplained: 5 GiB in a container
+raised where 5 GB on the laptop built. The gap is small and the direction is safe --
+containers want more, not less -- but it was not chased.
+
+Wall-clock figures in this finding are inflated: the container read the artifacts and
+spilled through a bind mount into macOS, which costs far more than a deployment's local
+disk. Resident sizes, which is what the finding is about, are unaffected.
+
 ## Conclusions / next steps
 
 The survey question — *where else can the cache live?* — had an answer nobody was looking

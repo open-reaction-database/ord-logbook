@@ -33,6 +33,13 @@ builds to take about half an hour over the full corpus.
 | `probe_index_chunked.py` | the same build one projection file at a time | 17 |
 | `probe_index_default.py` | both build shapes where nothing is constrained | 17 |
 | `bench_mixed.py` | a mixed workload on the index, against the pivots alone | 18 |
+| `probe_cgroup.py` | what DuckDB's defaults become inside a memory-capped container | 19 |
+| `probe_container_index.py` | the index build under that cap, and which way it ends | 19 |
+
+The last two run in Docker rather than on the host, since a cgroup cap is the thing they
+measure; each script's docstring carries the command. Give the spill directory a volume
+rather than a bind mount — a build that fills 25 GB of temporary files through one takes
+longer to delete them than to run.
 
 `probe_width.py` reads only Parquet footers, so it is the one script here that finishes in
 seconds. `probe_element.py` builds all four pivots and takes about 40 minutes;
