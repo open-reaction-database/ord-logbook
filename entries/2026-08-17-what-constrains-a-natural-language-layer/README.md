@@ -191,6 +191,36 @@ Three things to do in order:
 3. **Then choose the model on evidence**, including whether path guidance in the cached
    prefix closes Haiku's gap. At 5.6× it is worth the measurement.
 
+## What implementing it changed
+
+Three things the design got wrong, found by building it (ord-schema
+[#979](https://github.com/open-reaction-database/ord-schema/pull/979),
+[#980](https://github.com/open-reaction-database/ord-schema/pull/980),
+[#981](https://github.com/open-reaction-database/ord-schema/pull/981)):
+
+**A resolved compound was compared in the wrong spelling.** The default resolver asks
+PubChem, which returns pyridine as `C1=CC=NC=C1`; the projection stores what RDKit
+canonicalizes, `c1ccncc1`. Compared as strings they never match, so the first real
+question -- pyridine as a solvent -- answered **zero** over a corpus holding 24,930.
+Wrong, and wrong in the way that looks like an answer. This predates the NL layer: any
+caller passing `{"compound": ...}` to an `eq` on a smiles path hit it.
+
+**Forcing the tool call left no way to decline.** With `tool_choice` naming
+`build_query`, a model asked for something the grammar cannot express -- comparing two
+columns -- builds a plausible query that means something else. Both models did. A
+`cannot_answer` tool beside it, with `tool_choice: any`, turns that into a refusal
+carrying the model's own reason.
+
+**An eval case built by sampling failed correct translations.** The counterexamples for
+"a desired product with a yield above 50%" were derived by differencing a 200-row sample
+of the right query against a 400-row sample of the wrong one -- set arithmetic on
+samples. Both models failed a case they had answered correctly, and a round of prompt
+tuning went into a problem that did not exist. Asking for the counterexamples directly
+-- `near_miss AND NOT reference` -- is exact, and with honest cases both models pass 5/5.
+
+The second and third are the same lesson from opposite directions: a layer that cannot
+say "no" invents an answer, and a test that cannot say "wrong" invents a failure.
+
 ## References
 
 - [`assets/nl-search-design.md`](assets/nl-search-design.md) — the design this entry argues for
