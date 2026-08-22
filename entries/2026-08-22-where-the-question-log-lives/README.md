@@ -49,9 +49,9 @@ Three constraints decided it, and only the first is about storage:
 
 ## Method
 
-This is a design record rather than a measurement: no probe was run, and the entry argues
-from constraints that are already true of the deployed system. Each was read out of the
-stacks or the code rather than assumed:
+This is mostly a design record rather than a measurement. The storage decision argues
+from constraints already true of the deployed system, each read out of the stacks or the
+code rather than assumed:
 
 | Claim | Where it was verified |
 | --- | --- |
@@ -62,8 +62,14 @@ stacks or the code rather than assumed:
 | The dated corpus database is one of four on a shared cluster | `stacks/database/README.md` |
 | The cluster is a 2-vCPU `db.t4g.large` chosen for RAM | `stacks/backend/README.md`, "Database sizing" |
 
-The one number that is *not* verified is volume, and it matters only for compaction; see
-[Conclusions](#conclusions--next-steps).
+One question could not be settled by reading anything, because it is about how DuckDB
+behaves rather than about how the system is built: whether a log whose payload is a
+model-authored query survives compaction into Parquet. That one is measured, by
+[`assets/parquet-compaction-probe.py`](assets/parquet-compaction-probe.py), and the
+answer changed the record shape.
+
+The one number still *not* verified is volume, and it matters only for deciding when to
+compact; see [Conclusions](#conclusions--next-steps).
 
 ## Findings
 
@@ -78,10 +84,10 @@ written by the library.
   "record_id": "0f3c…",          "session_id": "a91b…",   "timestamp": "2026-08-22T18:04:11Z",
   "question": "which reactions use pyridine as a solvent?",
   "attempts": [
-    {"translation": {"op": "exists", "path": "conditions.solvent", "…": "…"},
+    {"translation": "{\"op\":\"exists\",\"path\":\"conditions.solvent\",…}",
      "error": "no such path: conditions.solvent; did you mean inputs.components.reaction_role?",
      "usage": {"input": 412, "output": 233, "cache_read": 15104, "cache_creation": 0}},
-    {"translation": {"op": "exists", "path": "inputs.components", "…": "…"},
+    {"translation": "{\"op\":\"exists\",\"path\":\"inputs.components\",…}",
      "error": null,
      "usage": {"input": 689, "output": 241, "cache_read": 15104, "cache_creation": 0}}
   ],
@@ -103,6 +109,10 @@ The thumb is `{event, record_id, session_id, timestamp, value: up|down, comment}
 label is `{event, record_id, timestamp, verdict: correct|wrong|unclear, reference, note,
 promoted}`.
 
+A translation is stored as a **JSON string**, not as a nested object, for reasons
+measured in [the next section](#the-payload-is-a-string-because-a-struct-loses-fields).
+Everything around it is typed.
+
 `usage` and `timings_ms` at the top level are the totals for the whole ask -- what the
 question actually cost -- and the reader derives the rest from `attempts` rather than
 storing it: the `translation` is the last attempt whose `error` is null (and null if none
@@ -113,6 +123,50 @@ Nothing identifying is stored beyond a session identifier the client mints: no I
 address, no user agent, no account. Questions are free text a person typed, which is
 reason enough for the design to state a retention period rather than let one accrete by
 default.
+
+### The payload is a string, because a struct loses fields
+
+The record's payload is a `Query` the model wrote: recursive, differently shaped record
+to record, and -- on the attempt that matters most -- not even valid. Storing it as a
+nested object and compacting a month into Parquet means letting DuckDB infer a struct
+type from whichever shapes that month happened to hold. The probe asked what that costs.
+
+Compaction itself is fine, which is not what I expected: two months whose inferred types
+genuinely differ (`STRUCT(op, path, value, clauses)` against `STRUCT(op, path, where)`)
+compacted and read back together, all rows present. The damage is one level down.
+
+| Read across two compacted months | Nested | JSON string |
+| --- | --- | --- |
+| `count(*)` | 3 rows | 3 rows |
+| a field the *first* month's type has | returns it | returns it |
+| a field only the *second* month's type has | `Binder Error: Could not find key "where" in struct` | returns it |
+| the same, with `union_by_name=true` | `Conversion Error` reading the file | n/a |
+| a shape first appearing past the inference sample | `Binder Error: Could not find key "threshold"` | returns it |
+
+The second row is the bad one, and it is bad in the quiet way. The unified read takes the
+first file's struct, so the later month's record still *counts* -- it is there in
+`count(*)`, it is there in every aggregate -- while the part of it that made it worth
+recording is unreachable. A query for `similarity` predicates over a year would return a
+confident, wrong, low number. `union_by_name=true`, the documented fix for exactly this,
+refuses the mismatched structs outright, which is at least loud.
+
+The last row is the same failure with a longer fuse. `read_json_auto` infers from a
+sample -- 20,480 rows by default -- so a predicate form that stays rare until the log is
+large is simply not in the schema, and querying it errors rather than returning nothing.
+The probe reproduces this with `sample_size=10` and a shape at record 50.
+
+As a JSON string every one of these reads correctly and identically: DuckDB types the
+column `JSON`, `->` returns the value where it exists and NULL where it does not, and no
+inference happens at all. The cost is `->'$.op'` instead of `.op`, and losing the ability
+to have the compiler check a path that was never checkable anyway -- these are strings a
+model wrote.
+
+So the record is a **typed envelope around an opaque payload**: identifiers, outcome,
+usage, timings, and fingerprints are columns; question, translation, and error text are
+strings. That is also the honest correction to a glib line in the first draft of this
+entry -- "half of what it records is off-schema" is not an argument against a table,
+since `jsonb` would hold it perfectly well. It is an argument against typing the payload,
+in whichever store.
 
 ### The outcome field labels a good share of the corpus for free
 
@@ -212,8 +266,8 @@ def ask(question, corpus, *, session_id=None, sink=None, ...) -> Answer
 
 An attempt holds the raw tool input rather than a `Query`, because the attempt worth
 recording is usually the one that *failed* `model_validate` -- there is no `Query` object
-to hold. That is also a small argument for the log being JSON rather than a typed table:
-half of what it records is, by definition, off-schema.
+to hold. In memory it stays a dict; the sink serializes it to a JSON string on the way
+out, for the reason the probe found.
 
 The failure paths are what make the new return type the better shape rather than merely
 the tidier one. A record is most interesting exactly when translation didn't work, and a
@@ -262,7 +316,8 @@ In ord-schema:
 - A public corpus fingerprint on `Corpus`.
 - A reader that folds thumb and label events onto their ask, derives `translation` and
   `repaired` from `attempts`, and a compaction command that rewrites a month of JSON
-  objects into one Parquet file.
+  objects into one Parquet file. The typed envelope makes that Parquet schema stable
+  across months; a test should pin it, since the failure it prevents is silent.
 
 In ord-infrastructure: the `nl-log/` prefix, a write-only task role, a read role for
 analysis, and a lifecycle policy implementing whatever retention is chosen.
@@ -288,3 +343,4 @@ Open questions, none of them blocking:
 - [Natural-language query over the projection](../2026-07-31-nl-query-over-the-projection/README.md) -- the earlier framing of the layer
 - [`ord_schema/search/nl.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/search/nl.py) -- translation, and the error taxonomy `outcome` mirrors
 - [`ord_schema/search/nl_eval.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/search/nl_eval.py) -- the eval harness a labeled record is promoted into
+- [`assets/parquet-compaction-probe.py`](assets/parquet-compaction-probe.py) -- the measurement behind the string payload
