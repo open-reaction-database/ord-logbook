@@ -19,11 +19,17 @@ durable record of every question and the query it became live, and what is in it
 
 ## Summary
 
-**An append-only event log of JSON objects in S3**, under the `open-reaction-database`
-bucket the backend stack already provisions, read with DuckDB. Three event kinds share a
-`record_id`: the **ask**, written by the library; the **thumb**, from an anonymous
+**An append-only event log of JSON objects in S3**, read with DuckDB. Three event kinds
+share a `record_id`: the **ask**, written by the library; the **thumb**, from an anonymous
 visitor; the **label**, from a maintainer. Results are not stored -- the translation and a
 corpus fingerprint reproduce them on demand.
+
+It goes in **a new private bucket, not the `open-reaction-database` one**. That bucket
+holds artifacts meant to be publishable, and the log is the opposite: free text people
+typed, against session identifiers. Keeping them apart is not about today's permissions
+-- account-level Block Public Access covers both -- but about what it costs to open the
+public bucket later. Separate buckets make that a policy change; one bucket makes it an
+audit of every prefix, forever, and an audit that has to be right every time.
 
 Operational signals stay in CloudWatch. The log is for refinement; a store asked to be
 both a refinement corpus and a monitoring surface is read as neither, and error rate,
@@ -58,7 +64,8 @@ code rather than assumed:
 | The live NL endpoint's whole record is one stdout line | `ord_interface/api/nl_query.py` on ord-interface `origin/main` |
 | `search.nl` records nothing, and discards `response.usage` | [`ord_schema/search/nl.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/search/nl.py) |
 | `Corpus` exposes no version or fingerprint | [`ord_schema/search/execute.py`](https://github.com/open-reaction-database/ord-schema/blob/main/ord_schema/search/execute.py) -- stamps are read at construction and indexed by `source_md5`, never surfaced |
-| The bucket already exists and is protected | `stacks/backend/__main__.py`, `aws.s3.Bucket("ord_bucket", bucket="open-reaction-database")` |
+| The only bucket the stack provisions is the publishable one | `stacks/backend/__main__.py`, `aws.s3.Bucket("ord_bucket", bucket="open-reaction-database")` -- so the log needs a new one |
+| Block Public Access is set account-wide | `stacks/account/`, per the repository README |
 | The dated corpus database is one of four on a shared cluster | `stacks/database/README.md` |
 | The cluster is a 2-vCPU `db.t4g.large` chosen for RAM | `stacks/backend/README.md`, "Database sizing" |
 
@@ -319,8 +326,11 @@ In ord-schema:
   objects into one Parquet file. The typed envelope makes that Parquet schema stable
   across months; a test should pin it, since the failure it prevents is silent.
 
-In ord-infrastructure: the `nl-log/` prefix, a write-only task role, a read role for
-analysis, and a lifecycle policy implementing whatever retention is chosen.
+In ord-infrastructure: a private bucket for internal data, holding the log under a
+`nl-log/` prefix; a task role that may only `PutObject` under it; a separate read role for
+analysis; and a lifecycle policy implementing whatever retention is chosen. Nothing in
+the library names a bucket -- the sink takes one -- so this decision stays in the stack
+where it can be reviewed.
 
 In whatever serves `search.nl`: mint the session identifier client-side, and an endpoint
 that records a thumb against a `record_id`.
