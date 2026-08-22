@@ -77,11 +77,17 @@ written by the library.
   "event": "ask",
   "record_id": "0f3c…",          "session_id": "a91b…",   "timestamp": "2026-08-22T18:04:11Z",
   "question": "which reactions use pyridine as a solvent?",
-  "translation": {"where": {"op": "exists", "path": "inputs.components", "…": "…"}},
+  "attempts": [
+    {"translation": {"op": "exists", "path": "conditions.solvent", "…": "…"},
+     "error": "no such path: conditions.solvent; did you mean inputs.components.reaction_role?",
+     "usage": {"input": 412, "output": 233, "cache_read": 15104, "cache_creation": 0}},
+    {"translation": {"op": "exists", "path": "inputs.components", "…": "…"},
+     "error": null,
+     "usage": {"input": 689, "output": 241, "cache_read": 15104, "cache_creation": 0}}
+  ],
   "outcome": "empty",
   "row_count": 0,
-  "repaired": true,
-  "declined_reason": null,       "declined_attempted": false,
+  "declined_reason": null,
   "error": null,
   "answer_text": "No reactions matched.",
   "model": "claude-haiku-4-5",
@@ -96,6 +102,12 @@ written by the library.
 The thumb is `{event, record_id, session_id, timestamp, value: up|down, comment}`. The
 label is `{event, record_id, timestamp, verdict: correct|wrong|unclear, reference, note,
 promoted}`.
+
+`usage` and `timings_ms` at the top level are the totals for the whole ask -- what the
+question actually cost -- and the reader derives the rest from `attempts` rather than
+storing it: the `translation` is the last attempt whose `error` is null (and null if none
+is), `repaired` is `len(attempts) > 1`, and a model that declined only after the compiler
+refused a guess is `outcome = 'declined'` with a non-empty list.
 
 Nothing identifying is stored beyond a session identifier the client mints: no IP
 address, no user agent, no account. Questions are free text a person typed, which is
@@ -117,10 +129,11 @@ hand. A question the model **declined** is a claim that the grammar cannot expre
 which is either true -- and worth knowing how often -- or a translator giving up on
 something it should have written.
 
-`declined_attempted` is already carried on `UnanswerableError` and is worth persisting
-for the same reason it exists: declining after the compiler refused a guess is a
-different event from reading the question and saying no, and only the second is the
-behavior the layer is trying to have.
+`UnanswerableError` already carries an `attempted` flag, for a distinction worth keeping:
+declining after the compiler refused a guess is a different event from reading the
+question and saying no, and only the second is the behavior the layer is trying to have.
+Against an attempts list that flag stops being a field at all -- the model that declined
+outright has an empty list, and the one that built a query first does not.
 
 The session identifier is what turns isolated pairs into something you can learn from.
 Grouped by session, the log shows the reformulation chain -- *asked X, got nothing,
@@ -128,6 +141,33 @@ rephrased to Y, rephrased to Z, stopped* -- and the user's own next attempt is a
 approximate label on the previous failure. That signal cannot be reconstructed later from
 unlinked records, which is the argument for minting the identifier before there is any
 service to use it.
+
+### A repair is not a second question
+
+Two things look alike -- a query that follows a failed one -- and they want opposite
+treatments. The **repair turn** is internal to one `translate()` call: same question, same
+conversation, two assistant turns, and the caller never sees the first attempt. It is one
+record. A **rephrasing** is a new question with its own record, linked to the previous one
+by session and timestamp order, and nothing more is needed to reconstruct the chain.
+
+So repair is recorded inside the record, as the attempts themselves rather than as a
+boolean. That costs a nested list and buys two things the boolean cannot:
+
+- **The rejected query and the error that rejected it.** Which paths does the model invent
+  that the schema does not have? Which of the compiler's suggestions does the second turn
+  actually take? Prompt work runs on exactly this, and `repaired: true` discards all of
+  it.
+- **What repair costs.** The case for the cheap model is Haiku plus one repair turn at
+  5.6× lower cost than Opus, measured [in the entry that settled the
+  design](../2026-08-17-what-constrains-a-natural-language-layer/README.md). How often
+  the second turn rescues a query, and what it costs when it does, is the open question
+  about that choice -- and per-attempt usage answers it directly, with no separate
+  experiment.
+
+An explicit parent pointer would earn its place for one thing only, and that thing does
+not exist yet: a feature offering "edit this query and run it again" would make a new ask
+derive from one specific prior record, which session and timestamp cannot express. A
+`derived_from` field belongs in the record on the day that ships, not before.
 
 ### Two fingerprints, and what each is for
 
@@ -155,22 +195,32 @@ changes rather than growing an out-parameter beside it:
 
 ```python
 @dataclasses.dataclass(frozen=True)
+class Attempt:
+    translation: dict[str, Any]   # the coerced tool input, which need not be valid
+    error: str | None
+    usage: Usage
+
+@dataclasses.dataclass(frozen=True)
 class Translation:
     query: query.Query
-    usage: Usage
-    repaired: bool
+    attempts: tuple[Attempt, ...]
     elapsed_ms: float
 
 def translate(question, ...) -> Translation
 def ask(question, corpus, *, session_id=None, sink=None, ...) -> Answer
 ```
 
-The failure paths are the ones that make this the better shape rather than merely the
-tidier one. A record is most interesting exactly when the translation *didn't* work, and
-a malformed query that burned two turns has spent real money -- but an exception carries
-no return value, so an accumulator was the only way to get the usage back out. Instead
-`NLQueryError` grows `usage` and `elapsed_ms`, and every path reports what it cost,
-whether it ended in a query, a refusal, or a compiler error.
+An attempt holds the raw tool input rather than a `Query`, because the attempt worth
+recording is usually the one that *failed* `model_validate` -- there is no `Query` object
+to hold. That is also a small argument for the log being JSON rather than a typed table:
+half of what it records is, by definition, off-schema.
+
+The failure paths are what make the new return type the better shape rather than merely
+the tidier one. A record is most interesting exactly when translation didn't work, and a
+malformed query that burned two turns has spent real money -- but an exception carries no
+return value, so an accumulator was the only way to get that back out. Instead
+`NLQueryError` grows `attempts` and `elapsed_ms`, and every path reports what it cost and
+what it tried, whether it ended in a query, a refusal, or a compiler error.
 
 `Answer` grows a `record_id` for the same reason: whatever serves this has to hand the
 identifier to the browser, or there is nothing for a thumb to reference.
@@ -207,11 +257,12 @@ and token cost without a second store.
 In ord-schema:
 
 - The record model, the sink protocol, and the four sinks.
-- `Translation` as `translate`'s return type, `usage` and `elapsed_ms` on `NLQueryError`,
-  and `record_id` on `Answer`.
+- `Translation` as `translate`'s return type, `attempts` and `elapsed_ms` on
+  `NLQueryError`, and `record_id` on `Answer`.
 - A public corpus fingerprint on `Corpus`.
-- A reader that folds thumb and label events onto their ask, and a compaction command
-  that rewrites a month of JSON objects into one Parquet file.
+- A reader that folds thumb and label events onto their ask, derives `translation` and
+  `repaired` from `attempts`, and a compaction command that rewrites a month of JSON
+  objects into one Parquet file.
 
 In ord-infrastructure: the `nl-log/` prefix, a write-only task role, a read role for
 analysis, and a lifecycle policy implementing whatever retention is chosen.
