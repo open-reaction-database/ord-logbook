@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
-- **Status:** draft (plan; nothing implemented)
+- **Status:** draft (stage 0 done; stages 1–3 not started)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -39,11 +39,11 @@ cleanup that rides along. `buf lint` has to be configured mostly off.**
   ORD maintaining one. It also improves the breaking check: `buf breaking` can compare
   against the last *published* version rather than only against `main`, which closes the
   gap where a break is introduced and then compounded across several merged PRs.
-- **`buf generate` cannot cover everything.** `pbjs`/`pbts` read `.proto` files directly
-  rather than acting as protoc plugins, so `js/ord-schema-protobufjs/` stays a shell step
-  no matter what. Whether the `protoc-gen-js` and `ts-protoc-gen` outputs can move is the
-  open question that gates the codegen stage — Google archived protobuf-javascript, and
-  the plan does not assume a maintained remote plugin exists for it.
+- **`buf generate` cannot cover everything, and stage 0 measured how much.** Python,
+  `.pyi`, and JavaScript all have remote plugins at exactly today's versions;
+  `ts-protoc-gen` has none and stays a local plugin, and `pbjs`/`pbts` read `.proto`
+  directly rather than acting as protoc plugins so they stay a shell step regardless. Net
+  saving: the two checksummed archive downloads go, the three npm installs stay.
 - **Staging matters.** Stage 1 (`buf breaking`) and stage 2 (BSR) change no generated
   bytes and can land on their own. Stage 3 (`buf generate`) touches committed output that
   a CI drift check compares byte-for-byte, so it needs plugin versions pinned to today's
@@ -116,20 +116,53 @@ The costs are non-monetary and worth naming anyway:
   page should say so plainly, or the BSR listing will imply a level of support that does
   not exist.
 
+## Stage 0 result: which plugins exist
+
+Checked against [`bufbuild/plugins`](https://github.com/bufbuild/plugins), which holds
+the definition of every remote plugin the BSR serves. That repository rather than the BSR
+web pages, which are client-rendered and return an empty shell to anything but a browser.
+
+| output | remote plugin | today's version available? |
+|---|---|---|
+| `*_pb2.py` | `buf.build/protocolbuffers/python` | **yes** — `v22.3` |
+| `*_pb2.pyi` | `buf.build/protocolbuffers/pyi` | **yes** — `v22.3` |
+| `*_pb.js` | `buf.build/protocolbuffers/js` | **yes** — `v3.21.2` |
+| `*_pb.d.ts` | none | **no** — see below |
+| `protobufjs` bundle | n/a | not a protoc plugin |
+
+**Three of four move at exactly today's version**, which is what stage 3 step 1 needs to
+keep the drift check quiet. The `js` plugin's own definition even declares
+`import_style=commonjs` and `binary` as its default options — the same pair
+`compile_proto_wrappers.sh` passes to `--js_out`.
+
+**The `--ts_out` gap is real.** Searching the whole plugin repository for `ts-protoc-gen`
+and for `improbable` returns zero hits. The community org carries `stephenh-ts-proto` and
+`timostamm-protobuf-ts`, but those are different generators producing different output,
+not drop-in replacements for the `.d.ts` files ts-protoc-gen emits alongside the
+protobuf-javascript output. Substituting one would change the published TypeScript API,
+which is a separate decision from moving the build to buf.
+
+`buf.gen.yaml` can invoke a local plugin binary beside remote ones, so ts-protoc-gen
+stays in the build as a local plugin. Stage 3 is therefore worth doing, at a smaller
+saving than first assumed: it removes the two checksummed archive downloads — protoc 22.3
+and protobuf-javascript 3.21.2 — and leaves the three npm installs (ts-protoc-gen 0.15.0,
+protobufjs 7.4.0, protobufjs-cli 1.1.3) in place.
+
+**Correction to the earlier assumption.** This entry originally justified the gate by
+saying Google had archived protobuf-javascript. That is wrong:
+[the repository](https://github.com/protocolbuffers/protobuf-javascript) is not archived,
+it was updated this month, and its latest release is v4.0.2 from February 2026. The
+plugin that turned out to be missing was the one treated as the lesser risk.
+
 ## Plan
 
 Stages 1 and 2 are independent of the plugin question and of each other's risk; stage 3
 is the only one gated on stage 0. Order them 1 → 2 → 3 anyway, so the breaking check is
 in place before anything is published that others might depend on.
 
-**Stage 0 — settle the plugin question (gate for stage 3).** Check whether buf's remote
-plugin catalog carries `protocolbuffers/js` and a TypeScript declaration plugin
-equivalent to ts-protoc-gen, at versions matching 3.21.2 and 0.15.0. protobuf-javascript
-is archived upstream, so a maintained remote plugin may not exist. Outcomes: all four
-protoc outputs move (stage 3 as written); only Python and `.pyi` move (stage 3 covers
-those, the JS outputs stay on local protoc); or nothing moves cleanly (drop stage 3, keep
-stages 1 and 2). Do this before writing any config — it decides how much of stage 3
-exists.
+**Stage 0 — settle the plugin question (gate for stage 3). DONE; see the section below.**
+Three of the four protoc outputs have remote plugins at exactly today's versions. The
+fourth, `--ts_out`, has none and runs as a local plugin instead.
 
 **Stage 1 — `buf breaking` in CI.** Independent of stage 0 and worth doing regardless.
 
@@ -179,10 +212,15 @@ breaking check is guarding the schema before anyone can depend on the published 
 
 ## Risks and open questions
 
-- **Archived JS plugin.** The stage 0 gate. If `protoc-gen-js` has no maintained remote
-  plugin, part of the toolchain stays hand-pinned and stage 3's value shrinks
-  accordingly. That is an acceptable outcome, not a blocker — stages 1 and 2 carry the
-  value.
+- **`ts-protoc-gen` has no remote plugin.** Settled by stage 0 and not a blocker: it runs
+  as a local plugin, which keeps its npm install in CI and shrinks stage 3's saving
+  without changing its shape. Swapping to `ts-proto` or `protobuf-ts` would remove the
+  local plugin but change the published TypeScript API, so it is a separate decision.
+- **Version skew on a local plugin.** A remote plugin's version is pinned in
+  `buf.gen.yaml` and resolved by buf; ts-protoc-gen's is pinned by an `npm i -g` line
+  somewhere else. The two pins can drift apart without anything noticing until the drift
+  check fires. Keep the version literal in one place, or at least comment each to point
+  at the other.
 - **Generated-output drift.** Buf compiles with its own implementation rather than
   shelling out to protoc. Even at a matching plugin version the descriptor bytes embedded
   in `*_pb2.py` could differ. Stage 3 step 5 is where this surfaces; treat any diff as a
@@ -206,14 +244,14 @@ breaking check is guarding the schema before anyone can depend on the published 
 
 ## Conclusions / next steps
 
-1. Run stage 0 — a catalog lookup, not a code change.
+1. ~~Run stage 0.~~ Done — three of four outputs have exact-version remote plugins, and
+   stage 3 survives with `ts-protoc-gen` as a local plugin.
 2. Settle who owns the buf.build organization. It gates stage 2 and is a people question,
    so start it early rather than discovering it at publish time.
-3. Land stage 1 regardless of the plugin answer. It is small, it is additive, and it
-   closes the one gap the current setup has no answer for.
+3. Land stage 1. It is small, it is additive, and it closes the one gap the current setup
+   has no answer for.
 4. Land stage 2 once stage 1 is guarding the schema.
-5. Land stage 3 only if stage 0 comes back clean, and keep the version bump separate from
-   the migration.
+5. Land stage 3, keeping the version bump separate from the migration.
 
 Explicitly not in scope: changing enum naming to satisfy `buf lint`, publishing
 hand-maintained C++ or Rust bindings — the BSR generates those on demand, which is the
@@ -233,8 +271,12 @@ to review.
 - [Buf pricing](https://buf.build/pricing) — the Community tier's unlimited public
   repositories, and [manage costs](https://buf.build/docs/subscription/manage-costs/) for
   the statement that public-repository types are not billable.
-- [protobuf-javascript](https://github.com/protocolbuffers/protobuf-javascript) — the
-  archived plugin behind the stage 0 gate.
+- [bufbuild/plugins](https://github.com/bufbuild/plugins) — the definitions behind every
+  remote plugin, and the source for the stage 0 table.
+- [protobuf-javascript](https://github.com/protocolbuffers/protobuf-javascript) — not
+  archived, contrary to this entry's first draft.
+- [ts-protoc-gen](https://github.com/improbable-eng/ts-protoc-gen) — the one generator
+  with no remote plugin.
 - Prior entry:
   [2026-08-02-validation-performance/](../2026-08-02-validation-performance/README.md) —
   where the validation rules live and why a rewrite in another language is not the answer.
