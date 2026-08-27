@@ -28,11 +28,10 @@ cleanup that rides along. `buf lint` has to be configured mostly off.**
   protobuf-javascript 3.21.2, ts-protoc-gen 0.15.0, protobufjs 7.4.0, and
   protobufjs-cli 1.1.3 — two by URL plus sha256, three by npm — before it can run the
   build script. A `buf.gen.yaml` with pinned remote plugins collapses most of that.
-- **`buf lint` is not a candidate.** `reaction.proto` deliberately violates the enum
-  style guide, and says so at the top of the file: enums are nested rather than prefixed
-  so that `CUSTOM` and `UNSPECIFIED` are unqualified values across every enum. The rules
-  that would fire (`ENUM_VALUE_PREFIX`, `ENUM_ZERO_VALUE_SUFFIX`) would demand renaming
-  every enum value in the public API. Configure them off; do not "fix" the schema.
+- **`buf lint` is not a candidate, and the reason is stronger than "we deviate."** buf's
+  defaults are stricter than the upstream style guide, which permits nesting outright,
+  and the collision `ENUM_VALUE_PREFIX` guards against is one protoc has already
+  prevented. Configure the rule off; do not "fix" the schema. Measured below.
 - **Publish to the BSR, and treat it as outreach rather than as a response to demand.**
   A hosted module gives the schema a browsable reference page built from the comments
   already in `reaction.proto`, and lets anyone generate an SDK for their language without
@@ -87,8 +86,44 @@ infrastructure, so contributors need neither protoc nor the JavaScript plugins i
 to regenerate. The trade is a network dependency in CI where there is currently a
 checksummed download.
 
-**`buf lint` / `buf format`.** Skip. See the enum discussion above; `buf format` would
-also reflow a 1341-line file that has years of hand-placed comments in it.
+**`buf lint` / `buf format`.** Skip. See the enum section below; `buf format` would also
+reflow a 1341-line file that has years of hand-placed comments in it.
+
+## Why `ENUM_VALUE_PREFIX` stays off
+
+The rule buf would apply is not the rule protobuf.dev states. The
+[style guide](https://protobuf.dev/programming-guides/style/#enums) says "either option
+is enough to mitigate collision risks, but prefer top-level enums with prefixed values
+over creating a message simply to mitigate the issue" — nesting is permitted, and the
+preference is scoped to messages created *solely* to scope an enum. Auditing the
+descriptors, 42 messages hold a nested enum: 28 carry substantive fields beyond
+`type`/`details`, 13 are `{type, details}` pairs where `details` is the escape hatch
+`CUSTOM` needs, and exactly one — `ord.ReactionRole` — has no fields at all. One case out
+of 42 matches the pattern the guide advises against.
+
+Three measurements say prefixing would cost something real and buy nothing:
+
+- **`protoc` already emits the prefix for C++.** Generating `--cpp_out` from both
+  schemas, today's nested enum produces `CompoundIdentifier_CompoundIdentifierType_SMILES`
+  at namespace scope plus a `CompoundIdentifier::SMILES` in-class alias. Prefixing in
+  source yields `CompoundIdentifier_CompoundIdentifierType_COMPOUND_IDENTIFIER_TYPE_SMILES`
+  — 72 characters saying "compound identifier type" twice. C++ is the language the rule
+  exists for, and nesting is what already solves it there.
+- **Rust is indifferent, by design.** `prost-build` upper-camels each value and then
+  strips a prefix matching the enum name, with `strip_enum_prefix: true` as the default.
+  Both schemas generate `CompoundIdentifierType::Smiles`. The only divergence is for a
+  consumer who calls `retain_enum_prefix()`, and it runs against prefixing.
+- **The uniform spelling is load-bearing in Python.** `_check_type_and_details` reads
+  `message.UNSPECIFIED` and `message.CUSTOM` off whatever it is handed, and 28 message
+  types route through it. Prefixing replaces one generic check with a per-enum lookup;
+  the type checker rejects the change immediately.
+
+The cost of renaming is in
+[ord-schema#992](https://github.com/open-reaction-database/ord-schema/pull/992). For the
+most-referenced enum it is 33 attribute references, 161 string-form references across 21
+files — six of them library modules, one inside raw SQL where nothing checks it — 1,059
+lines in one fixture, and an 8.3% growth in the model-facing projection schema from a
+single enum of roughly 100.
 
 **BSR.** A hosted registry holding the module at a versioned path. Three things it gives
 a public schema that a GitHub repository does not: a browsable reference page generated
@@ -167,9 +202,9 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
 **Stage 1 — `buf breaking` in CI.** Independent of stage 0 and worth doing regardless.
 
 1. Add a minimal `buf.yaml` declaring the module at `proto/`, with `lint` restricted to
-   the rules the schema actually honors — or disabled outright, with a comment pointing at
-   the enum-nesting rationale in `reaction.proto` so nobody re-enables it and starts
-   renaming enum values.
+   the rules the schema actually honors — or disabled outright, excepting
+   `ENUM_VALUE_PREFIX` and `ENUM_ZERO_VALUE_SUFFIX` by name with a comment pointing at
+   the section above, so nobody re-enables them and starts renaming enum values.
 2. Add a CI job running `buf breaking --against '.git#branch=main'`. Full history is
    needed for the `.git` input, so the checkout needs `fetch-depth: 0`.
 3. Verify it actually fires: on a scratch branch, renumber a field and confirm the job
