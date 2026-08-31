@@ -1,0 +1,78 @@
+INFO 2026-08-30 23:09:52,388 execute.py:954: pivots built in process may hold 4.0 GB
+INFO 2026-08-30 23:09:58,669 execute.py:1661: indexed 18847978 structure occurrences in 2.7s, 4 of 4 paths read from pivot artifacts: inputs.components 11544040, workups.input.components 4677039, outcomes.products 2605043, outcomes.products.measurements.authentic_standard 21856
+INFO 2026-08-30 23:10:05,989 execute.py:1453: built a substructure library over 1435426 distinct molecules covering 2016224 structures in 7.3s
+INFO 2026-08-30 23:10:08,423 execute.py:2310: substructure 'c1ccncc1' matched 431627 of 2016224 structures (0 unsearchable)
+INFO 2026-08-30 23:10:10,596 execute.py:2310: substructure '[OX2H]' matched 552020 of 2016224 structures (0 unsearchable)
+INFO 2026-08-30 23:10:13,204 execute.py:2310: substructure 'C(=O)O' matched 724085 of 2016224 structures (0 unsearchable)
+INFO 2026-08-30 23:10:17,063 execute.py:2310: substructure '[#6]' matched 2012731 of 2016224 structures (0 unsearchable)
+INFO 2026-08-30 23:10:22,616 execute.py:2293: substructure 'c1ccncc1' reused a cached match set
+INFO 2026-08-30 23:10:23,658 execute.py:2293: substructure '[OX2H]' reused a cached match set
+INFO 2026-08-30 23:10:25,357 execute.py:2293: substructure 'C(=O)O' reused a cached match set
+INFO 2026-08-30 23:10:27,228 execute.py:2293: substructure '[#6]' reused a cached match set
+INFO 2026-08-30 23:10:32,710 execute.py:2293: substructure 'c1ccncc1' reused a cached match set
+INFO 2026-08-30 23:10:33,782 execute.py:2293: substructure '[OX2H]' reused a cached match set
+INFO 2026-08-30 23:10:35,479 execute.py:2293: substructure 'C(=O)O' reused a cached match set
+INFO 2026-08-30 23:10:37,366 execute.py:2293: substructure '[#6]' reused a cached match set
+INFO 2026-08-30 23:10:42,907 execute.py:2293: substructure 'c1ccncc1' reused a cached match set
+INFO 2026-08-30 23:10:43,979 execute.py:2293: substructure '[OX2H]' reused a cached match set
+INFO 2026-08-30 23:10:45,665 execute.py:2293: substructure 'C(=O)O' reused a cached match set
+INFO 2026-08-30 23:10:47,584 execute.py:2293: substructure '[#6]' reused a cached match set
+INFO 2026-08-30 23:10:53,023 execute.py:2293: substructure 'c1ccncc1' reused a cached match set
+INFO 2026-08-30 23:10:54,071 execute.py:2293: substructure '[OX2H]' reused a cached match set
+INFO 2026-08-30 23:10:55,783 execute.py:2293: substructure 'C(=O)O' reused a cached match set
+INFO 2026-08-30 23:10:57,672 execute.py:2293: substructure '[#6]' reused a cached match set
+
+shape    path                                               pattern  med(s)    rows
+joined   inputs.components                                  C(=O)O     0.351  2160484
+memory   inputs.components                                  C(=O)O     0.268  2160484
+parquet  inputs.components                                  C(=O)O     0.448  2160484
+joined   inputs.components                                  [#6]       1.222  9449792
+memory   inputs.components                                  [#6]       0.925  9449792
+parquet  inputs.components                                  [#6]       1.231  9449792
+joined   inputs.components                                  [OX2H]     0.344  2050645
+memory   inputs.components                                  [OX2H]     0.253  2050645
+parquet  inputs.components                                  [OX2H]     0.435  2050645
+joined   inputs.components                                  c1ccncc1   0.310   751071
+memory   inputs.components                                  c1ccncc1   0.154   751071
+parquet  inputs.components                                  c1ccncc1   0.288   751071
+joined   outcomes.products                                  C(=O)O     0.145   827353
+memory   outcomes.products                                  C(=O)O     0.121   827353
+parquet  outcomes.products                                  C(=O)O     0.117   827353
+joined   outcomes.products                                  [#6]       0.318  2584335
+memory   outcomes.products                                  [#6]       0.390  2584335
+parquet  outcomes.products                                  [#6]       0.303  2584335
+joined   outcomes.products                                  [OX2H]     0.119   656641
+memory   outcomes.products                                  [OX2H]     0.097   656641
+parquet  outcomes.products                                  [OX2H]     0.097   656641
+joined   outcomes.products                                  c1ccncc1   0.092   575324
+memory   outcomes.products                                  c1ccncc1   0.073   575324
+parquet  outcomes.products                                  c1ccncc1   0.089   575324
+joined   outcomes.products.measurements.authentic_standard  C(=O)O     0.004     4544
+memory   outcomes.products.measurements.authentic_standard  C(=O)O     0.015     4544
+parquet  outcomes.products.measurements.authentic_standard  C(=O)O     0.003     4544
+joined   outcomes.products.measurements.authentic_standard  [#6]       0.007    21856
+memory   outcomes.products.measurements.authentic_standard  [#6]       0.043    21856
+parquet  outcomes.products.measurements.authentic_standard  [#6]       0.005    21856
+joined   outcomes.products.measurements.authentic_standard  [OX2H]     0.004        0
+memory   outcomes.products.measurements.authentic_standard  [OX2H]     0.012        0
+parquet  outcomes.products.measurements.authentic_standard  [OX2H]     0.002        0
+joined   outcomes.products.measurements.authentic_standard  c1ccncc1   0.004     2936
+memory   outcomes.products.measurements.authentic_standard  c1ccncc1   0.009     2936
+parquet  outcomes.products.measurements.authentic_standard  c1ccncc1   0.003     2936
+joined   workups.input.components                           C(=O)O     0.139   960434
+memory   workups.input.components                           C(=O)O     0.113   960434
+parquet  workups.input.components                           C(=O)O     0.172   960434
+joined   workups.input.components                           [#6]       0.397  2749386
+memory   workups.input.components                           [#6]       0.270  2749386
+parquet  workups.input.components                           [#6]       0.372  2749386
+joined   workups.input.components                           [OX2H]     0.134   549097
+memory   workups.input.components                           [OX2H]     0.074   549097
+parquet  workups.input.components                           [OX2H]     0.125   549097
+joined   workups.input.components                           c1ccncc1   0.019    11309
+memory   workups.input.components                           c1ccncc1   0.009    11309
+parquet  workups.input.components                           c1ccncc1   0.015    11309
+
+by shape, median per query summed and maxed over every path and pattern:
+  memory   sum   2.825s  max   0.925s
+  parquet  sum   3.706s  max   1.231s
+  joined   sum   3.609s  max   1.222s
