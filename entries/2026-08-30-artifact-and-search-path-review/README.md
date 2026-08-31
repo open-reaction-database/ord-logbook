@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
-- **Status:** draft (a review, not a measurement; the one number it turns on is not yet measured)
+- **Status:** draft (the headline finding is measured; the rest is a review, and finding 6 is still unmeasured)
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -32,11 +32,14 @@ of temporary files, the 1.19 GiB held for the life of the process, and the 3.3�
 at open. **Whether it works turns on one number nobody has measured** — what the semi-join
 costs over Parquet rather than over an in-memory table.
 
-Two other things are worth doing and depend on no decision. A **match-set cache** is the
-biggest per-query win available: the RDKit screen and verify is roughly 1.4 s of a 1.46 s
-pyridine query and is recomputed in full for every identical query, with `Corpus.fingerprint`
-already sitting there as the correct cache key. And **`limit` is optional and unbounded**,
-so one query can materialize every matching `reaction_id` into an Arrow table in process.
+**It works.** Measured over the full corpus, the artifact shape answers the semi-join in
+**1.28× what the in-memory table costs** — 0.31 s against 0.15 s for pyridine over
+`inputs.components`, the largest path — and the whole occurrence index is **256 MB of
+Parquet** against 1.19 GiB held. See finding 1.
+
+One other thing depends on no decision and should just be fixed: **`limit` is optional and
+unbounded**, so a single query can materialize every matching `reaction_id` into an Arrow
+table in process.
 
 Everything else on the list is smaller.
 
@@ -45,12 +48,14 @@ Everything else on the list is smaller.
 A read of the artifact chain (`base`, `projection`, `structures`, `pivot`) and the search
 path (`execute`, `query`, `sql`, `check`) at ord-schema `31bbe21`, plus both READMEs.
 
-**No new measurements.** Every quantity below is either read out of the code or carried
-from [the search cache entry](../2026-08-15-where-the-search-cache-lives/README.md), and
-is attributed where it is used. That matters because five figures in these documents have
+**One measurement, in finding 1**, by
+[`measure_occurrences.py`](assets/measure_occurrences.py) over the full local corpus —
+53 file pairs, 2,428,291 reactions, DuckDB 1.5.5 on the 24 GiB laptop, five rounds, medians
+reported. Every other quantity is read out of the code or carried from
+[the search cache entry](../2026-08-15-where-the-search-cache-lives/README.md) and
+attributed where it is used. That matters because five figures in these documents have
 previously been wrong through being carried forward rather than measured — the occurrence
-index was off by 9×. Nothing new is asserted as measured here, and the estimates are
-marked as estimates.
+index was off by 9×. Estimates below are marked as estimates.
 
 ## Findings
 
@@ -93,13 +98,37 @@ the process, a 5–6.5 GB DuckDB `memory_limit` floor, 16–25 GB of temporary f
 about 12 GiB is set by that build; without it the ceiling is the SubstructLibrary's
 +2.4 GiB over a 1.09 GiB open corpus.
 
-**The number that decides it.** The semi-join currently reads an in-memory table. Over
-Parquet it reads one path's rows — `inputs.components` is the largest — with `path = ?`
-prunable to whole files if the artifact is partitioned by path, but `get_bit(...)` on a
-computed `global_id` not pushable at all. The cache entry puts the current indexed
-reaction lookup at 0.2 s against 3.5 s unindexed. **Under about 0.5 s the trade is clearly
-worth it; at 2 s it is not.** This is measurable tonight on the local corpus and should be
-measured before any of it is built.
+**The number that decides it, measured.** The semi-join was timed three ways over the same
+18,847,978 rows: against the table built today, against one Parquet file per path carrying
+`global_id` outright, and against the artifact shape — one file per dataset per path
+holding the dataset-local `structure_id`, with the offset joined on by filename exactly as
+`_pivot_offsets` keys a pivot. Four patterns spanning the range of match-set sizes, five
+rounds, medians:
+
+| pattern | matched | in memory | artifact shape | ratio |
+| --- | --- | --- | --- | --- |
+| `c1ccncc1` | 751,071 | 0.154 s | 0.310 s | 2.01× |
+| `[OX2H]` | 2,050,645 | 0.253 s | 0.344 s | 1.36× |
+| `C(=O)O` | 2,160,484 | 0.268 s | 0.351 s | 1.31× |
+| `[#6]` | 9,449,792 | 0.925 s | 1.222 s | 1.32× |
+
+Over `inputs.components`, the largest path. Summed across every path and pattern the
+artifact shape is **1.28×** the in-memory table (3.609 s against 2.825 s), and the worst
+single query is 1.222 s against 0.925 s. Every shape returned identical row counts
+throughout.
+
+Three things fall out of the full table. **The join is free**: the artifact shape and the
+`global_id`-in-the-file shape are within noise of each other (3.609 s against 3.706 s), so
+what costs anything is the scan, not the offset lookup. **The smallest path gets faster**,
+not slower — `outcomes.products.measurements.authentic_standard` goes 0.015 s to 0.004 s,
+because reading one path's files beats filtering `path = ?` across an 18.8 M-row table.
+And **the whole index is 256 MB of Parquet** against the 1.19 GiB it holds in memory.
+
+Against my stated threshold — under about 0.5 s clearly worth it, at 2 s not — the
+realistic queries land at 0.09–0.35 s and only `[#6]`, which matches essentially every
+molecule in the corpus, reaches 1.2 s. **Worth doing.** What is bought for roughly 0.16 s
+on a common query is the 5–6.5 GB build floor, the 16–25 GB of temporary files, the
+1.19 GiB held, and the 2.7 s (or 58 s without pivots) at open.
 
 One prior result is worth reading beside this. Building the index **per projection file**
 was measured and rejected: it moves the memory floor to about 2 GB but is 68% slower and
@@ -131,18 +160,22 @@ compatibility version keeps the guarantee without making every change a full re-
 This is a decision about the scheme; **the version constant itself stays at `"1"` until
 something is published.**
 
-### 4. The screen and verify are recomputed for every identical query
+### 4. The match-set cache holds sixteen entries
 
 The cache entry measures a pyridine search at 1.46 s end to end, of which roughly 1.4 s is
-the RDKit screen and verify — nearly all of a common-pattern query. That work is repeated
-in full every time the same question is asked. The only cache in `execute.py` is DuckDB's
-`parquet_metadata_cache`; compound-name resolution is cached per search, not across
-searches.
+the RDKit screen and verify — nearly all of a common-pattern query. `Corpus._matches`
+already caches that: an LRU of `_CACHED_MATCHES = 16` bitmaps keyed by the operation, the
+parser, the resolved pattern, and the threshold, with a single-flight wait so a burst of
+identical requests costs one pass rather than one each. It needs no corpus fingerprint in
+the key, since it lives on the corpus whose IDs it is written against. The measurement run
+for finding 1 exercised it incidentally and it behaves as described.
 
-An LRU keyed by `(fingerprint, kind, pattern, threshold)` returning the match-set bitmap
-takes a repeat query down to the SQL alone. For a consumer that is an agent asking a
-stream of related questions — the consumer this was built for — that is the largest
-user-visible improvement available, and it adds nothing to the artifacts.
+So the repeat-query win is already taken, and what is left is a sizing question. Sixteen
+bitmaps is about 32 MB at ORD's scale — small enough that the bound is not protecting
+much, and low enough that an agent working through a list of twenty reagents evicts its
+own earliest answers before it finishes. Worth raising, and worth measuring the hit rate
+under a real workload before guessing at the number. Not urgent, and not a format
+decision.
 
 ### 5. The library build is 8 s of Python over a 0.08 s scan
 
@@ -161,10 +194,11 @@ cross-dataset deduplication that turns 2,016,224 rows into 1,435,426 entries.
 
 Substructure has the library; an exact structure predicate has the occurrence index.
 `_similarity_ids` scans every structure's `morgan_fp` with a `bit_count` expression in
-SQL, pruned only by the popcount band the threshold implies. Nobody has measured it at
-corpus scale. It belongs on this list rather than a later one because if it turns out to
-need acceleration, the fix — banding, or a popcount-ordered layout — is another artifact
-decision.
+SQL, pruned only by the popcount band the threshold implies. A repeated similarity query
+is served from the match cache in finding 4, so what is unaccelerated is the first ask of
+each pattern and threshold. Nobody has measured it at corpus scale. It belongs on this
+list rather than a later one because if it turns out to need acceleration, the fix —
+banding, or a popcount-ordered layout — is another artifact decision.
 
 ### 7. Four smaller things worth fixing before a deployment depends on them
 
@@ -184,20 +218,24 @@ decision.
 
 In order, and the first one is the only one with a deadline:
 
-1. **Measure the Parquet semi-join** against the in-memory table on the full local corpus.
-   That number decides finding 1, and finding 1 decides how much memory a container needs.
-2. If it lands, **derive occurrences as an artifact**, partitioned by path, and write down
-   the ID rule from finding 2 beside it.
-3. **Cache match sets** (finding 4) and **bound `limit`** (finding 7) — neither waits on
-   anything.
+1. ~~Measure the Parquet semi-join.~~ Done, in finding 1: the artifact shape costs 1.28×
+   the in-memory table and the index is 256 MB of Parquet. It clears the threshold.
+2. **Derive occurrences as an artifact**, one file per dataset per indexed path, holding
+   the dataset-local `structure_id`. Write down the ID rule from finding 2 beside it.
+   This is the one that has to happen before anything is published.
+3. **Bound `limit`** (finding 7) — waits on nothing; ord-schema#1005.
 4. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
 
 ## References
 
+- [`assets/measure_occurrences.py`](assets/measure_occurrences.py) — times the semi-join
+  against all three shapes; [`assets/semijoin-timings.log`](assets/semijoin-timings.log)
+  is the run finding 1 reports.
 - [Where the agent search cache can live](../2026-08-15-where-the-search-cache-lives/README.md)
-  — the source of every memory and latency figure quoted here.
+  — the source of every memory and latency figure quoted here that finding 1 did not
+  measure.
 - [The projection search index](../2026-07-31-projection-search-index/README.md) and
   [EAV versus projection](../2026-07-31-eav-versus-projection/README.md) — the pivoted fact
   table this all descends from.
