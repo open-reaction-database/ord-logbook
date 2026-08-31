@@ -32,11 +32,9 @@ of temporary files, the 1.19 GiB held for the life of the process, and the 3.3�
 at open. **Whether it works turns on one number nobody has measured** — what the semi-join
 costs over Parquet rather than over an in-memory table.
 
-Two other things are worth doing and depend on no decision. A **match-set cache** is the
-biggest per-query win available: the RDKit screen and verify is roughly 1.4 s of a 1.46 s
-pyridine query and is recomputed in full for every identical query, with `Corpus.fingerprint`
-already sitting there as the correct cache key. And **`limit` is optional and unbounded**,
-so one query can materialize every matching `reaction_id` into an Arrow table in process.
+One other thing depends on no decision and should just be fixed: **`limit` is optional and
+unbounded**, so a single query can materialize every matching `reaction_id` into an Arrow
+table in process.
 
 Everything else on the list is smaller.
 
@@ -131,18 +129,21 @@ compatibility version keeps the guarantee without making every change a full re-
 This is a decision about the scheme; **the version constant itself stays at `"1"` until
 something is published.**
 
-### 4. The screen and verify are recomputed for every identical query
+### 4. The match-set cache holds sixteen entries
 
 The cache entry measures a pyridine search at 1.46 s end to end, of which roughly 1.4 s is
-the RDKit screen and verify — nearly all of a common-pattern query. That work is repeated
-in full every time the same question is asked. The only cache in `execute.py` is DuckDB's
-`parquet_metadata_cache`; compound-name resolution is cached per search, not across
-searches.
+the RDKit screen and verify — nearly all of a common-pattern query. `Corpus._matches`
+already caches that: an LRU of `_CACHED_MATCHES = 16` bitmaps keyed by the operation, the
+parser, the resolved pattern, and the threshold, with a single-flight wait so a burst of
+identical requests costs one pass rather than one each. It needs no corpus fingerprint in
+the key, since it lives on the corpus whose IDs it is written against.
 
-An LRU keyed by `(fingerprint, kind, pattern, threshold)` returning the match-set bitmap
-takes a repeat query down to the SQL alone. For a consumer that is an agent asking a
-stream of related questions — the consumer this was built for — that is the largest
-user-visible improvement available, and it adds nothing to the artifacts.
+So the repeat-query win is already taken, and what is left is a sizing question. Sixteen
+bitmaps is about 32 MB at ORD's scale — small enough that the bound is not protecting
+much, and low enough that an agent working through a list of twenty reagents evicts its
+own earliest answers before it finishes. Worth raising, and worth measuring the hit rate
+under a real workload before guessing at the number. Not urgent, and not a format
+decision.
 
 ### 5. The library build is 8 s of Python over a 0.08 s scan
 
@@ -161,10 +162,11 @@ cross-dataset deduplication that turns 2,016,224 rows into 1,435,426 entries.
 
 Substructure has the library; an exact structure predicate has the occurrence index.
 `_similarity_ids` scans every structure's `morgan_fp` with a `bit_count` expression in
-SQL, pruned only by the popcount band the threshold implies. Nobody has measured it at
-corpus scale. It belongs on this list rather than a later one because if it turns out to
-need acceleration, the fix — banding, or a popcount-ordered layout — is another artifact
-decision.
+SQL, pruned only by the popcount band the threshold implies. A repeated similarity query
+is served from the match cache in finding 4, so what is unaccelerated is the first ask of
+each threshold and pattern. Nobody has measured it at corpus scale. It belongs on this
+list rather than a later one because if it turns out to need acceleration, the fix —
+banding, or a popcount-ordered layout — is another artifact decision.
 
 ### 7. Four smaller things worth fixing before a deployment depends on them
 
@@ -188,8 +190,7 @@ In order, and the first one is the only one with a deadline:
    That number decides finding 1, and finding 1 decides how much memory a container needs.
 2. If it lands, **derive occurrences as an artifact**, partitioned by path, and write down
    the ID rule from finding 2 beside it.
-3. **Cache match sets** (finding 4) and **bound `limit`** (finding 7) — neither waits on
-   anything.
+3. **Bound `limit`** (finding 7) — waits on nothing.
 4. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
