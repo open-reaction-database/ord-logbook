@@ -372,6 +372,11 @@ quote; these runs are too close to separate.
 - [`assets/measure_occurrences.py`](assets/measure_occurrences.py) — times the semi-join
   against all three shapes; [`assets/semijoin-timings.log`](assets/semijoin-timings.log)
   is the run finding 1 reports.
+- [`assets/measure_similarity.py`](assets/measure_similarity.py) — the similarity screen
+  and the popcount band's selectivity, which finding 6 reports.
+- [`assets/prototype_library_build.py`](assets/prototype_library_build.py) — the
+  SQL-deduplicated library build finding 5 recommends against, with the timing split that
+  says why and a check that it produces the same partition.
 - [Where the agent search cache can live](../2026-08-15-where-the-search-cache-lives/README.md)
   — the source of every memory and latency figure quoted here that finding 1 did not
   measure.
