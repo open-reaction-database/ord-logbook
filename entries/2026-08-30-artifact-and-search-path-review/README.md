@@ -172,6 +172,39 @@ on it discards more than it strictly must, and never less.
 together, so a change to pivot derivation invalidates projections too — and re-deriving
 projections over the 1.45 GB USPTO dataset is the expensive one.
 
+**Measured, and it is worse than "the expensive one" suggests.** Each derivation timed
+over `ord_dataset-1158e351…`, the 1.0 GB source that is 96% of this corpus, so its
+timings are effectively the corpus's:
+
+| artifact | re-derive | output |
+| --- | --- | --- |
+| projection | **34.6 min** | 1.45 GB |
+| structures | **29.6 min** | 297 MB |
+| pivots, 4 levels | **16.7 min** | — |
+| occurrences, 4 paths | **1.9 s** | — |
+
+Two things fall out. **Structures costs nearly what the projection does** — this finding
+named the projection as the expensive one and it is barely half the bill; RDKit
+fingerprinting is the other half. And the amplification is extreme at the far end: a
+change to how occurrences are derived is a **1.9-second** artifact, and under a shared
+version it invalidates 81 minutes of upstream work that does not depend on it. A factor of
+about 2,600.
+
+**Recommendation: split the version before anything is published, and stamp the parent's
+version in the child.** A bare per-artifact version is not enough on its own, because the
+guarantee the shared one gives is real: it is what makes a change to projection derivation
+invalidate the structures and pivots built from it. Nothing else would — an artifact stamps
+the *source dataset's* hash, never its parent's, so a child cannot otherwise see that its
+parent's definition moved. Recording the parent's version beside the child's own restores
+exactly that guarantee and nothing more: a projection bump invalidates everything
+downstream, an occurrences bump costs 1.9 seconds.
+
+It belongs before publication because it is a change to the **stamp schema**, which is the
+one thing a published corpus cannot be talked out of. Every other finding here can be
+revisited later. **Still a decision, not a conclusion** — keeping the shared version and
+accepting an 81-minute rebuild on any definition change is defensible for a corpus that is
+derived rarely.
+
 The README's rationale is sound: a reader comparing two artifacts needs to know they were
 built by one definition. But a fourth artifact is arriving, and the scheme is worth an
 explicit decision rather than an inherited one — a per-artifact version beside a shared
@@ -316,7 +349,7 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 | --- | --- | --- |
 | 1 | occurrence index as an artifact | done: written by ord-schema#1006, read by #1009 |
 | 2 | dataset-local ID rule unwritten | done, artifacts README |
-| 3 | `ARTIFACT_VERSION` shared | open; stays `"1"` until something is published |
+| 3 | `ARTIFACT_VERSION` shared | measured: a 1.9 s artifact costs an 81 min rebuild; recommend splitting before publication — **decision** |
 | 4 | match-set cache holds sixteen | sizing resolved by packing the bitmap (#1010); the bound still wants a workload |
 | 5 | library build is 8 s of Python | measured 7.4 s; a prototype reaches 5.8 s and 4.3 s of that is RDKit — recommend stay put |
 | 6 | similarity unaccelerated, unmeasured | done: 0.11 s worst case, no acceleration needed |
@@ -377,6 +410,14 @@ quote; these runs are too close to separate.
 - [`assets/measure_occurrences.py`](assets/measure_occurrences.py) — times the semi-join
   against all three shapes; [`assets/semijoin-timings.log`](assets/semijoin-timings.log)
   is the run finding 1 reports.
+- [`assets/measure_similarity.py`](assets/measure_similarity.py) — the similarity screen
+  and the popcount band's selectivity, which finding 6 reports.
+- [`assets/prototype_library_build.py`](assets/prototype_library_build.py) — the
+  SQL-deduplicated library build finding 5 recommends against, with the timing split that
+  says why and a check that it produces the same partition.
+- [`assets/time_derivations.py`](assets/time_derivations.py) — times each derivation over
+  the dominant dataset; [`assets/rederive-timings.json`](assets/rederive-timings.json) is
+  the run finding 3 reports.
 - [Where the agent search cache can live](../2026-08-15-where-the-search-cache-lives/README.md)
   — the source of every memory and latency figure quoted here that finding 1 did not
   measure.

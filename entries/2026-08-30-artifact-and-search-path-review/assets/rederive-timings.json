@@ -1,0 +1,23 @@
+{
+  "source_bytes": 1112719074,
+  "projection_seconds": 2075.336174041964,
+  "projection_bytes": 1449352897,
+  "structures_seconds": 1777.713982959045,
+  "structures_bytes": 297248385,
+  "pivot_seconds": {
+    "inputs.components": 349.26593691599555,
+    "outcomes.products": 176.99359658401227,
+    "outcomes.products.measurements": 146.4614030419616,
+    "workups.input.components": 331.2799016670324
+  },
+  "pivot_total_seconds": 1004.0008382090018,
+  "occurrence_seconds": {
+    "inputs.components": 1.0408824170008302,
+    "workups.input.components": 0.5286898329504766,
+    "outcomes.products": 0.2803435000241734,
+    "outcomes.products.measurements.authentic_standard": 0.012925041024573147
+  },
+  "occurrence_total_seconds": 1.8628407910000533
+}
+
+[exited with code 0]
