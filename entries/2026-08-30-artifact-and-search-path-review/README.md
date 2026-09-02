@@ -49,7 +49,7 @@ Everything else on the list is smaller.
 Derived over the full local corpus the tree is **253 MB (241 MiB) in 212 files** and holds
 the same 18,847,978 rows the built index does. The `Corpus` reader that turns it into the
 view — the half that actually collects the 1.19 GiB — is in flight; see
-[status](#status-2026-09-01).
+[status](#status).
 
 ## Method
 
@@ -239,17 +239,17 @@ In order, and the first one is the only one with a deadline:
    from finding 2 is written down beside it. The format decision that had to precede
    publication is made.
 3. ~~**Bound `limit`**~~ (finding 7) — done in ord-schema#1005.
-4. **Read the artifact.** #1006 writes the tree and nothing reads it, so none of the cost
-   in finding 1 has actually been collected yet. In flight; see below.
+4. ~~**Read the artifact.**~~ — ord-schema#1009, in review. Measured below: the view
+   builds in 0.13 s against 2.86 s and leaves DuckDB holding 28 MiB against 1.66 GiB.
 5. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
 
-## Status (2026-09-01)
+## Status
 
 | # | finding | state |
 | --- | --- | --- |
-| 1 | occurrence index as an artifact | written by ord-schema#1006; **read** in progress |
+| 1 | occurrence index as an artifact | written by ord-schema#1006; read by #1009, in review |
 | 2 | dataset-local ID rule unwritten | done, artifacts README |
 | 3 | `ARTIFACT_VERSION` shared | open; stays `"1"` until something is published |
 | 4 | match-set cache holds sixteen | open, needs a hit rate under a real workload |
@@ -257,12 +257,38 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 | 6 | similarity unaccelerated, unmeasured | open, unmeasured |
 | 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005; the other three open |
 
-The reader is the half that pays. It gives `Corpus` an `occurrences_dir`, and where every
-indexed path is covered it publishes the index as a **view over Parquet** rather than
-materializing the table — which is what actually drops the 1.19 GiB held, the 5–6.5 GB
-build floor, and the 16–25 GB of temporary files. Where coverage is partial it still
-materializes, because a view whose branches unnest the projection would repeat that
-traversal on every query rather than once.
+The reader is the half that pays, and it is measured. `Corpus(occurrences_dir=...)`
+publishes the index as a **view over Parquet** where every indexed path is covered, and
+materializes it otherwise — a view whose branches unnest the projection would repeat that
+traversal on every query rather than once. In review as
+[ord-schema#1009](https://github.com/open-reaction-database/ord-schema/pull/1009).
+
+Over the full local corpus, with the substructure library left unbuilt so the index is the
+only thing being measured:
+
+| | table (from pivots) | view |
+| --- | --- | --- |
+| index build | 2.86 s | **0.13 s** |
+| resident added | 1.92 GiB | **0.32 GiB** |
+| DuckDB holds | +1.66 GiB | **+28 MiB** |
+| peak RSS | 5.61 GiB | **4.58 GiB** |
+
+Two things are worth reading carefully here. **The table figure is the fast one** — built
+from pivot artifacts, not from projections, which is 59 s. Against that baseline the view
+is 22× faster to reach and holds a sixtieth of the DuckDB memory.
+
+And **peak RSS falls by only 1.03 GiB, not by the 1.92 GiB the table adds.** The
+difference is the scan the index check makes either way: `count(DISTINCT global_id)` over
+18,847,978 rows, which the view pays out of Parquet. That check is what makes the index
+trustworthy — it is the thing that catches a traversal reaching nothing — so it stays, and
+the honest headline is that the view removes the *held* gigabyte and a half rather than the
+whole peak. The peak that matters for sizing is still the SubstructLibrary's, which this
+does not touch.
+
+Per-query cost is comparable in both directions and does not resolve cleanly at this
+corpus size — 0.10 s against 0.06 s for pyridine, 0.15 s against 0.11 s for `[#6]`, and the
+view ahead on two of four patterns. The 1.28× measured in finding 1 remains the figure to
+quote; these runs are too close to separate.
 
 ## References
 
