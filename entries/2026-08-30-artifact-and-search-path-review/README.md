@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
-- **Status:** finding 1 closed, findings 3-6 open (finding 6 is still unmeasured)
+- **Status:** findings 1, 2, 4 and 6 closed; 5 measured and declined; 3, the timeout and the sandbox need decisions
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -191,6 +191,15 @@ own earliest answers before it finishes. Worth raising, and worth measuring the 
 under a real workload before guessing at the number. Not urgent, and not a format
 decision.
 
+**Resolved without guessing at the number** (ord-schema#1010). The 32 MB was the bitmap's
+representation, not its information: `_bitmap` built a Python `str` of `'0'` and `'1'`
+characters, one byte per structure, where DuckDB reads a `BLOB` cast to `BITSTRING`
+most-significant-bit-first and accepts the packed form as the same bitstring. Packed, a
+bitmap is **246 KiB rather than 1.92 MiB**, and the cache of sixteen holds 3.8 MB rather
+than 31. Whether sixteen is the right bound still wants a real workload, but it is no
+longer a memory question — and the saving is paid twice, since the bitmap is also
+marshalled into every query that binds one.
+
 ### 5. The library build is 8 s of Python over a 0.08 s scan
 
 `Corpus._library` loops in Python over all 2,016,224 structure rows, calling `to_pylist()`
@@ -199,6 +208,30 @@ do the deduplication: `GROUP BY smiles` with a `dense_rank()` gives `entry_of` a
 column convertible without Python iteration, leaving only the per-distinct-molecule
 `AddBinary`/`AddFingerprint` calls that RDKit genuinely requires. **Estimated** 8 s → about
 2 s; not measured.
+
+**Measured, and the estimate was wrong — recommend leaving it alone.** The build is 7.4 s,
+and a working prototype of exactly the above comes to 5.8 s. It is correct: same entry
+count, and the same partition of structures into entries. But the split says why the
+remaining gap is not there to be won:
+
+| part of the prototype | seconds |
+| --- | --- |
+| distinct-SMILES query (`GROUP BY`, 1,435,426 rows) | 0.40 |
+| `to_pylist` on those rows | 0.80 |
+| **RDKit `AddBinary` / `AddFingerprint`** | **4.27** |
+| entry mapping (`dense_rank`, 2,016,224 rows) | 0.10 |
+| Arrow column → `array.array` | 0.002 |
+| `_group` counting sort | 0.20 |
+| **total** | **5.77** (against 7.39 today) |
+
+Three quarters of the rewrite's own runtime is the RDKit calls, which any version of this
+must make once per distinct molecule. The premise — "8 s of Python over a 0.08 s scan" —
+counted the scan correctly and the RDKit floor not at all. What is actually on offer is
+**1.6 s, once, at open**, in exchange for moving three correctness guards into SQL (the
+unbroken-ID-run check, the both-or-neither derived-column check, and the covered-count
+check) and reading an Arrow buffer directly to avoid a 2 M-element Python list. That is a
+poor trade in a function whose invariants are load-bearing and whose cost is paid once per
+process. Revisit if the library is ever built per request, or if RDKit gains a bulk add.
 
 Serializing the library as an artifact is the obvious alternative and does not work as
 cleanly: its entry numbering is corpus-wide, and per-dataset libraries forfeit the
@@ -214,6 +247,27 @@ each pattern and threshold. Nobody has measured it at corpus scale. It belongs o
 list rather than a later one because if it turns out to need acceleration, the fix —
 banding, or a popcount-ordered layout — is another artifact decision.
 
+**Measured: it does not need one.** The screen over all 2,016,224 fingerprints, four
+queries spanning the size range, three thresholds each, medians of three:
+
+| query | popcount | t=0.4 | t=0.6 | t=0.8 |
+| --- | --- | --- | --- | --- |
+| pyridine | 9 | 0.036 s | 0.032 s | 0.031 s |
+| aspirin | 24 | 0.103 s | 0.069 s | 0.046 s |
+| ibuprofen | 25 | 0.106 s | 0.071 s | 0.048 s |
+| atorvastatin | 57 | 0.110 s | 0.088 s | 0.064 s |
+
+The worst case is **0.11 s**, against the 0.5 s bar this document set for finding 1. There
+is no artifact decision here and nothing to build: **finding 6 is closed.**
+
+The band does less than its presence suggests, and that is worth recording rather than
+rediscovering. It is decisive only for small queries — pyridine at t=0.8 keeps 0.4% of the
+corpus — and nearly inert for the drug-like ones a user actually asks about: aspirin at
+t=0.4 keeps 86%, atorvastatin 93%. What holds the time down is that the surviving work is
+a `bit_count` over a bitstring column inside DuckDB, which is fast enough at two million
+rows that the band never has to save it. That also means the cost is roughly flat in the
+threshold, so a permissive query is not the one to worry about.
+
 ### 7. Four smaller things worth fixing before a deployment depends on them
 
 - **The timeout does not cover the expensive part.** `Corpus.search(timeout_seconds=)`
@@ -223,9 +277,10 @@ banding, or a popcount-ordered layout — is another artifact decision.
 - ~~**`limit` is optional and unbounded**~~ — fixed in #1005. `Corpus(max_rows=)` bounds
   every search whether or not the query asked for a limit, and a result that comes back
   at the bound is logged as possibly cut short.
-- **Nothing supports swapping a corpus.** A new dataset renumbers every structure ID, so
-  the only correct move is to open a second `Corpus` and swap — which means peak memory is
-  twice the steady state during a swap. That constraint is written down nowhere.
+- ~~**Nothing supports swapping a corpus.**~~ Still true, and now written down in the
+  search README (#1010): a second `Corpus` and a reference swap, so peak memory is twice
+  the steady state — the figure a container must be sized against to take an update
+  without a restart.
 - **Execution still has no sandbox.** The search README lists this under "not yet solved";
   for a deployment it is a blocker rather than an open question.
 
@@ -242,7 +297,11 @@ In order, and the first one is the only one with a deadline:
 4. ~~**Read the artifact.**~~ — ord-schema#1009, merged. Measured below: the view builds
    in 0.13 s against 2.86 s and leaves DuckDB holding 28 MiB against 1.66 GiB. **Finding 1
    is closed**; the format decision and the cost it was for have both landed.
-5. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
+5. ~~Measure similarity (finding 6)~~ — done: 0.11 s worst case, no artifact needed.
+
+What is left needs decisions rather than work: the `ARTIFACT_VERSION` scheme (finding 3),
+whether the search timeout should cover screening (finding 7), and the sandbox (finding 7).
+Finding 5 is measured and recommended against.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
 
@@ -253,10 +312,10 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 | 1 | occurrence index as an artifact | done: written by ord-schema#1006, read by #1009 |
 | 2 | dataset-local ID rule unwritten | done, artifacts README |
 | 3 | `ARTIFACT_VERSION` shared | open; stays `"1"` until something is published |
-| 4 | match-set cache holds sixteen | open, needs a hit rate under a real workload |
-| 5 | library build is 8 s of Python | open, estimated 8 s → 2 s |
-| 6 | similarity unaccelerated, unmeasured | open, unmeasured |
-| 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005; the other three open |
+| 4 | match-set cache holds sixteen | sizing resolved by packing the bitmap (#1010); the bound still wants a workload |
+| 5 | library build is 8 s of Python | measured 7.4 s; a prototype reaches 5.8 s and 4.3 s of that is RDKit — recommend stay put |
+| 6 | similarity unaccelerated, unmeasured | done: 0.11 s worst case, no acceleration needed |
+| 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005, swap documented in #1010; timeout and sandbox open |
 
 The reader is the half that pays, and it is measured. `Corpus(occurrences_dir=...)`
 publishes the index as a **view over Parquet** where every indexed path is covered, and
