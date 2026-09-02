@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
-- **Status:** in progress (findings 1 and 2 have shipped; the reader that spends finding 1 is in review, and finding 6 is still unmeasured)
+- **Status:** finding 1 closed, findings 3-6 open (finding 6 is still unmeasured)
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -239,8 +239,9 @@ In order, and the first one is the only one with a deadline:
    from finding 2 is written down beside it. The format decision that had to precede
    publication is made.
 3. ~~**Bound `limit`**~~ (finding 7) — done in ord-schema#1005.
-4. ~~**Read the artifact.**~~ — ord-schema#1009, in review. Measured below: the view
-   builds in 0.13 s against 2.86 s and leaves DuckDB holding 28 MiB against 1.66 GiB.
+4. ~~**Read the artifact.**~~ — ord-schema#1009, merged. Measured below: the view builds
+   in 0.13 s against 2.86 s and leaves DuckDB holding 28 MiB against 1.66 GiB. **Finding 1
+   is closed**; the format decision and the cost it was for have both landed.
 5. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
@@ -249,7 +250,7 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 
 | # | finding | state |
 | --- | --- | --- |
-| 1 | occurrence index as an artifact | written by ord-schema#1006; read by #1009, in review |
+| 1 | occurrence index as an artifact | done: written by ord-schema#1006, read by #1009 |
 | 2 | dataset-local ID rule unwritten | done, artifacts README |
 | 3 | `ARTIFACT_VERSION` shared | open; stays `"1"` until something is published |
 | 4 | match-set cache holds sixteen | open, needs a hit rate under a real workload |
@@ -260,7 +261,7 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 The reader is the half that pays, and it is measured. `Corpus(occurrences_dir=...)`
 publishes the index as a **view over Parquet** where every indexed path is covered, and
 materializes it otherwise — a view whose branches unnest the projection would repeat that
-traversal on every query rather than once. In review as
+traversal on every query rather than once. Merged as
 [ord-schema#1009](https://github.com/open-reaction-database/ord-schema/pull/1009).
 
 Over the full local corpus, with the substructure library left unbuilt so the index is the
@@ -284,6 +285,23 @@ trustworthy — it is the thing that catches a traversal reaching nothing — so
 the honest headline is that the view removes the *held* gigabyte and a half rather than the
 whole peak. The peak that matters for sizing is still the SubstructLibrary's, which this
 does not touch.
+
+One thing the review turned up that is worth recording, because it is the assumption the
+whole chain rests on. A reviewer objected that an occurrences artifact carries
+projection-build-local `structure_id`s and is accepted on source hash alone, so a rebuild
+could leave it current but pointing at different molecules — undetectably, since a
+permutation leaves the distinct-ID count unchanged. The mechanism does not fire:
+assignment is first-seen order over an insertion-ordered dict, a pure function of the
+source bytes, the ord-schema version, and the RDKit that canonicalized the SMILES, all
+three stamped. Rebuilding one dataset three times gives an identical `(structure_id,
+smiles)` mapping.
+
+But **nothing asserted that**, and the artifacts README said the opposite — "IDs are not
+stable across builds" — which read literally denies the property the pairing design
+depends on. Both are fixed: there is now a test that fails if assignment becomes
+non-deterministic, and the README says what is actually guaranteed (stable for a fixed
+source and library, not across an upgrade that changes canonicalization, which is what
+the version stamps are for).
 
 Per-query cost is comparable in both directions and does not resolve cleanly at this
 corpus size — 0.10 s against 0.06 s for pyridine, 0.15 s against 0.11 s for `[#6]`, and the
