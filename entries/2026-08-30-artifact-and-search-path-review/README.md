@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
-- **Status:** draft (the headline finding is measured; the rest is a review, and finding 6 is still unmeasured)
+- **Status:** in progress (findings 1 and 2 have shipped; the reader that spends finding 1 is in review, and finding 6 is still unmeasured)
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -42,6 +42,14 @@ unbounded**, so a single query can materialize every matching `reaction_id` into
 table in process.
 
 Everything else on the list is smaller.
+
+**Shipped since this was written.** The artifact landed as
+[ord-schema#1006](https://github.com/open-reaction-database/ord-schema/pull/1006) and the
+`limit` bound as [#1005](https://github.com/open-reaction-database/ord-schema/pull/1005).
+Derived over the full local corpus the tree is **253 MB (241 MiB) in 212 files** and holds
+the same 18,847,978 rows the built index does. The `Corpus` reader that turns it into the
+view — the half that actually collects the 1.19 GiB — is in flight; see
+[status](#status-2026-09-01).
 
 ## Method
 
@@ -124,6 +132,10 @@ not slower — `outcomes.products.measurements.authentic_standard` goes 0.015 s 
 because reading one path's files beats filtering `path = ?` across an 18.8 M-row table.
 And **the whole index is 256 MB of Parquet** against the 1.19 GiB it holds in memory.
 
+The shipped artifact drops the `path` column measured here — a file's path is stamped in
+its footer and implied by where it sits, so no row needs to carry it — and comes to
+**253 MB (241 MiB)** over the same rows.
+
 Against my stated threshold — under about 0.5 s clearly worth it, at 2 s not — the
 realistic queries land at 0.09–0.35 s and only `[#6]`, which matches essentially every
 molecule in the corpus, reaches 1.2 s. **Worth doing.** What is bought for roughly 0.16 s
@@ -146,6 +158,8 @@ dataset-local IDs; only a corpus assigns offsets, and only at open.*
 The corollary is worth stating too. Because offsets renumber whenever the dataset set
 changes, nothing outside a single open `Corpus` may cache anything keyed by `global_id`.
 `Corpus.fingerprint` is the guard, and it changes exactly when the IDs do.
+
+**Done** in #1006: the artifacts README now states the rule under *What pairs with what*.
 
 ### 3. `ARTIFACT_VERSION` is shared across every artifact type
 
@@ -206,8 +220,9 @@ banding, or a popcount-ordered layout — is another artifact decision.
   starts its timer after name resolution, the library and index builds, screening, and
   verification. A caller setting a 10 s bound gets no protection from a 60 s screen. The
   docstring is explicit about this; the behavior is still a trap.
-- **`limit` is optional and unbounded** (`query.Query.limit` defaults to `None`). A query
-  without one materializes every matching `reaction_id` into an Arrow table in process.
+- ~~**`limit` is optional and unbounded**~~ — fixed in #1005. `Corpus(max_rows=)` bounds
+  every search whether or not the query asked for a limit, and a result that comes back
+  at the bound is logged as possibly cut short.
 - **Nothing supports swapping a corpus.** A new dataset renumbers every structure ID, so
   the only correct move is to open a second `Corpus` and swap — which means peak memory is
   twice the steady state during a swap. That constraint is written down nowhere.
@@ -220,13 +235,34 @@ In order, and the first one is the only one with a deadline:
 
 1. ~~Measure the Parquet semi-join.~~ Done, in finding 1: the artifact shape costs 1.28×
    the in-memory table and the index is 256 MB of Parquet. It clears the threshold.
-2. **Derive occurrences as an artifact**, one file per dataset per indexed path, holding
-   the dataset-local `structure_id`. Write down the ID rule from finding 2 beside it.
-   This is the one that has to happen before anything is published.
-3. **Bound `limit`** (finding 7) — waits on nothing; ord-schema#1005.
-4. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
+2. ~~**Derive occurrences as an artifact**~~ — done in ord-schema#1006, and the ID rule
+   from finding 2 is written down beside it. The format decision that had to precede
+   publication is made.
+3. ~~**Bound `limit`**~~ (finding 7) — done in ord-schema#1005.
+4. **Read the artifact.** #1006 writes the tree and nothing reads it, so none of the cost
+   in finding 1 has actually been collected yet. In flight; see below.
+5. Measure similarity (finding 6) before deciding whether it needs an artifact of its own.
 
 Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
+
+## Status (2026-09-01)
+
+| # | finding | state |
+| --- | --- | --- |
+| 1 | occurrence index as an artifact | written by ord-schema#1006; **read** in progress |
+| 2 | dataset-local ID rule unwritten | done, artifacts README |
+| 3 | `ARTIFACT_VERSION` shared | open; stays `"1"` until something is published |
+| 4 | match-set cache holds sixteen | open, needs a hit rate under a real workload |
+| 5 | library build is 8 s of Python | open, estimated 8 s → 2 s |
+| 6 | similarity unaccelerated, unmeasured | open, unmeasured |
+| 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005; the other three open |
+
+The reader is the half that pays. It gives `Corpus` an `occurrences_dir`, and where every
+indexed path is covered it publishes the index as a **view over Parquet** rather than
+materializing the table — which is what actually drops the 1.19 GiB held, the 5–6.5 GB
+build floor, and the 16–25 GB of temporary files. Where coverage is partial it still
+materializes, because a view whose branches unnest the projection would repeat that
+traversal on every query rather than once.
 
 ## References
 
