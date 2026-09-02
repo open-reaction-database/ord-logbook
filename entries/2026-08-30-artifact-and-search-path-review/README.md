@@ -157,7 +157,12 @@ dataset-local IDs; only a corpus assigns offsets, and only at open.*
 
 The corollary is worth stating too. Because offsets renumber whenever the dataset set
 changes, nothing outside a single open `Corpus` may cache anything keyed by `global_id`.
-`Corpus.fingerprint` is the guard, and it changes exactly when the IDs do.
+`Corpus.fingerprint` is the guard — but only in one direction, and this document had that
+wrong. Renumbering always moves the fingerprint, which is what makes it sound: a dataset
+added, removed, or rewritten changes the set of stamps or a `source_md5`, both of which it
+digests. The converse does not hold. It digests each artifact's *whole* stamp, so a
+rebuild under a new RDKit moves it even where every offset comes out the same. Invalidating
+on it discards more than it strictly must, and never less.
 
 **Done** in #1006: the artifacts README now states the rule under *What pairs with what*.
 
