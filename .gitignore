@@ -1,0 +1,3 @@
+# Python bytecode from running the analysis scripts under entries/*/assets.
+__pycache__/
+*.py[cod]
