@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-03
 - **Author:** Steven Kearnes
-- **Status:** final, except the day/month order of `5c9a1032` and `5e8318f0`, which is with their submitters
+- **Status:** findings final; the proposal is not yet accepted, and the day/month order of `5c9a1032` and `5e8318f0` is with their submitters
 - **Tags:** ord-data, ord-schema, provenance, datetime, data quality, normalization
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -38,6 +38,11 @@ offset or a zone name — including the 48,498 that ord-app's service writes wit
 a `Z`, which the UI strips on the contributor's first save.
 
 Four of the schema's seven `DateTime` positions are never populated at all.
+
+The [proposal](#proposal) below normalizes the stored values to ISO 8601 with a
+`Z` only where the corpus knows the zone — 32% of it — fixes the producers
+first so the rewrite is not immediately undone, and argues for shipping a reader
+before paying 1.2 GB of LFS churn.
 
 ## Method
 
@@ -280,33 +285,125 @@ neither says as much in the string; the editor-produced `slash-*` values are the
 contributor's local wall clock, and their offset is not recoverable from the
 record at all.
 
-## Conclusions / next steps
+## Proposal
 
-1. **Normalize on write, in ord-schema, not here.** Every format in the corpus
-   traces to a tool, and three of the four producers are ours. Making
-   `DateTime` normalize to ISO 8601 at validation time stops the growth even
-   for the fourth; a corpus rewrite is a separate, one-time job.
-2. **Ask the submitters of `5c9a1032` and `5e8318f0` before rewriting
-   anything.** A rewrite freezes `dateutil`'s month-first guess into those two
-   and destroys the evidence that it was ever a guess. `5e8318f0` is the one
-   whose evidence points the other way. The other 11 of the 13 are decided and
-   recorded above; a rewrite can take them as they stand.
-3. **`ctime` is the cheapest fix and the biggest one.** One line in
-   `updates.py` moves 4.68M values — 61% of the corpus — from a C-runtime
-   format with no zone to `datetime.datetime.now(datetime.UTC).isoformat()`,
-   which would state the zone the value already has.
-4. **Keep ord-app's `Z`.** The service already writes it and
-   `DATE_TIME_FORMAT` in the UI throws it away, so a zone-anchored value
-   becomes a naive one on the contributor's first save. Widening that one mask
-   to `YYYY-MM-DDTHH:mm:ss[Z]` is a smaller change than anything else here and
-   it is the only fix that stops new naive values from being created. The
-   `toLocaleString` problem that produced finding 4 is already gone with the
-   editor.
-5. **`experiment_start` needs a definition before it needs a format.** Two
-   datasets use it. `00005539` means it — 491 distinct dates over 750
-   reactions — and `1ec2807f` does not: all 1,227 of its reactions carry the
-   same `2025-01-01T00:00:00`. Whether the field is worth normalizing depends
-   on whether it is worth keeping.
+Normalize every stored `DateTime` to ISO 8601, at the precision the source
+carried, with a `Z` only where the corpus knows the zone. Fix the producers
+first, then rewrite; in the other order the next submission undoes the rewrite.
+
+[`preview_normalization.py`](assets/preview_normalization.py) is the dry run.
+It parses all 7,592,793 values outside the two open datasets with explicit
+`strptime` formats and re-emits them, and it fails loudly on anything it cannot
+read — so the shape of the proposal is checkable before anyone rewrites 1.2 GB
+of LFS objects.
+
+### The target form
+
+Three shapes, because the corpus carries three levels of knowledge:
+
+| shape | when | example |
+| --- | --- | --- |
+| `YYYY-MM-DD` | the source carried no time | `2008-07-01` |
+| `YYYY-MM-DDTHH:MM:SS[.ffffff]` | zone unknown | `2021-03-04T15:28:23.848996` |
+| `YYYY-MM-DDTHH:MM:SS[.ffffff]Z` | zone known | `2021-10-22T22:19:55Z` |
+
+Sub-second precision is kept where the source had it; a date-only source stays a
+date rather than acquiring a fictional midnight.
+
+### What earns a `Z`
+
+**2,428,294 values, 32% of the corpus** — exactly the `record_modified` events
+the submission pipeline wrote, identified by
+`person.email == "github-actions@github.com"` together with
+`details == "Automatic updates from the submission pipeline."`. Every one of
+them is `ctime`, and `updates.py` produces it from
+`datetime.datetime.now(datetime.UTC)`, so UTC is a fact about them rather than a
+guess.
+
+Nothing else earns one. The other 2,250,115 `ctime` values look identical and
+are contributor-written — 1,771,032 of them one maintainer batch edit carrying
+`details = "Set is_mined=True for USPTO data."` — and nothing in the record says
+which clock produced them. The `iso-T` values are almost certainly ord-app's,
+which works in UTC, but "almost certainly" is not a zone.
+
+### Order of operations
+
+1. **`updates.py` writes `isoformat()`.** One line, 4.68M values' worth of
+   future output, and the only producer whose zone is known.
+2. **ord-app keeps its `Z`.** Widen `DATE_TIME_FORMAT` in
+   `ui/src/common/constants.ts` to `YYYY-MM-DDTHH:mm:ss[Z]` so the UI stops
+   stripping the marker its own service wrote.
+3. **`ord_schema` normalizes on write.** `process_dataset.py --update`
+   canonicalizes `DateTime.value`, so a submission arrives canonical whatever
+   the contributor's tool produced. Validation *warns* on a non-ISO value rather
+   than erroring, so a draft is never rejected for it.
+4. **Then rewrite the corpus.** Not before: `process_dataset.py --update` on any
+   dataset appends a fresh `ctime` the moment it runs.
+
+### The rewrite
+
+A one-time script in ord-data `scripts/`, with four properties that matter:
+
+- **It reads the day/month order from a table, never from `dateutil`.**
+  [`slash_orientation.csv`](assets/slash_orientation.csv) is that table;
+  `dateutil` reads `5e8318f0` the wrong way and would freeze the error in.
+- **It refuses to touch a dataset whose order is open.** `5c9a1032` and
+  `5e8318f0` — 9,656 reactions — are skipped until their submitters answer.
+- **It appends no `record_modified` event.** Routing the rewrite through
+  `updates.update_dataset` would add 2.4M events to record a formatting change;
+  the commit already records it.
+- **IDs are safe.** `dataset_id` and `reaction_id` are `uuid4`, not content
+  hashes, so nothing downstream re-keys.
+
+Every value parses under one of eight explicit formats — the dry run proves it
+over the whole corpus — so the rewrite needs no fuzzy parsing anywhere.
+
+### What it changes
+
+| values | zone | before | after |
+| ---: | --- | --- | --- |
+| 2,271,884 | naive | `2021-03-04 15:28:23.848996` | `2021-03-04T15:28:23.848996` |
+| 2,250,115 | naive | `Fri Oct 18 17:39:39 2024` | `2024-10-18T17:39:39` |
+| 2,418,638 | `Z` | `Fri Oct 22 22:19:55 2021` | `2021-10-22T22:19:55Z` |
+| 578,265 | naive | `18/09/2024, 16:54:56` | `2024-09-18T16:54:56` |
+| 22,405 | naive | `5/17/2023, 6:01:47 PM` | `2023-05-17T18:01:47` |
+| 1,430 | naive | `18/08/2024 02:10:09` | `2024-08-18T02:10:09` |
+| 750 | naive | `07/01/2008` | `2008-07-01` |
+| 50,966 | naive | `2025-01-01T00:00:00` | unchanged |
+
+**7,541,827 values change; 50,966 are already canonical.** Afterwards the corpus
+holds three signatures where it holds fifteen today.
+
+### Verification
+
+- **Per value:** reparse the new string and assert it equals the datetime the
+  old string denoted under the recorded order.
+- **Per dataset:** reaction count and the ordered `reaction_id` list unchanged;
+  the multiset of parsed datetimes unchanged.
+- **Corpus-wide:** rerun [`scan_date_times.py`](assets/scan_date_times.py) and
+  assert nothing outside the three target shapes survives.
+
+### What it costs, and the cheaper thing to do first
+
+Every one of the 51 files changes, so the rewrite writes ~1.2 GB of new LFS
+objects, the old ones stay in history, and the Hugging Face mirror re-syncs the
+lot. LFS download bandwidth is already ~87% clones and forks.
+
+So: **do steps 1–3 now, and ship a reader before the rewrite.** A
+`parse_date_time(value, *, day_first)` in ord-schema, plus the orientation table
+beside it, gives every consumer correct datetimes today at no LFS cost and
+without freezing the two open decisions. The rewrite then becomes optional, and
+can wait until `5c9a1032` and `5e8318f0` are settled and until some other
+corpus-wide change is due, so the churn is paid once for several reasons rather
+than once for formatting.
+
+### Still open
+
+`experiment_start` needs a definition before it needs a format. Two datasets use
+it: `00005539` means it, with 491 distinct dates over 750 reactions, and
+`1ec2807f` does not — all 1,227 of its reactions carry the same
+`2025-01-01T00:00:00`. Whether the field is worth normalizing depends on whether
+it is worth keeping.
 
 ## References
 
@@ -323,4 +420,5 @@ record at all.
 - ord-app `ord_app/service_api/domain/reactions.py` and
   `ui/src/common/constants.ts` — the service's `Z` and the UI mask that drops
   it.
-- [`assets/README.md`](assets/README.md) — how to reproduce the two extracts.
+- [`assets/README.md`](assets/README.md) — how to reproduce the extracts and
+  the normalization dry run.
