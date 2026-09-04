@@ -15,9 +15,11 @@
 """Decides day-first versus month-first for the slash-separated DateTime values.
 
 ``12/05/2024`` is either 12 May or 5 December and the string does not say which,
-so each dataset's slash-formatted values are settled against three kinds of
+so each dataset's slash-formatted values are settled against several kinds of
 evidence, strongest first:
 
+* a **confirmation** — evidence outside the corpus, such as the supplemental
+  data attached to a submission pull request, recorded in ``_CONFIRMED``;
 * a **witness** — one value whose first component exceeds 12 (day-first) or
   whose second does (month-first);
 * an **upper bound** — a reaction's ``record_created`` precedes each of its
@@ -25,6 +27,9 @@ evidence, strongest first:
   the dataset in ord-data, so a reading landing after that bound is impossible;
 * a **sibling** — a dataset added by the same commit is the same submission from
   the same contributor, so a settled sibling settles it too;
+* the **format** — a 12-hour value with an uppercase meridiem and a comma is the
+  ``en-US`` ``Date.toLocaleString()`` shape, and every locale that renders that
+  shape is month-first;
 * **proximity** — with none of the above, the reading that falls closer to the
   bound is reported as a lean, not a verdict.
 
@@ -49,6 +54,23 @@ _SLASH = re.compile(
     r"^(\d{1,2})/(\d{1,2})/(\d{4})(?:[, ]+(\d{1,2}):(\d{2}):(\d{2})(?:\s*([AP])M)?)?$",
     re.IGNORECASE,
 )
+# The exact en-US Date.toLocaleString() rendering. Day-first locales that use a
+# 12-hour clock render a lowercase meridiem, so an uppercase one pins the locale.
+_EN_US = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}, \d{1,2}:\d{2}:\d{2} (?:AM|PM)$")
+# Orientations settled outside the corpus, and where the answer came from.
+# Keyed by (dataset ID, schema position).
+_CONFIRMED = {
+    # Confirmed against the supplemental data on ord-data#86.
+    ("35a5a513f1dd44a3a97c88da99f81a00", "provenance.record_created.time"): (
+        "month-first",
+        "ord-data#86 supplemental data",
+    ),
+    # Confirmed against supplemental data on ord-data#188.
+    ("d92976309c3a48a3a64a4cf5e7048086", "provenance.record_created.time"): (
+        "month-first",
+        "ord-data#188 supplemental data",
+    ),
+}
 _UNAMBIGUOUS_FORMATS = (
     "%a %b %d %H:%M:%S %Y",
     "%Y-%m-%d %H:%M:%S.%f",
@@ -152,7 +174,8 @@ def last_touched(repository: pathlib.Path, identifier: str) -> datetime.datetime
 class Evidence:
     """Accumulates orientation evidence for one dataset and schema position."""
 
-    def __init__(self) -> None:
+    def __init__(self, confirmed: str | None = None) -> None:
+        self.confirmed = confirmed
         self.values = 0
         self.distinct: set[str] = set()
         self.day_first_witness = 0
@@ -160,12 +183,14 @@ class Evidence:
         self.bound: datetime.datetime | None = None
         self.day_first_latest: datetime.datetime | None = None
         self.month_first_latest: datetime.datetime | None = None
+        self.all_en_us = True
 
     def add(self, value: str, bound: datetime.datetime) -> None:
         """Folds in one slash value and the tightest bound that applies to it."""
         match = _SLASH.match(value)
         self.values += 1
         self.distinct.add(value)
+        self.all_en_us = self.all_en_us and _EN_US.match(value) is not None
         if int(match.group(1)) > 12:
             self.day_first_witness += 1
         elif int(match.group(2)) > 12:
@@ -181,6 +206,8 @@ class Evidence:
 
     def verdict(self) -> tuple[str, str]:
         """Returns the orientation and the strongest evidence supporting it."""
+        if self.confirmed is not None:
+            return self.confirmed, "confirmed"
         if self.day_first_witness and self.month_first_witness:
             return "contradictory", "witness"
         if self.day_first_witness:
@@ -200,6 +227,8 @@ class Evidence:
             return "day-first", "bound"
         if not day_possible and not month_possible:
             return "contradictory", "bound"
+        if self.all_en_us:
+            return "month-first", "format"
         day_gap = self.bound - self.day_first_latest
         month_gap = self.bound - self.month_first_latest
         leaning = "month-first" if month_gap < day_gap else "day-first"
@@ -232,7 +261,7 @@ def promote_siblings(verdicts: dict, submissions: dict) -> dict:
 
 def collect(data_directory: pathlib.Path, repository: pathlib.Path) -> dict:
     """Gathers slash-value evidence for every dataset under ``data_directory``."""
-    evidence = collections.defaultdict(Evidence)
+    evidence: dict[tuple[str, str], Evidence] = {}
     for path in sorted(data_directory.glob("*/*.parquet")):
         identifier = dataset_id(path)
         committed = last_touched(repository, identifier)
@@ -257,7 +286,11 @@ def collect(data_directory: pathlib.Path, repository: pathlib.Path) -> dict:
                     bound = committed
                     if position == mini_reaction.RECORD_CREATED and modified:
                         bound = min(modified)
-                    evidence[identifier, position].add(value, bound)
+                    key = (identifier, position)
+                    if key not in evidence:
+                        confirmed, _ = _CONFIRMED.get(key, (None, None))
+                        evidence[key] = Evidence(confirmed)
+                    evidence[key].add(value, bound)
         print(f"scanned {identifier}", file=sys.stderr, flush=True)
     return evidence
 
@@ -307,7 +340,10 @@ def main() -> None:
                     item.month_first_latest.isoformat()
                     if item.month_first_latest
                     else "",
-                    verdict, basis,
+                    verdict,
+                    _CONFIRMED[identifier, position][1]
+                    if basis == "confirmed"
+                    else basis,
                 ]
             )
     print(f"wrote {len(evidence)} rows to {args.output}")

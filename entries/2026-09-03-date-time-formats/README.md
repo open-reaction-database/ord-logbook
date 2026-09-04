@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-03
 - **Author:** Steven Kearnes
-- **Status:** final
+- **Status:** final, except the day/month order of `5c9a1032` and `5e8318f0`, which is with their submitters
 - **Tags:** ord-data, ord-schema, provenance, datetime, data quality, normalization
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -27,11 +27,11 @@ problem.** 7,631,369 populated `DateTime` values across 53 datasets and
 
 **The hazard is `NN/NN/NNNN`.** 41 datasets write a slash-separated date whose
 first two fields the string itself does not distinguish. In 28 of them some
-value settles it — 25 month-first, **3 day-first**. Bounds from the reactions'
-own `record_modified` events settle 5 more, and one submission's co-submitted
-siblings settle a sixth, for **34 settled: 30 month-first, 4 day-first**.
-`dateutil` reads the **7 undecidable** ones month-first, and one of those —
-`5e8318f0` — leans the other way.
+value settles it — 25 month-first, **3 day-first**. Bounds, a co-submitted
+sibling, the `en-US` 12-hour format, and the supplemental data on two submission
+pull requests settle 11 of the remaining 13, for **39 settled: 35 month-first,
+4 day-first**. **Two stay open** — `5c9a1032` and `5e8318f0` — and `dateutil`
+reads both month-first, which for `5e8318f0` is probably wrong.
 
 **Nothing carries a time zone.** Not one of the 7,631,369 values has a UTC
 offset or a zone name — including the 48,498 that ord-app's service writes with
@@ -59,13 +59,15 @@ dataset and position says both which formats exist and whether a dataset holds
 more than one. Output: [`date_time_formats.csv`](assets/date_time_formats.csv).
 
 [`resolve_orientation.py`](assets/resolve_orientation.py) settles day-first
-versus month-first from four kinds of evidence, strongest first: a **witness**
-value whose first field exceeds 12 (day-first) or whose second does
-(month-first); an **upper bound**, since a reaction's `record_created` precedes
-each of its own `record_modified` events and no value can postdate the last
-commit to touch the dataset; a **sibling**, since datasets added by one commit
-are one submission from one contributor; and **proximity**, reported as a lean
-rather than a verdict. Output:
+versus month-first from six kinds of evidence, strongest first: a
+**confirmation** from outside the corpus, such as the supplemental data on a
+submission pull request; a **witness** value whose first field exceeds 12
+(day-first) or whose second does (month-first); an **upper bound**, since a
+reaction's `record_created` precedes each of its own `record_modified` events
+and no value can postdate the last commit to touch the dataset; a **sibling**,
+since datasets added by one commit are one submission from one contributor; the
+**format**, since only a month-first locale renders the `en-US` 12-hour shape;
+and **proximity**, reported as a lean rather than a verdict. Output:
 [`slash_orientation.csv`](assets/slash_orientation.csv).
 
 ## Findings
@@ -150,17 +152,17 @@ is right for most of them and wrong for some, and the string never says which.
 
 | verdict | datasets | how settled |
 | --- | ---: | --- |
-| month-first | 30 | 25 by witness, 5 by bound |
+| month-first | 35 | 25 by witness, 5 by bound, 3 by format, 2 by submission supplemental data |
 | day-first | 4 | 3 by witness (`172039a7`, `3b8a2ef3`, `c5b00523`), 1 by sibling (`2be11f57`) |
-| month-first (lean) | 6 | proximity only |
-| day-first (lean) | 1 | proximity only (`5e8318f0`) |
+| open | 2 | `5c9a1032`, `5e8318f0` |
 
 No dataset contradicts itself: where a dataset writes slash dates at both
 `record_created` and `record_modified`, both agree.
 
 `dateutil` gets the 28 witnessed datasets right, because it retries day-first
 when the first field exceeds 12. It cannot get the other 13 right except by
-luck, and its default is month-first.
+luck, and its default is month-first. Four kinds of evidence settle 11 of
+those 13.
 
 **Bounds settle 5.** A reaction's `record_created` precedes its own
 `record_modified` events, and for `0c75d677`, `3b5db90e`, `675eddca`,
@@ -170,16 +172,82 @@ luck, and its default is month-first.
 **A sibling settles a sixth.** `2be11f57` arrived in
 [ord-data#203](https://github.com/Open-Reaction-Database/ord-data/pull/203)
 alongside `172039a7` and `3b8a2ef3`, which are day-first by witness, in the same
-`slash-24h` shape. Its own numbers agree: read day-first, its `record_created`
-lands 17 hours before the pipeline stamped the reaction — what submission looks
-like — against 29 days for month-first.
+shape. Its own numbers agree: read day-first, its `record_created` lands 17
+hours before the pipeline stamped the reaction — what submission looks like —
+against 29 days for month-first.
 
-**One lean disagrees with `dateutil`.** `5e8318f0` (24 reactions) writes
-`05/12/2024, 15:29:23` against a bound of 2025-01-20; month-first puts creation
-252 days before submission, day-first 45. Nothing in the corpus proves it.
+**The format settles three more.** Every 12-hour value in the corpus matches the
+exact `en-US` `Date.toLocaleString()` rendering — unpadded fields, a comma, and
+an uppercase meridiem — and no day-first locale produces it: the ones that use a
+12-hour clock render a lowercase meridiem. The corpus agrees: of the 21
+(dataset, position) cells in that shape, the 18 that other evidence already
+settles are month-first and none is day-first. So `46ff9a32`, `4d431564` and
+`cbcc4048` are month-first too.
 
-The other six leans agree with what `dateutil` already does. They are unproven,
-not wrong.
+**Two were confirmed from outside the corpus.** Both against the supplemental
+data attached to their submission pull requests: `35a5a513` is `1 July 2021`
+per [ord-data#86](https://github.com/Open-Reaction-Database/ord-data/pull/86),
+and `d9297630` is `6 July 2024` per
+[ord-data#188](https://github.com/Open-Reaction-Database/ord-data/pull/188).
+Every remaining route runs out inside the corpus, so this is the tier that has
+to close the rest.
+
+#### The thirteen that no value in the corpus settles
+
+For the two still open, the **rejected** column holds both readings, month-first
+first.
+
+| dataset | reactions | submission | value | decision | rejected | settled by |
+| --- | ---: | --- | --- | --- | --- | --- |
+| `0c75d677` | 256 | [#57](https://github.com/Open-Reaction-Database/ord-data/pull/57) → [#74](https://github.com/Open-Reaction-Database/ord-data/pull/74) | `2/4/2021, 11:24:34 AM` | 4 Feb 2021 | 2 Apr 2021 | bound |
+| `3b5db90e` | 450 | [#97](https://github.com/Open-Reaction-Database/ord-data/pull/97) → [#99](https://github.com/Open-Reaction-Database/ord-data/pull/99) | `6/10/2021, 10:43:43 PM` | 10 Jun 2021 | 6 Oct 2021 | bound |
+| `675eddca` | 1,536 | [#174](https://github.com/Open-Reaction-Database/ord-data/pull/174) → [#176](https://github.com/Open-Reaction-Database/ord-data/pull/176) | `8/9/2023, 10:44:35 PM` | 9 Aug 2023 | 8 Sep 2023 | bound |
+| `89b08371` | 24 | [#84](https://github.com/Open-Reaction-Database/ord-data/pull/84) → [#87](https://github.com/Open-Reaction-Database/ord-data/pull/87) | `05/08/2021, 10:29:17` | 8 May 2021 | 5 Aug 2021 | bound |
+| `d26118ac` | 1,728 | [#57](https://github.com/Open-Reaction-Database/ord-data/pull/57) → [#74](https://github.com/Open-Reaction-Database/ord-data/pull/74) | `2/4/2021, 11:24:34 AM` | 4 Feb 2021 | 2 Apr 2021 | bound |
+| `2be11f57` | 1,152 | [#203](https://github.com/Open-Reaction-Database/ord-data/pull/203) | `09/10/2024, 17:25:29` | 9 Oct 2024 | 10 Sep 2024 | sibling |
+| `46ff9a32` | 4,312 | [#14](https://github.com/Open-Reaction-Database/ord-data/pull/14) → [#20](https://github.com/Open-Reaction-Database/ord-data/pull/20) | `10/5/2020, 1:49:04 PM` | 5 Oct 2020 | 10 May 2020 | format |
+| `4d431564` | 90 | [#93](https://github.com/Open-Reaction-Database/ord-data/pull/93) → [#109](https://github.com/Open-Reaction-Database/ord-data/pull/109) | `6/2/2021, 8:10:58 AM` | 2 Jun 2021 | 6 Feb 2021 | format |
+| `cbcc4048` | 288 | [#9](https://github.com/Open-Reaction-Database/ord-data/pull/9) → [#37](https://github.com/Open-Reaction-Database/ord-data/pull/37) | `9/3/2020, 5:11:39 PM` | 3 Sep 2020 | 9 Mar 2020 | format |
+| `35a5a513` | 7 | [#86](https://github.com/Open-Reaction-Database/ord-data/pull/86) → [#108](https://github.com/Open-Reaction-Database/ord-data/pull/108) | `07/01/2021, 15:05:35` | 1 Jul 2021 | 7 Jan 2021 | ord-data#86 supplemental data |
+| `d9297630` | 39,347 | [#187](https://github.com/Open-Reaction-Database/ord-data/pull/187) → [#188](https://github.com/Open-Reaction-Database/ord-data/pull/188) → [#189](https://github.com/Open-Reaction-Database/ord-data/pull/189) | `07/06/2024, 23:25:41` | 6 Jul 2024 | 7 Jun 2024 | ord-data#188 supplemental data |
+| `5c9a1032` | 9,632 | [#212](https://github.com/Open-Reaction-Database/ord-data/pull/212) → [#213](https://github.com/Open-Reaction-Database/ord-data/pull/213) | `08/05/2024, 11:33:06` | **open** | 5 Aug 2024 / 8 May 2024 | — |
+| `5e8318f0` | 24 | [#217](https://github.com/Open-Reaction-Database/ord-data/pull/217) → [#218](https://github.com/Open-Reaction-Database/ord-data/pull/218) | `05/12/2024, 15:29:23` | **open** | 12 May 2024 / 5 Dec 2024 | — |
+
+#### The two that stay open
+
+Both write the padded 24-hour `DD/MM/YYYY, HH:mm:ss` shape, and that shape has
+two producers that disagree. `Date.toLocaleString()` in a day-first locale emits
+it, and an `en-US` browser cannot: `toLocaleString('en-US')` gives
+`8/5/2024, 11:33:06 AM`, and even with `hour12: false` the fields stay unpadded.
+But `strftime("%m/%d/%Y, %H:%M:%S")` in a submission script emits it too, and
+that is month-first. The shape covers 25 (dataset, position) cells, and the 22
+that are settled split 19 month-first to 3 day-first, so it decides nothing on
+its own.
+
+Neither does the person on the record. The same recorded contributor sits on
+both sides of the question three months apart: `record_created` in
+[ord-data#203](https://github.com/Open-Reaction-Database/ord-data/pull/203) is
+`18/09/2024, 16:54:56`, day-first by witness, while `a12fa15d` carries a
+`record_modified` of `12/18/2024, 17:08:03`, month-first by witness, from a
+correction pass over 97 of its 288 reactions.
+
+What is left is proximity, which is weak and, for these two, points in opposite
+directions:
+
+| | `5c9a1032` | `5e8318f0` |
+| --- | --- | --- |
+| reactions | 9,632 | 24 |
+| submission | ord-data#212 → [#213](https://github.com/Open-Reaction-Database/ord-data/pull/213) | ord-data#217 → [#218](https://github.com/Open-Reaction-Database/ord-data/pull/218) |
+| month-first | 5 Aug 2024, 103 d before the bound | 12 May 2024, 252 d |
+| day-first | 8 May 2024, 192 d | 5 Dec 2024, 45 d |
+| proximity favors | month-first, 1.9× | day-first, 5.6× |
+| other evidence | two more `record_modified` events in the same shape, 43 s apart, which reads as a person in a UI — and a browser emitting this shape has to be day-first | none |
+
+`5e8318f0` is the one place in the corpus where the reading in use today is
+probably wrong: the only evidence that bears on it points at 5 December 2024,
+and `dateutil` reads 12 May. It is 24 reactions.
+
+Both need their submitters asked. Neither should be rewritten until they are.
 
 ### 5. Every format traces to a tool, and three of the four are ours
 
@@ -218,10 +286,11 @@ record at all.
    traces to a tool, and three of the four producers are ours. Making
    `DateTime` normalize to ISO 8601 at validation time stops the growth even
    for the fourth; a corpus rewrite is a separate, one-time job.
-2. **Decide the 7 undecidable datasets before rewriting anything.** A rewrite
-   freezes `dateutil`'s month-first guess into the data and destroys the
-   evidence that it was ever a guess. `5e8318f0` is the one that disagrees with
-   that guess and should be confirmed with its submitter.
+2. **Ask the submitters of `5c9a1032` and `5e8318f0` before rewriting
+   anything.** A rewrite freezes `dateutil`'s month-first guess into those two
+   and destroys the evidence that it was ever a guess. `5e8318f0` is the one
+   whose evidence points the other way. The other 11 of the 13 are decided and
+   recorded above; a rewrite can take them as they stand.
 3. **`ctime` is the cheapest fix and the biggest one.** One line in
    `updates.py` moves 4.68M values — 61% of the corpus — from a C-runtime
    format with no zone to `datetime.datetime.now(datetime.UTC).isoformat()`,
