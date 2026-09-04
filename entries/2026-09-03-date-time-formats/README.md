@@ -161,8 +161,31 @@ is right for most of them and wrong for some, and the string never says which.
 | day-first | 4 | 3 by witness (`172039a7`, `3b8a2ef3`, `c5b00523`), 1 by sibling (`2be11f57`) |
 | open | 2 | `5c9a1032`, `5e8318f0` |
 
-No dataset contradicts itself: where a dataset writes slash dates at both
-`record_created` and `record_modified`, both agree.
+#### One decision per dataset is the right granularity
+
+Nothing in the corpus disagrees with itself below the dataset level:
+
+- **No reaction** carries values that force both readings — 0 of 2,428,291.
+- **No dataset** forces both anywhere, across every position and every reaction.
+- The 7 datasets that write slash dates at both `record_created` and
+  `record_modified` agree across the two.
+
+Nor is there room for a mix to hide where no value witnesses one. Every
+(dataset, position) cell falls into one of two groups: the 34 that are
+witnessed, where **551,696 of 552,000 values are themselves witnesses (99.9%)**,
+or the 14 that are not, where the cell holds **at most 2 distinct values**. The
+one witnessed cell below 99.9% is `00005539`'s `experiment_start`, at 446 of
+750, because those are real experiment dates rather than one repeated stamp.
+
+[`resolve_orientation.py`](assets/resolve_orientation.py) enforces the first two
+points: it refuses to write its table at all if any reaction or dataset forces
+both readings, so a future submission that breaks the assumption fails loudly
+instead of being averaged into a per-dataset verdict.
+
+Format is a different matter, and does **not** hold per dataset — see finding 3.
+A single reaction routinely carries `record_created` in one family and the
+pipeline's `ctime` in another, so a normalizer dispatches **format per value**
+and **day/month order per dataset**.
 
 `dateutil` gets the 28 witnessed datasets right, because it retries day-first
 when the first field exceeds 12. It cannot get the other 13 right except by
@@ -345,8 +368,10 @@ which works in UTC, but "almost certainly" is not a zone.
 A one-time script in ord-data `scripts/`, with four properties that matter:
 
 - **It reads the day/month order from a table, never from `dateutil`.**
-  [`slash_orientation.csv`](assets/slash_orientation.csv) is that table;
-  `dateutil` reads `5e8318f0` the wrong way and would freeze the error in.
+  [`slash_orientation.csv`](assets/slash_orientation.csv) is that table, keyed
+  per dataset, which finding 4 shows is the right granularity; `dateutil` reads
+  `5e8318f0` the wrong way and would freeze the error in. Format, unlike order,
+  is chosen per value from its signature.
 - **It refuses to touch a dataset whose order is open.** `5c9a1032` and
   `5e8318f0` — 9,656 reactions — are skipped until their submitters answer.
 - **It appends no `record_modified` event.** Routing the rewrite through
