@@ -33,7 +33,10 @@ evidence, strongest first:
 * **proximity** — with none of the above, the reading that falls closer to the
   bound is reported as a lean, not a verdict.
 
-Writes one CSV row per (dataset, schema position) that holds slash values.
+Writes one CSV row per (dataset, schema position) that holds slash values, and
+refuses to write anything if the corpus disagrees with itself below the dataset
+level — a per-dataset verdict is only meaningful while no reaction and no
+dataset forces both readings at once.
 """
 
 import argparse
@@ -259,9 +262,35 @@ def promote_siblings(verdicts: dict, submissions: dict) -> dict:
     return promoted
 
 
-def collect(data_directory: pathlib.Path, repository: pathlib.Path) -> dict:
-    """Gathers slash-value evidence for every dataset under ``data_directory``."""
+def witness(value: str) -> str | None:
+    """Returns the orientation a single value forces, or None if it forces neither."""
+    match = _SLASH.match(value)
+    if match is None:
+        return None
+    if int(match.group(1)) > 12:
+        return "day-first"
+    if int(match.group(2)) > 12:
+        return "month-first"
+    return None
+
+
+def collect(
+    data_directory: pathlib.Path, repository: pathlib.Path
+) -> tuple[dict, collections.Counter, dict]:
+    """Gathers slash-value evidence for every dataset under ``data_directory``.
+
+    Args:
+        data_directory: An ord-data ``data/`` directory.
+        repository: The ord-data checkout, read for commit dates.
+
+    Returns:
+        The per-(dataset, position) evidence; a count per dataset of reactions
+        whose own values force both readings; and the set of orientations each
+        dataset's values force anywhere, across all positions and reactions.
+    """
     evidence: dict[tuple[str, str], Evidence] = {}
+    split_reactions: collections.Counter[str] = collections.Counter()
+    forced: dict[str, set[str]] = collections.defaultdict(set)
     for path in sorted(data_directory.glob("*/*.parquet")):
         identifier = dataset_id(path)
         committed = last_touched(repository, identifier)
@@ -280,9 +309,13 @@ def collect(data_directory: pathlib.Path, repository: pathlib.Path) -> dict:
                     for parsed in [parse_unambiguous(value)]
                     if parsed is not None
                 ]
+                in_reaction = set()
                 for position, value in pairs:
                     if _SLASH.match(value) is None:
                         continue
+                    if (orientation := witness(value)) is not None:
+                        in_reaction.add(orientation)
+                        forced[identifier].add(orientation)
                     bound = committed
                     if position == mini_reaction.RECORD_CREATED and modified:
                         bound = min(modified)
@@ -291,8 +324,10 @@ def collect(data_directory: pathlib.Path, repository: pathlib.Path) -> dict:
                         confirmed, _ = _CONFIRMED.get(key, (None, None))
                         evidence[key] = Evidence(confirmed)
                     evidence[key].add(value, bound)
+                if len(in_reaction) > 1:
+                    split_reactions[identifier] += 1
         print(f"scanned {identifier}", file=sys.stderr, flush=True)
-    return evidence
+    return evidence, split_reactions, forced
 
 
 def main() -> None:
@@ -310,7 +345,19 @@ def main() -> None:
         help="Destination CSV.",
     )
     args = parser.parse_args()
-    evidence = collect(args.repository / "data", args.repository)
+    evidence, split_reactions, forced = collect(
+        args.repository / "data", args.repository
+    )
+    split_datasets = sorted(
+        identifier for identifier, orientations in forced.items()
+        if len(orientations) > 1
+    )
+    if split_reactions or split_datasets:
+        raise SystemExit(
+            "day/month order is not consistent per dataset: "
+            f"{sum(split_reactions.values())} reactions force both readings, "
+            f"and {len(split_datasets)} datasets do: {split_datasets}"
+        )
     submissions = {
         identifier: first_added(args.repository, identifier)
         for identifier, _ in evidence
@@ -347,6 +394,10 @@ def main() -> None:
                 ]
             )
     print(f"wrote {len(evidence)} rows to {args.output}")
+    print(
+        f"consistency: 0 of {sum(len(v.distinct) for v in evidence.values()):,} "
+        "distinct values, 0 reactions and 0 datasets force both readings"
+    )
 
 
 if __name__ == "__main__":
