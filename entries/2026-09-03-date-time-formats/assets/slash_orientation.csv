@@ -1,0 +1,49 @@
+dataset_id,position,values,distinct_values,day_first_witnesses,month_first_witnesses,bound,day_first_latest,month_first_latest,verdict,basis
+00005539a1e04c809a9a78647bea649c,provenance.experiment_start,750,491,0,446,2026-08-29T22:14:05,2016-10-08T00:00:00,2016-10-26T00:00:00,month-first,witness
+00005539a1e04c809a9a78647bea649c,provenance.record_created.time,750,1,0,750,2021-10-22T22:19:55,,2021-10-19T12:16:25,month-first,witness
+0316886541d9435489859c2ad7edc863,provenance.record_created.time,96,1,0,96,2023-06-10T23:28:33,,2023-05-17T18:01:47,month-first,witness
+0c75d67751634f0594b24b9f498b77c2,provenance.record_created.time,256,1,0,0,2021-03-04T15:28:23.848996,2021-04-02T11:24:34,2021-02-04T11:24:34,month-first,bound
+10b940e7982c4622b1e1ac879394aba6,provenance.record_created.time,384,1,0,384,2021-04-06T19:24:51,,2021-03-24T13:51:15,month-first,witness
+172039a759a440219a68af62d203b79b,provenance.record_created.time,104,1,104,0,2024-10-10T13:10:12,2024-09-18T16:54:56,,day-first,witness
+1d3a1a6fb70d46c084602d0688967afc,provenance.record_created.time,96,1,0,96,2023-06-10T23:28:31,,2023-05-17T18:01:47,month-first,witness
+2be11f57f3304e678ea8469baf6dd1bc,provenance.record_created.time,1152,2,0,0,2024-10-10T10:22:03,2024-10-09T17:25:29,2024-09-10T17:25:29,day-first,sibling
+35a5a513f1dd44a3a97c88da99f81a00,provenance.record_created.time,7,1,0,0,2021-07-06T21:43:17,2021-01-07T15:05:35,2021-07-01T15:05:35,month-first (lean),proximity
+3b5db90e337942ea886b8f5bc5e3aa72,provenance.record_created.time,450,1,0,0,2021-06-16T13:19:51,2021-10-06T22:43:43,2021-06-10T22:43:43,month-first,bound
+3b8a2ef300e145468579027f206a3ac8,provenance.record_created.time,1440,1,1440,0,2024-10-09T13:58:35,2023-11-15T14:31:07,,day-first,witness
+46ff9a32d9e04016b9380b1b1ef949c3,provenance.record_created.time,4312,1,0,0,2020-10-15T17:20:09,2020-05-10T13:49:04,2020-10-05T13:49:04,month-first (lean),proximity
+488402f6ec0d441ca2f7d6fabea7c220,provenance.record_created.time,40000,26,0,40000,2021-02-17T23:04:03,,2021-02-17T15:27:39,month-first,witness
+4d431564f3ef4e9c91d8da5836f4eae6,provenance.record_created.time,90,1,0,0,2021-07-07T21:27:17,2021-02-06T08:10:58,2021-06-02T08:10:58,month-first (lean),proximity
+52bd3b0ec72c443aab113bcea09bf3f4,provenance.record_created.time,96,1,0,96,2023-06-10T23:28:36,,2023-05-17T18:01:47,month-first,witness
+5481550056a14935b76e031fb94b88be,provenance.record_created.time,30000,20,0,30000,2021-02-17T23:14:42,,2021-02-17T15:27:08,month-first,witness
+5540e162c09f4c04905ddc8ba9c931c6,provenance.record_created.time,3,1,0,3,2021-06-26T12:54:27,,2021-06-17T10:57:55,month-first,witness
+55de08a995554f558c25fc43eac62359,provenance.record_created.time,48,1,0,48,2021-04-27T21:52:02,,2021-04-21T16:29:13,month-first,witness
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_created.time,9632,1,0,0,2024-11-16T18:12:57,2024-05-08T11:33:06,2024-08-05T11:33:06,month-first (lean),proximity
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_modified[].time,19264,2,0,0,2026-08-29T22:14:05,2024-05-08T11:34:45,2024-08-05T11:34:45,month-first (lean),proximity
+5e8318f0dda04b398c14f4c3adfeb32c,provenance.record_created.time,24,1,0,0,2025-01-20T03:51:33,2024-12-05T15:29:23,2024-05-12T15:29:23,day-first (lean),proximity
+5eb7f2689f4a42eba63ad9e37e49a5cd,provenance.record_created.time,39,1,0,39,2021-06-30T22:49:12,,2021-06-26T16:31:37,month-first,witness
+675eddcaa6674ce3ae61e79bbc1e1c08,provenance.record_created.time,1536,1,0,0,2023-08-30T19:13:03,2023-09-08T22:44:35,2023-08-09T22:44:35,month-first,bound
+68cb8b4b2b384e3d85b5b1efae58b203,provenance.record_created.time,5760,1,0,5760,2021-03-03T19:46:44,,2021-02-25T13:05:42,month-first,witness
+6a0bfcdf53a64c07987822162ae591e2,provenance.record_created.time,3,1,0,3,2021-06-04T22:43:36,,2021-05-27T09:19:59,month-first,witness
+7acd6ad2bf4d4cff841cad008ab726d5,provenance.record_created.time,960,1,0,960,2023-08-31T18:34:10,,2023-08-21T15:49:20,month-first,witness
+7d8f5fd922d4497d91cb81489b052746,provenance.record_created.time,1536,1,0,1536,2020-10-29T16:48:31,,2020-10-15T16:38:43,month-first,witness
+7d8f5fd922d4497d91cb81489b052746,provenance.record_modified[].time,1536,1,0,1536,2026-08-29T22:14:05,,2020-12-21T10:00:37,month-first,witness
+805ad863feef48579d95d86a728035f4,provenance.record_created.time,50688,482,0,50688,2026-06-19T23:24:03,,2026-06-19T17:01:28,month-first,witness
+89b083710e2d441aa0040c361d63359f,provenance.record_created.time,24,1,0,0,2021-05-26T21:14:05,2021-08-05T10:29:17,2021-05-08T10:29:17,month-first,bound
+8d1e28ec1f6b4ee8ad372e0b5ed7a62e,provenance.record_created.time,27,1,0,27,2021-07-28T21:07:39,,2021-07-24T07:48:43,month-first,witness
+9b8aa9a7835143ef8ce3f70abfab7545,provenance.record_created.time,1762,8,0,1762,2022-11-25T14:26:47,,2022-11-25T09:26:47,month-first,witness
+a12fa15d036d489c971b0b514caeae52,provenance.record_created.time,288,1,0,288,2024-07-31T22:03:49,,2024-07-24T15:36:42,month-first,witness
+a12fa15d036d489c971b0b514caeae52,provenance.record_modified[].time,97,1,0,97,2026-08-29T22:14:05,,2024-12-18T17:08:03,month-first,witness
+ac78456835404910b3a4c840248b6ac9,provenance.record_created.time,1728,1,0,1728,2021-07-13T21:49:29,,2021-06-16T09:09:20,month-first,witness
+b440f8c90b6343189093770060fc4098,provenance.record_created.time,1152,1,0,1152,2020-12-11T21:39:40,,2020-09-27T07:51:26,month-first,witness
+b440f8c90b6343189093770060fc4098,provenance.record_modified[].time,1152,1,0,1152,2026-08-29T22:14:05,,2021-01-16T17:42:20,month-first,witness
+c5b00523487a4211a194160edf45e9ab,provenance.record_created.time,1430,1,1430,0,2024-10-04T15:24:54,2024-08-18T02:10:09,,day-first,witness
+cbcc4048add7468e850b6ec42549c70d,provenance.record_created.time,288,1,0,0,2020-11-18T17:55:22,2020-03-09T17:11:39,2020-09-03T17:11:39,month-first (lean),proximity
+ce5045aceb214cfc8bfd0ef3031e2737,provenance.record_created.time,96,1,0,96,2023-06-10T23:28:27,,2023-05-17T18:01:47,month-first,witness
+d26118acda314269becc35db5c22dc59,provenance.record_created.time,1728,1,0,0,2021-03-04T15:28:26.578361,2021-04-02T11:24:34,2021-02-04T11:24:34,month-first,bound
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_created.time,264,2,0,264,2020-09-29T18:03:20,,2020-09-22T10:10:54,month-first,witness
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_modified[].time,144,1,0,144,2026-08-29T22:14:05,,2021-01-16T17:42:35,month-first,witness
+d92976309c3a48a3a64a4cf5e7048086,provenance.record_created.time,39347,1,0,0,2024-07-11T12:04:50,2024-06-07T23:25:41,2024-07-06T23:25:41,month-first (lean),proximity
+e7830cd6b11158b43994ccfb5ee9acb3,provenance.record_created.time,409035,263,0,409035,2021-02-17T23:08:02,,2021-02-17T15:26:11,month-first,witness
+eeba974d3c284aed86d1c1d442260a1e,provenance.record_created.time,376,1,0,376,2022-12-01T15:51:22,,2022-07-21T17:21:42,month-first,witness
+fc83743b978f4deea7d6856deacbfe53,provenance.record_created.time,80,1,0,80,2021-07-28T20:27:30,,2021-07-21T15:10:03,month-first,witness
+fc83743b978f4deea7d6856deacbfe53,provenance.record_modified[].time,80,1,0,80,2026-08-29T22:14:05,,2021-07-21T15:10:03,month-first,witness

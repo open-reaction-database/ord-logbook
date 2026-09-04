@@ -1,0 +1,177 @@
+dataset_id,position,signature,count,example
+00005539a1e04c809a9a78647bea649c,provenance.experiment_start,NN/NN/NNNN,750,07/01/2008
+00005539a1e04c809a9a78647bea649c,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN AP",750,"10/19/2021, 12:16:25 PM"
+00005539a1e04c809a9a78647bea649c,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,750,Fri Oct 22 22:19:55 2021
+0316886541d9435489859c2ad7edc863,outcomes[].analyses{}.instrument_last_calibrated,,96,
+0316886541d9435489859c2ad7edc863,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",96,"5/17/2023, 6:01:47 PM"
+0316886541d9435489859c2ad7edc863,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Sat Jun 10 23:28:33 2023
+0c75d67751634f0594b24b9f498b77c2,outcomes[].analyses{}.instrument_last_calibrated,,256,
+0c75d67751634f0594b24b9f498b77c2,provenance.record_created.time,"N/N/NNNN, NN:NN:NN AP",256,"2/4/2021, 11:24:34 AM"
+0c75d67751634f0594b24b9f498b77c2,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,256,Thu Mar  4 18:28:05 2021
+0c75d67751634f0594b24b9f498b77c2,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,256,2021-03-04 15:28:23.848996
+10b940e7982c4622b1e1ac879394aba6,outcomes[].analyses{}.instrument_last_calibrated,,384,
+10b940e7982c4622b1e1ac879394aba6,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",384,"3/24/2021, 1:51:15 PM"
+10b940e7982c4622b1e1ac879394aba6,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,384,Tue Apr  6 19:24:51 2021
+1158e351757f315b93cbcbe7bc55f38e,provenance.record_created.time,NNNN-NN-NN NN:NN:NN,1,2022-12-02 19:09:01
+1158e351757f315b93cbcbe7bc55f38e,provenance.record_created.time,NNNN-NN-NN NN:NN:NN.NNNNNN,1771031,2022-12-02 17:42:01.780701
+1158e351757f315b93cbcbe7bc55f38e,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,1771032,Mon Dec  5 21:03:24 2022
+1158e351757f315b93cbcbe7bc55f38e,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1771032,Fri Oct 18 17:39:39 2024
+172039a759a440219a68af62d203b79b,outcomes[].analyses{}.instrument_last_calibrated,,104,
+172039a759a440219a68af62d203b79b,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",104,"18/09/2024, 16:54:56"
+172039a759a440219a68af62d203b79b,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,104,Thu Oct 10 13:10:12 2024
+1d3a1a6fb70d46c084602d0688967afc,outcomes[].analyses{}.instrument_last_calibrated,,96,
+1d3a1a6fb70d46c084602d0688967afc,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",96,"5/17/2023, 6:01:47 PM"
+1d3a1a6fb70d46c084602d0688967afc,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Sat Jun 10 23:28:31 2023
+1ec2807f02fa4beda27d2a81b86eb843,outcomes[].analyses{}.instrument_last_calibrated,,1227,
+1ec2807f02fa4beda27d2a81b86eb843,provenance.experiment_start,NNNN-NN-NNWNN:NN:NN,1227,2025-01-01T00:00:00
+1ec2807f02fa4beda27d2a81b86eb843,provenance.record_created.time,NNNN-NN-NNWNN:NN:NN,1227,2025-12-19T10:27:58
+1ec2807f02fa4beda27d2a81b86eb843,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1227,Fri Mar 13 17:01:39 2026
+2038a3c967db4a32a8fbce288437e929,outcomes[].analyses{}.instrument_last_calibrated,,96,
+2038a3c967db4a32a8fbce288437e929,provenance.record_created.time,NNNN-NN-NN NN:NN:NN.NNNNNN,96,2023-06-12 13:49:02.639583
+2038a3c967db4a32a8fbce288437e929,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Mon Jun 12 14:18:19 2023
+2be11f57f3304e678ea8469baf6dd1bc,outcomes[].analyses{}.instrument_last_calibrated,,1152,
+2be11f57f3304e678ea8469baf6dd1bc,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",1152,"01/08/2024, 17:25:29"
+2be11f57f3304e678ea8469baf6dd1bc,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1152,Thu Oct 10 10:22:03 2024
+2be30f5d8dcd471aa6ad410bdee05902,outcomes[].analyses{}.instrument_last_calibrated,,97,
+2be30f5d8dcd471aa6ad410bdee05902,provenance.record_created.time,NNNN-NN-NN NN:NN:NN.NNNNNN,97,2023-06-12 13:49:03.564754
+2be30f5d8dcd471aa6ad410bdee05902,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,97,Mon Jun 12 14:18:20 2023
+31989f1b2b9d4885b1dd2d9982da4517,outcomes[].analyses{}.instrument_last_calibrated,,96,
+31989f1b2b9d4885b1dd2d9982da4517,provenance.record_created.time,NNNN-NN-NN NN:NN:NN.NNNNNN,96,2023-06-12 13:49:00.704776
+31989f1b2b9d4885b1dd2d9982da4517,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Mon Jun 12 14:18:16 2023
+35a5a513f1dd44a3a97c88da99f81a00,outcomes[].analyses{}.instrument_last_calibrated,,238,
+35a5a513f1dd44a3a97c88da99f81a00,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",7,"07/01/2021, 15:05:35"
+35a5a513f1dd44a3a97c88da99f81a00,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,7,Tue Jul  6 21:43:17 2021
+3b5db90e337942ea886b8f5bc5e3aa72,outcomes[].analyses{}.instrument_last_calibrated,,450,
+3b5db90e337942ea886b8f5bc5e3aa72,provenance.record_created.time,"N/NN/NNNN, NN:NN:NN AP",450,"6/10/2021, 10:43:43 PM"
+3b5db90e337942ea886b8f5bc5e3aa72,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,450,Wed Jun 16 13:19:51 2021
+3b8a2ef300e145468579027f206a3ac8,outcomes[].analyses{}.instrument_last_calibrated,,1440,
+3b8a2ef300e145468579027f206a3ac8,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",1440,"15/11/2023, 14:31:07"
+3b8a2ef300e145468579027f206a3ac8,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,1440,Wed Oct  9 13:58:35 2024
+46ff9a32d9e04016b9380b1b1ef949c3,outcomes[].analyses{}.instrument_last_calibrated,,4312,
+46ff9a32d9e04016b9380b1b1ef949c3,provenance.record_created.time,"NN/N/NNNN, N:NN:NN AP",4312,"10/5/2020, 1:49:04 PM"
+46ff9a32d9e04016b9380b1b1ef949c3,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,4312,Thu Oct 15 17:20:09 2020
+46ff9a32d9e04016b9380b1b1ef949c3,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,8624,2020-12-17 21:16:16.160242
+47eaacc46c3a4487bbdf99adb1a15e41,outcomes[].analyses{}.instrument_last_calibrated,,94030,
+47eaacc46c3a4487bbdf99adb1a15e41,provenance.record_created.time,NNNN-NN-NNWNN:NN:NN,47015,2025-06-30T05:22:18
+47eaacc46c3a4487bbdf99adb1a15e41,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,47015,Fri Jul 25 08:57:56 2025
+488402f6ec0d441ca2f7d6fabea7c220,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",40000,"02/17/2021, 15:27:14"
+488402f6ec0d441ca2f7d6fabea7c220,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,80000,Wed Feb 17 23:04:03 2021
+488402f6ec0d441ca2f7d6fabea7c220,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,40000,2021-11-05 15:37:37.034278
+4d431564f3ef4e9c91d8da5836f4eae6,outcomes[].analyses{}.instrument_last_calibrated,,90,
+4d431564f3ef4e9c91d8da5836f4eae6,provenance.record_created.time,"N/N/NNNN, N:NN:NN AP",90,"6/2/2021, 8:10:58 AM"
+4d431564f3ef4e9c91d8da5836f4eae6,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,90,Wed Jul  7 21:27:17 2021
+52bd3b0ec72c443aab113bcea09bf3f4,outcomes[].analyses{}.instrument_last_calibrated,,96,
+52bd3b0ec72c443aab113bcea09bf3f4,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",96,"5/17/2023, 6:01:47 PM"
+52bd3b0ec72c443aab113bcea09bf3f4,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Sat Jun 10 23:28:36 2023
+5415f83da68e4797856ddd330dda5c61,outcomes[].analyses{}.instrument_last_calibrated,,48,
+5415f83da68e4797856ddd330dda5c61,provenance.record_created.time,DAY MON NN NN:NN:NN NNNN,48,Thu Jul 18 18:22:17 2024
+5415f83da68e4797856ddd330dda5c61,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,48,Wed Nov  6 21:19:45 2024
+5481550056a14935b76e031fb94b88be,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",30000,"02/17/2021, 15:26:49"
+5481550056a14935b76e031fb94b88be,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,60000,Wed Feb 17 23:14:42 2021
+5481550056a14935b76e031fb94b88be,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,30000,2021-11-05 15:37:37.034278
+5540e162c09f4c04905ddc8ba9c931c6,outcomes[].analyses{}.instrument_last_calibrated,,22,
+5540e162c09f4c04905ddc8ba9c931c6,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",3,"06/17/2021, 10:57:55"
+5540e162c09f4c04905ddc8ba9c931c6,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,3,Sat Jun 26 12:54:27 2021
+55de08a995554f558c25fc43eac62359,outcomes[].analyses{}.instrument_last_calibrated,,96,
+55de08a995554f558c25fc43eac62359,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",48,"04/21/2021, 16:29:13"
+55de08a995554f558c25fc43eac62359,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,48,Tue Apr 27 21:52:02 2021
+5c9a10329a8a48968d18879a48bb8ab2,outcomes[].analyses{}.instrument_last_calibrated,,9632,
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",9632,"08/05/2024, 11:33:06"
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,9632,Sat Nov 16 18:12:57 2024
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",19264,"08/05/2024, 11:34:02"
+5e8318f0dda04b398c14f4c3adfeb32c,outcomes[].analyses{}.instrument_last_calibrated,,58,
+5e8318f0dda04b398c14f4c3adfeb32c,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",24,"05/12/2024, 15:29:23"
+5e8318f0dda04b398c14f4c3adfeb32c,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,24,Mon Jan 20 03:51:33 2025
+5eb7f2689f4a42eba63ad9e37e49a5cd,outcomes[].analyses{}.instrument_last_calibrated,,156,
+5eb7f2689f4a42eba63ad9e37e49a5cd,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",39,"6/26/2021, 4:31:37 PM"
+5eb7f2689f4a42eba63ad9e37e49a5cd,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,39,Wed Jun 30 22:49:12 2021
+675eddcaa6674ce3ae61e79bbc1e1c08,outcomes[].analyses{}.instrument_last_calibrated,,1536,
+675eddcaa6674ce3ae61e79bbc1e1c08,provenance.record_created.time,"N/N/NNNN, NN:NN:NN AP",1536,"8/9/2023, 10:44:35 PM"
+675eddcaa6674ce3ae61e79bbc1e1c08,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1536,Wed Aug 30 19:13:03 2023
+68cb8b4b2b384e3d85b5b1efae58b203,outcomes[].analyses{}.instrument_last_calibrated,,5760,
+68cb8b4b2b384e3d85b5b1efae58b203,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",5760,"2/25/2021, 1:05:42 PM"
+68cb8b4b2b384e3d85b5b1efae58b203,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,5760,Wed Mar  3 19:46:44 2021
+68cb8b4b2b384e3d85b5b1efae58b203,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,5760,2021-03-04 13:56:15.292871
+6a0bfcdf53a64c07987822162ae591e2,outcomes[].analyses{}.instrument_last_calibrated,,9,
+6a0bfcdf53a64c07987822162ae591e2,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",3,"05/27/2021, 09:19:59"
+6a0bfcdf53a64c07987822162ae591e2,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,6,Fri Jun  4 22:43:36 2021
+7acd6ad2bf4d4cff841cad008ab726d5,outcomes[].analyses{}.instrument_last_calibrated,,960,
+7acd6ad2bf4d4cff841cad008ab726d5,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",960,"8/21/2023, 3:49:20 PM"
+7acd6ad2bf4d4cff841cad008ab726d5,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,960,Thu Aug 31 18:34:10 2023
+7d8f5fd922d4497d91cb81489b052746,outcomes[].analyses{}.instrument_last_calibrated,,1536,
+7d8f5fd922d4497d91cb81489b052746,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",1536,"10/15/2020, 16:38:43"
+7d8f5fd922d4497d91cb81489b052746,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1536,Thu Oct 29 16:48:31 2020
+7d8f5fd922d4497d91cb81489b052746,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",1536,"12/21/2020, 10:00:37"
+7d8f5fd922d4497d91cb81489b052746,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,1536,2021-03-04 14:08:27.746479
+805ad863feef48579d95d86a728035f4,outcomes[].analyses{}.instrument_last_calibrated,,50688,
+805ad863feef48579d95d86a728035f4,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",50688,"06/19/2026, 16:53:27"
+805ad863feef48579d95d86a728035f4,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,50688,Fri Jun 19 23:24:03 2026
+89b083710e2d441aa0040c361d63359f,outcomes[].analyses{}.instrument_last_calibrated,,120,
+89b083710e2d441aa0040c361d63359f,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",24,"05/08/2021, 10:29:17"
+89b083710e2d441aa0040c361d63359f,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,24,Wed May 26 21:14:05 2021
+8d1e28ec1f6b4ee8ad372e0b5ed7a62e,outcomes[].analyses{}.instrument_last_calibrated,,81,
+8d1e28ec1f6b4ee8ad372e0b5ed7a62e,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",27,"07/24/2021, 07:48:43"
+8d1e28ec1f6b4ee8ad372e0b5ed7a62e,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,27,Wed Jul 28 21:07:39 2021
+99c23cf435dc42f1af884053bc8b11c7,outcomes[].analyses{}.instrument_last_calibrated,,2360,
+99c23cf435dc42f1af884053bc8b11c7,provenance.record_created.time,NNNN-NN-NN,1111,2024-07-30
+99c23cf435dc42f1af884053bc8b11c7,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1111,Tue Aug 13 21:33:01 2024
+9b8aa9a7835143ef8ce3f70abfab7545,outcomes[].analyses{}.instrument_last_calibrated,,1670,
+9b8aa9a7835143ef8ce3f70abfab7545,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",1762,"11/25/2022, 09:26:40"
+9b8aa9a7835143ef8ce3f70abfab7545,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1762,Fri Nov 25 14:26:47 2022
+a12fa15d036d489c971b0b514caeae52,outcomes[].analyses{}.instrument_last_calibrated,,288,
+a12fa15d036d489c971b0b514caeae52,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",288,"7/24/2024, 3:36:42 PM"
+a12fa15d036d489c971b0b514caeae52,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,288,Wed Jul 31 22:03:49 2024
+a12fa15d036d489c971b0b514caeae52,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",97,"12/18/2024, 17:08:03"
+ac78456835404910b3a4c840248b6ac9,outcomes[].analyses{}.instrument_last_calibrated,,1728,
+ac78456835404910b3a4c840248b6ac9,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",1728,"6/16/2021, 9:09:20 AM"
+ac78456835404910b3a4c840248b6ac9,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1728,Tue Jul 13 21:49:29 2021
+b440f8c90b6343189093770060fc4098,outcomes[].analyses{}.instrument_last_calibrated,,1152,
+b440f8c90b6343189093770060fc4098,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",1152,"9/27/2020, 7:51:26 AM"
+b440f8c90b6343189093770060fc4098,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,1152,Fri Dec 11 21:39:40 2020
+b440f8c90b6343189093770060fc4098,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",1152,"01/16/2021, 17:42:20"
+b440f8c90b6343189093770060fc4098,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,2304,2020-12-17 10:40:02.159406
+bc349c19b4384756a2aee8aa525b6c2a,outcomes[].analyses{}.instrument_last_calibrated,,96,
+bc349c19b4384756a2aee8aa525b6c2a,provenance.record_created.time,NNNN-NN-NN NN:NN:NN.NNNNNN,96,2023-06-12 13:49:01.715366
+bc349c19b4384756a2aee8aa525b6c2a,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Mon Jun 12 14:18:18 2023
+c5b00523487a4211a194160edf45e9ab,outcomes[].analyses{}.instrument_last_calibrated,,1430,
+c5b00523487a4211a194160edf45e9ab,provenance.record_created.time,NN/NN/NNNN NN:NN:NN,1430,18/08/2024 02:10:09
+c5b00523487a4211a194160edf45e9ab,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,1430,Fri Oct  4 15:24:54 2024
+c703268ea43a4c7e802c6048b6166b34,outcomes[].analyses{}.instrument_last_calibrated,,120,
+c703268ea43a4c7e802c6048b6166b34,provenance.record_created.time,NNNN-NN-NNWNN:NN:NN,120,2026-03-18T12:21:54
+c703268ea43a4c7e802c6048b6166b34,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,120,Wed Apr  8 14:32:08 2026
+cbcc4048add7468e850b6ec42549c70d,outcomes[].analyses{}.instrument_last_calibrated,,288,
+cbcc4048add7468e850b6ec42549c70d,provenance.record_created.time,"N/N/NNNN, N:NN:NN AP",288,"9/3/2020, 5:11:39 PM"
+cbcc4048add7468e850b6ec42549c70d,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,288,Wed Nov 18 17:55:22 2020
+cbcc4048add7468e850b6ec42549c70d,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,576,2020-12-17 21:32:43.294979
+ce5045aceb214cfc8bfd0ef3031e2737,outcomes[].analyses{}.instrument_last_calibrated,,96,
+ce5045aceb214cfc8bfd0ef3031e2737,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",96,"5/17/2023, 6:01:47 PM"
+ce5045aceb214cfc8bfd0ef3031e2737,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,96,Sat Jun 10 23:28:27 2023
+d26118acda314269becc35db5c22dc59,outcomes[].analyses{}.instrument_last_calibrated,,1728,
+d26118acda314269becc35db5c22dc59,provenance.record_created.time,"N/N/NNNN, NN:NN:NN AP",1728,"2/4/2021, 11:24:34 AM"
+d26118acda314269becc35db5c22dc59,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,1728,Thu Mar  4 18:27:48 2021
+d26118acda314269becc35db5c22dc59,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,1728,2021-03-04 15:28:26.578361
+d319c2a22ecf4ce59db1a18ae71d529c,outcomes[].analyses{}.instrument_last_calibrated,,264,
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",144,"9/22/2020, 9:08:13 AM"
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_created.time,"N/NN/NNNN, NN:NN:NN AP",120,"9/22/2020, 10:10:54 AM"
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,264,Tue Sep 29 18:03:20 2020
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",144,"01/16/2021, 17:42:35"
+d319c2a22ecf4ce59db1a18ae71d529c,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,648,2020-12-20 08:15:50.108349
+d92976309c3a48a3a64a4cf5e7048086,outcomes[].analyses{}.instrument_last_calibrated,,39347,
+d92976309c3a48a3a64a4cf5e7048086,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",39347,"07/06/2024, 23:25:41"
+d92976309c3a48a3a64a4cf5e7048086,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,39347,Thu Jul 11 12:04:50 2024
+dc0249930af34d17a3c76881a762aebf,outcomes[].analyses{}.instrument_last_calibrated,,136,
+dc0249930af34d17a3c76881a762aebf,provenance.record_created.time,NNNN-NN-NNWNN:NN:NN,136,2026-03-18T12:21:54
+dc0249930af34d17a3c76881a762aebf,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,136,Wed Apr  8 14:32:09 2026
+e7830cd6b11158b43994ccfb5ee9acb3,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",409035,"02/17/2021, 15:22:15"
+e7830cd6b11158b43994ccfb5ee9acb3,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,818070,Wed Feb 17 23:08:04 2021
+e7830cd6b11158b43994ccfb5ee9acb3,provenance.record_modified[].time,NNNN-NN-NN NN:NN:NN.NNNNNN,409035,2021-11-05 15:37:37.034278
+eeba974d3c284aed86d1c1d442260a1e,outcomes[].analyses{}.instrument_last_calibrated,,376,
+eeba974d3c284aed86d1c1d442260a1e,provenance.record_created.time,"N/NN/NNNN, N:NN:NN AP",376,"7/21/2022, 5:21:42 PM"
+eeba974d3c284aed86d1c1d442260a1e,provenance.record_modified[].time,DAY MON  N NN:NN:NN NNNN,376,Thu Dec  1 15:51:22 2022
+fc83743b978f4deea7d6856deacbfe53,outcomes[].analyses{}.instrument_last_calibrated,,80,
+fc83743b978f4deea7d6856deacbfe53,provenance.record_created.time,"NN/NN/NNNN, NN:NN:NN",80,"07/21/2021, 15:10:03"
+fc83743b978f4deea7d6856deacbfe53,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,80,Wed Jul 28 20:27:30 2021
+fc83743b978f4deea7d6856deacbfe53,provenance.record_modified[].time,"NN/NN/NNNN, NN:NN:NN",80,"07/21/2021, 15:10:03"
+feaf1b793c6d408aaec1cac7cc3ceadc,outcomes[].analyses{}.instrument_last_calibrated,,195,
+feaf1b793c6d408aaec1cac7cc3ceadc,provenance.record_created.time,NNNN-NN-NN,130,2024-09-16
+feaf1b793c6d408aaec1cac7cc3ceadc,provenance.record_modified[].time,DAY MON NN NN:NN:NN NNNN,130,Mon Sep 16 16:20:13 2024
