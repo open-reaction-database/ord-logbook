@@ -39,10 +39,12 @@ a `Z`, which the UI strips on the contributor's first save.
 
 Four of the schema's seven `DateTime` positions are never populated at all.
 
-The [proposal](#proposal) below normalizes the stored values to ISO 8601 with a
-`Z` only where the corpus knows the zone — 32% of it — fixes the producers
-first so the rewrite is not immediately undone, and argues for shipping a reader
-before paying 1.2 GB of LFS churn.
+**Only 49,494 values can actually be read wrong**, though — the slash dates
+whose two leading fields are both at most 12. Every other slash value has a
+field above 12 and resolves itself, which the [proposal](#proposal) below
+verifies for all 551,696 of them. So it rewrites those 49,494 and nothing else:
+12 datasets and **5.0 MB** of LFS churn, against 1.26 GB for the whole corpus,
+and it retires the orientation table for consumers rather than shipping it.
 
 ## Method
 
@@ -310,49 +312,72 @@ record at all.
 
 ## Proposal
 
-Normalize every stored `DateTime` to ISO 8601, at the precision the source
-carried, with a `Z` only where the corpus knows the zone. Fix the producers
-first, then rewrite; in the other order the next submission undoes the rewrite.
+**Normalize only the ambiguous values: 49,494 reactions across 12 files, 5.0 MB
+of LFS churn.** Those are the slash-separated dates whose two leading fields are
+both at most 12, and they are the only values in the corpus a reader can get
+silently wrong. Everything else already reads correctly, and rewriting it buys
+uniformity rather than correctness.
 
-[`preview_normalization.py`](assets/preview_normalization.py) is the dry run.
-It parses all 7,592,793 values outside the two open datasets with explicit
-`strptime` formats and re-emits them, and it fails loudly on anything it cannot
-read — so the shape of the proposal is checkable before anyone rewrites 1.2 GB
-of LFS objects.
+[`preview_normalization.py`](assets/preview_normalization.py) is the dry run. It
+parses every value with an explicit `strptime` format, re-emits it, fails loudly
+on anything it cannot read, and prices all three candidate scopes.
+
+### Scope
+
+| scope | files | LFS churn | reactions | values | what it buys |
+| --- | ---: | ---: | ---: | ---: | --- |
+| **ambiguous** | **12** | **5.0 MB** | **49,494** | **49,494** | no value can be silently misread |
+| slash | 39 | 134.3 MB | 597,431 | 601,190 | above, plus one date format |
+| all | 51 | 1,255.8 MB | 2,418,635 | 7,592,793 | above, plus 3 signatures and the `Z` |
+
+The gap between the scopes is one file: `1158e351` (USPTO grants) is 1,113 MB,
+89% of the corpus by bytes, and holds **no slash value at all** — it is
+`python-str` and `ctime` only. Any scope that touches it costs a gigabyte.
+
+51 rather than 53 in the widest scope because `5c9a1032` and `5e8318f0` are
+skipped whole: their day/month order is undecided, and rewriting the rest of
+those two files would spend the churn now and again later.
+
+### What a reader gets
+
+After the ambiguous scope, **551,696 slash values remain, and not one of them
+can be misread**. Every survivor has a leading field above 12, so:
+
+- `dateutil.parser.parse` returns the recorded datetime — verified for all
+  551,696, with **0 disagreements**;
+- so does `parse(..., dayfirst=True)`, for all 551,696, so the reader's own
+  preference does not matter;
+- a strict `strptime` in the wrong order **raises** on all 551,696 rather than
+  returning a wrong date.
+
+So the per-dataset orientation table stops being something consumers need.
+[`slash_orientation.csv`](assets/slash_orientation.csv) becomes an input to the
+one-time rewrite and a record of how each call was made, not a lookup every
+reader has to carry.
+
+This is also why the ambiguity is worth fixing and the rest is not. A wrong
+day/month reading moves the date by weeks or months: of the 78,414 ambiguous
+values, only **23** — those where the day equals the month, like `05/05/2024` —
+denote the same date under both readings. Everything else about the corpus's
+formats is sub-date noise.
 
 ### The target form
-
-Three shapes, because the corpus carries three levels of knowledge:
 
 | shape | when | example |
 | --- | --- | --- |
 | `YYYY-MM-DD` | the source carried no time | `2008-07-01` |
-| `YYYY-MM-DDTHH:MM:SS[.ffffff]` | zone unknown | `2021-03-04T15:28:23.848996` |
-| `YYYY-MM-DDTHH:MM:SS[.ffffff]Z` | zone known | `2021-10-22T22:19:55Z` |
+| `YYYY-MM-DDTHH:MM:SS[.ffffff]` | otherwise | `2021-06-02T08:10:58` |
 
 Sub-second precision is kept where the source had it; a date-only source stays a
 date rather than acquiring a fictional midnight.
 
-### What earns a `Z`
-
-**2,428,294 values, 32% of the corpus** — exactly the `record_modified` events
-the submission pipeline wrote, identified by
-`person.email == "github-actions@github.com"` together with
-`details == "Automatic updates from the submission pipeline."`. Every one of
-them is `ctime`, and `updates.py` produces it from
-`datetime.datetime.now(datetime.UTC)`, so UTC is a fact about them rather than a
-guess.
-
-Nothing else earns one. The other 2,250,115 `ctime` values look identical and
-are contributor-written — 1,771,032 of them one maintainer batch edit carrying
-`details = "Set is_mined=True for USPTO data."` — and nothing in the record says
-which clock produced them. The `iso-T` values are almost certainly ord-app's,
-which works in UTC, but "almost certainly" is not a zone.
-
 ### Order of operations
 
-1. **`updates.py` writes `isoformat()`.** One line, 4.68M values' worth of
-   future output, and the only producer whose zone is known.
+The producer fixes stand on their own and should land first — otherwise the next
+`process_dataset.py --update` writes fresh `ctime` into whatever was cleaned:
+
+1. **`updates.py` writes `isoformat()`.** One line, and the only producer whose
+   zone is known.
 2. **ord-app keeps its `Z`.** Widen `DATE_TIME_FORMAT` in
    `ui/src/common/constants.ts` to `YYYY-MM-DDTHH:mm:ss[Z]` so the UI stops
    stripping the marker its own service wrote.
@@ -360,8 +385,7 @@ which works in UTC, but "almost certainly" is not a zone.
    canonicalizes `DateTime.value`, so a submission arrives canonical whatever
    the contributor's tool produced. Validation *warns* on a non-ISO value rather
    than erroring, so a draft is never rejected for it.
-4. **Then rewrite the corpus.** Not before: `process_dataset.py --update` on any
-   dataset appends a fresh `ctime` the moment it runs.
+4. **Then the rewrite**, at whichever scope.
 
 ### The rewrite
 
@@ -373,31 +397,37 @@ A one-time script in ord-data `scripts/`, with four properties that matter:
   `5e8318f0` the wrong way and would freeze the error in. Format, unlike order,
   is chosen per value from its signature.
 - **It refuses to touch a dataset whose order is open.** `5c9a1032` and
-  `5e8318f0` — 9,656 reactions — are skipped until their submitters answer.
+  `5e8318f0` — 9,656 reactions, 0.7 MB — wait for their submitters.
 - **It appends no `record_modified` event.** Routing the rewrite through
-  `updates.update_dataset` would add 2.4M events to record a formatting change;
-  the commit already records it.
+  `updates.update_dataset` would add an event per reaction to record a
+  formatting change; the commit already records it.
 - **IDs are safe.** `dataset_id` and `reaction_id` are `uuid4`, not content
   hashes, so nothing downstream re-keys.
 
-Every value parses under one of eight explicit formats — the dry run proves it
-over the whole corpus — so the rewrite needs no fuzzy parsing anywhere.
-
 ### What it changes
 
-| values | zone | before | after |
-| ---: | --- | --- | --- |
-| 2,271,884 | naive | `2021-03-04 15:28:23.848996` | `2021-03-04T15:28:23.848996` |
-| 2,250,115 | naive | `Fri Oct 18 17:39:39 2024` | `2024-10-18T17:39:39` |
-| 2,418,638 | `Z` | `Fri Oct 22 22:19:55 2021` | `2021-10-22T22:19:55Z` |
-| 578,265 | naive | `18/09/2024, 16:54:56` | `2024-09-18T16:54:56` |
-| 22,405 | naive | `5/17/2023, 6:01:47 PM` | `2023-05-17T18:01:47` |
-| 1,430 | naive | `18/08/2024 02:10:09` | `2024-08-18T02:10:09` |
-| 750 | naive | `07/01/2008` | `2008-07-01` |
-| 50,966 | naive | `2025-01-01T00:00:00` | unchanged |
+49,494 values in 12 datasets:
 
-**7,541,827 values change; 50,966 are already canonical.** Afterwards the corpus
-holds three signatures where it holds fifteen today.
+| dataset | field | values | before | after |
+| --- | --- | ---: | --- | --- |
+| `d9297630` | `record_created` | 39,347 | `07/06/2024, 23:25:41` | `2024-07-06T23:25:41` |
+| `46ff9a32` | `record_created` | 4,312 | `10/5/2020, 1:49:04 PM` | `2020-10-05T13:49:04` |
+| `d26118ac` | `record_created` | 1,728 | `2/4/2021, 11:24:34 AM` | `2021-02-04T11:24:34` |
+| `675eddca` | `record_created` | 1,536 | `8/9/2023, 10:44:35 PM` | `2023-08-09T22:44:35` |
+| `2be11f57` | `record_created` | 1,152 | `01/08/2024, 17:25:29` | `2024-08-01T17:25:29` |
+| `3b5db90e` | `record_created` | 450 | `6/10/2021, 10:43:43 PM` | `2021-06-10T22:43:43` |
+| `00005539` | `experiment_start` | 304 | `07/01/2008` | `2008-07-01` |
+| `cbcc4048` | `record_created` | 288 | `9/3/2020, 5:11:39 PM` | `2020-09-03T17:11:39` |
+| `0c75d677` | `record_created` | 256 | `2/4/2021, 11:24:34 AM` | `2021-02-04T11:24:34` |
+| `4d431564` | `record_created` | 90 | `6/2/2021, 8:10:58 AM` | `2021-06-02T08:10:58` |
+| `89b08371` | `record_created` | 24 | `05/08/2021, 10:29:17` | `2021-05-08T10:29:17` |
+| `35a5a513` | `record_created` | 7 | `07/01/2021, 15:05:35` | `2021-07-01T15:05:35` |
+
+Eleven of the twelve write one repeated timestamp, so the field changes for
+every reaction in the file. `00005539` is the exception: 304 of its 750
+`experiment_start` values are ambiguous and the other 446 witness their own
+order, so that one field ends up holding both forms — the price of not
+rewriting values that are already correct.
 
 ### Verification
 
@@ -405,22 +435,30 @@ holds three signatures where it holds fifteen today.
   old string denoted under the recorded order.
 - **Per dataset:** reaction count and the ordered `reaction_id` list unchanged;
   the multiset of parsed datetimes unchanged.
-- **Corpus-wide:** rerun [`scan_date_times.py`](assets/scan_date_times.py) and
-  assert nothing outside the three target shapes survives.
+- **Corpus-wide:** assert that every slash value left standing has a leading
+  field above 12. `preview_normalization.py` runs this check and exits non-zero
+  if it fails.
 
-### What it costs, and the cheaper thing to do first
+### The `Z`, and why it is not in the recommendation
 
-Every one of the 51 files changes, so the rewrite writes ~1.2 GB of new LFS
-objects, the old ones stay in history, and the Hugging Face mirror re-syncs the
-lot. LFS download bandwidth is already ~87% clones and forks.
+2,428,294 values — the `record_modified` events the submission pipeline wrote,
+identified by `person.email == "github-actions@github.com"` with
+`details == "Automatic updates from the submission pipeline."` — are provably
+UTC, because `updates.py` builds them from
+`datetime.datetime.now(datetime.UTC)`. Nothing else in the corpus is: the other
+2,250,115 `ctime` values look identical and are contributor-written, and the
+`iso-T` values are almost certainly ord-app's, which works in UTC, but "almost
+certainly" is not a zone.
 
-So: **do steps 1–3 now, and ship a reader before the rewrite.** A
-`parse_date_time(value, *, day_first)` in ord-schema, plus the orientation table
-beside it, gives every consumer correct datetimes today at no LFS cost and
-without freezing the two open decisions. The rewrite then becomes optional, and
-can wait until `5c9a1032` and `5e8318f0` are settled and until some other
-corpus-wide change is due, so the churn is paid once for several reasons rather
-than once for formatting.
+Stamping that marker means touching all 53 files, so it turns a 5 MB change into
+a 1.26 GB one. And it only changes an answer for a consumer that converts zones:
+read as recorded, a naive local timestamp already gives the date the person
+meant. Only 52.1% of the pipeline values fall in UTC 08:00–19:59, the window
+where the date holds from UTC−8 to UTC+4, so conversion is exactly where the
+error would come from — not from the missing marker.
+
+Worth doing if the corpus is ever rewritten for another reason. Not worth a
+gigabyte on its own.
 
 ### Still open
 

@@ -24,9 +24,12 @@ Supporting files for
 - `preview_normalization.py` — dry-runs the entry's normalization proposal:
   parses every value with an explicit `strptime` format chosen from its
   signature and the recorded day/month order, re-emits it as ISO 8601, and
-  reports the before/after counts. Writes nothing, skips any dataset whose order
-  is still open, and raises on a value it cannot read — which is what makes the
-  proposal checkable.
+  prices the three candidate scopes (`all`, `slash`, `ambiguous`) in files,
+  bytes, reactions and values. It also checks the claim the recommended scope
+  rests on — that every slash value left behind reads correctly with no
+  per-dataset knowledge — and exits non-zero if any does not. Writes nothing,
+  skips any dataset whose order is still open, and raises on a value it cannot
+  read.
 - `date_time_formats.csv` — 176 rows: `dataset_id`, `position`, `signature`,
   `count`, `example`. A signature is the value with digit runs replaced by runs
   of `N`, month and weekday names by `MON` and `DAY`, `AM`/`PM` by `AP`, and
