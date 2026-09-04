@@ -21,6 +21,12 @@ Supporting files for
   slash-separated values, from confirmations recorded in `_CONFIRMED`,
   witnesses, upper bounds, co-submitted siblings, the `en-US` 12-hour format,
   and finally proximity. Produces `slash_orientation.csv`.
+- `preview_normalization.py` — dry-runs the entry's normalization proposal:
+  parses every value with an explicit `strptime` format chosen from its
+  signature and the recorded day/month order, re-emits it as ISO 8601, and
+  reports the before/after counts. Writes nothing, skips any dataset whose order
+  is still open, and raises on a value it cannot read — which is what makes the
+  proposal checkable.
 - `date_time_formats.csv` — 176 rows: `dataset_id`, `position`, `signature`,
   `count`, `example`. A signature is the value with digit runs replaced by runs
   of `N`, month and weekday names by `MON` and `DAY`, `AM`/`PM` by `AP`, and
@@ -46,6 +52,10 @@ python scan_date_times.py \
 python resolve_orientation.py \
   --repository /path/to/ord-data \
   --output slash_orientation.csv
+
+python preview_normalization.py \
+  --data_directory /path/to/ord-data/data \
+  --orientations slash_orientation.csv
 ```
 
 Each takes a few minutes over the full corpus, dominated by

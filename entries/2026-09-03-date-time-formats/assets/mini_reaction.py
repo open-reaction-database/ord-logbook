@@ -44,7 +44,12 @@ _OPTIONAL, _REPEATED = _FIELD.LABEL_OPTIONAL, _FIELD.LABEL_REPEATED
 # name -> [(field name, field number, type, label, message type or None)]
 _MESSAGES = {
     "DateTime": [("value", 1, _STRING, _OPTIONAL, None)],
-    "RecordEvent": [("time", 1, _MESSAGE, _OPTIONAL, "DateTime")],
+    "Person": [("email", 5, _STRING, _OPTIONAL, None)],
+    "RecordEvent": [
+        ("time", 1, _MESSAGE, _OPTIONAL, "DateTime"),
+        ("person", 2, _MESSAGE, _OPTIONAL, "Person"),
+        ("details", 3, _STRING, _OPTIONAL, None),
+    ],
     "Analysis": [("instrument_last_calibrated", 7, _MESSAGE, _OPTIONAL, "DateTime")],
     "AnalysisEntry": [
         ("key", 1, _STRING, _OPTIONAL, None),
@@ -89,6 +94,26 @@ STANDARD_CALIBRATION = (
     ".analyses{}.instrument_last_calibrated"
 )
 
+# What ord_schema.updates stamps on a reaction it modifies. It writes
+# ``datetime.datetime.now(datetime.UTC).ctime()``, so an event carrying both of
+# these is the one case where the corpus knows a value's time zone.
+PIPELINE_EMAIL = "github-actions@github.com"
+PIPELINE_DETAILS = "Automatic updates from the submission pipeline."
+
+
+def pipeline_authored(event) -> bool:
+    """Returns whether a RecordEvent was written by the submission pipeline.
+
+    Args:
+        event: A ``RecordEvent`` parsed by this module's message classes.
+
+    Returns:
+        True if the event carries the pipeline's identity and details.
+    """
+    return (
+        event.person.email == PIPELINE_EMAIL and event.details == PIPELINE_DETAILS
+    )
+
 
 def _build_reaction_class():
     """Compiles the cut-down schema and returns its Reaction message class."""
@@ -120,29 +145,46 @@ Reaction = _build_reaction_class()
 def date_times(reaction):
     """Yields ``(schema position, value)`` for every DateTime in a Reaction.
 
-    Positions whose containing message is absent are skipped; a position whose
-    message is present but whose DateTime is unset yields an empty value, which
-    is how an always-empty field is told apart from an absent one.
-
     Args:
         reaction: A ``Reaction`` parsed by this module's message class.
 
     Yields:
         Pairs of the dotted schema position and the raw string value.
     """
+    for position, value, _ in date_times_with_zone(reaction):
+        yield position, value
+
+
+def date_times_with_zone(reaction):
+    """Yields ``(schema position, value, utc_known)`` for every DateTime.
+
+    Positions whose containing message is absent are skipped; a position whose
+    message is present but whose DateTime is unset yields an empty value, which
+    is how an always-empty field is told apart from an absent one.
+    ``utc_known`` is True only where the corpus identifies the writer as one
+    that works in UTC.
+
+    Args:
+        reaction: A ``Reaction`` parsed by this module's message class.
+
+    Yields:
+        Triples of the dotted schema position, the raw string value, and
+        whether the value is known to be UTC.
+    """
     provenance = reaction.provenance
     if provenance.HasField("experiment_start"):
-        yield EXPERIMENT_START, provenance.experiment_start.value
+        yield EXPERIMENT_START, provenance.experiment_start.value, False
     if provenance.HasField("record_created"):
-        yield RECORD_CREATED, provenance.record_created.time.value
+        yield RECORD_CREATED, provenance.record_created.time.value, False
     for record in provenance.record_modified:
-        yield RECORD_MODIFIED, record.time.value
+        yield RECORD_MODIFIED, record.time.value, pipeline_authored(record)
     for entry in reaction.inputs:
         for component in entry.value.components:
             for analysis in component.analyses:
                 yield (
                     INPUT_CALIBRATION,
                     analysis.value.instrument_last_calibrated.value,
+                    False,
                 )
     for workup in reaction.workups:
         for component in workup.input.components:
@@ -150,10 +192,15 @@ def date_times(reaction):
                 yield (
                     WORKUP_CALIBRATION,
                     analysis.value.instrument_last_calibrated.value,
+                    False,
                 )
     for outcome in reaction.outcomes:
         for analysis in outcome.analyses:
-            yield OUTCOME_CALIBRATION, analysis.value.instrument_last_calibrated.value
+            yield (
+                OUTCOME_CALIBRATION,
+                analysis.value.instrument_last_calibrated.value,
+                False,
+            )
         for product in outcome.products:
             for measurement in product.measurements:
                 for analysis in measurement.authentic_standard.analyses:
