@@ -18,7 +18,8 @@ Supporting files for
   format signature, and writes one row per (dataset, schema position,
   signature). Produces `date_time_formats.csv`.
 - `resolve_orientation.py` — decides day-first versus month-first for the
-  slash-separated values, from witnesses, upper bounds, co-submitted siblings,
+  slash-separated values, from confirmations recorded in `_CONFIRMED`,
+  witnesses, upper bounds, co-submitted siblings, the `en-US` 12-hour format,
   and finally proximity. Produces `slash_orientation.csv`.
 - `date_time_formats.csv` — 176 rows: `dataset_id`, `position`, `signature`,
   `count`, `example`. A signature is the value with digit runs replaced by runs
@@ -29,7 +30,7 @@ Supporting files for
   values: the witness counts in each direction, the upper bound, the latest
   timestamp each reading implies, the verdict, and which kind of evidence
   settled it. A verdict ending in `(lean)` is proximity only and is not a
-  finding.
+  finding: the two that remain are with their submitters.
 
 ## Reproducing
 
