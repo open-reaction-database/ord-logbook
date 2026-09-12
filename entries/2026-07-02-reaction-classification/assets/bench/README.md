@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-02
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 4.8)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Scripts behind the "Hands-on benchmark" section of the entry: four reaction

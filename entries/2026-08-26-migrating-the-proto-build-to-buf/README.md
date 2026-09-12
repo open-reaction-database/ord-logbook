@@ -2,6 +2,7 @@
 
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (stage 0 done; stages 1–3 not started)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

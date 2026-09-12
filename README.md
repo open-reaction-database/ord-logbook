@@ -51,7 +51,10 @@ Every Markdown file under `entries/` opens with a metadata block. An entry state
 its `Date`, `Author`, `Status`, `Tags`, and `License`; a supporting document — a
 manifest, a design note, a plan — states `Date`, `Author`, and `License`, since
 status and tags describe the investigation rather than the file. The stated date is
-the entry's own, matching the directory name.
+the entry's own, matching the directory name. A document prepared with Claude adds
+an `Acknowledgments` line after `Author` that names Claude Code and the model, as in
+`- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)`;
+delete the line from the template otherwise.
 
 ## License
 

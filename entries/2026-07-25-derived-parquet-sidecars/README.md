@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-25
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (design settled; tier 1 implemented in ord-schema#914, not merged)
 - **Tags:** ord-data, ord-schema, parquet, derived, agents, huggingface, duckdb, design,
   data-contracts

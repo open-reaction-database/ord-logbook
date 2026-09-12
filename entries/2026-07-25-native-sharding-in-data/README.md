@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-25
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (proposal; not yet implemented)
 - **Tags:** ord-data, ord-schema, parquet, sharding, git-lfs, huggingface, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

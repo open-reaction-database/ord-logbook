@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-30
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Scripts behind [2026-07-30 unlocking agents](../../2026-07-30-agent-access-sidecars-or-orm/README.md).

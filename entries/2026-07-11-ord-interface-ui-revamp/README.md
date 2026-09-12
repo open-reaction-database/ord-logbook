@@ -1,7 +1,8 @@
 # ord-interface UI revamp: shared look-and-feel and stack with ord-app + landing page
 
 - **Date:** 2026-07-11
-- **Author:** Claude Code (Fable 5), for Steven Kearnes
+- **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Fable 5)
 - **Status:** draft — PR open:
   [ord-interface#210](https://github.com/open-reaction-database/ord-interface/pull/210)
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, landing-page, code-reuse

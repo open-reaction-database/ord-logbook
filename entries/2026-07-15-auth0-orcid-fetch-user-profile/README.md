@@ -1,7 +1,8 @@
 # Auth0 ORCID custom-connection `fetchUserProfile` script (recovered)
 
 - **Date:** 2026-07-15
-- **Author:** Claude Code (Fable 5), for Steven Kearnes
+- **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Fable 5)
 - **Status:** archived reference
 - **Tags:** ord-app, auth0, orcid, authentication, configuration
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-01
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 4.8)
 - **Status:** draft
 - **Tags:** aws, aurora, cost, database, ingest, topology
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-06-30
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 4.8)
 - **Status:** draft
 - **Tags:** performance, ingest, orm, database, aurora, cost
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

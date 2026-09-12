@@ -2,6 +2,7 @@
 
 - **Date:** 2026-08-15
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** final (pivot shipped in ord-schema#965, footer cache in ord-schema#968; the four hot levels are 514 MB of Parquet and belong on S3)
 - **Tags:** ord-schema, agents, duckdb, projection, parquet, aws, fargate, s3, caching, indexing
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

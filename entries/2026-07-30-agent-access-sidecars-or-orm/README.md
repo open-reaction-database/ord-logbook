@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-30
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (recommendation settled; scope of the expansion open)
 - **Tags:** ord-data, ord-schema, ord-interface, parquet, duckdb, agents, orm, rdkit,
   design, data-contracts

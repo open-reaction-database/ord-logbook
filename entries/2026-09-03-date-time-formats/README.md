@@ -2,6 +2,7 @@
 
 - **Date:** 2026-09-03
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** findings final; the proposal is not yet accepted, and the day/month order of `5c9a1032` and `5e8318f0` is with their submitters
 - **Tags:** ord-data, ord-schema, provenance, datetime, data quality, normalization
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-02
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 4.8)
 - **Status:** draft
 - **Tags:** classification, rxno, namerxn, rxn-insight, rxnfp, syncat, reactionclassifier, atom-mapping, ontology, benchmark
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

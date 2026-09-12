@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-11
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 4.8)
 - **Status:** draft
 - **Tags:** name-only compounds, underivable, derived-smiles, resolvers, opsin, cir, data-quality, ord_20260702
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
