@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-31
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** final (decision: ship the projection; pure EAV is dominated)
 - **Tags:** ord-data, ord-schema, parquet, duckdb, agents, eav, indexing, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

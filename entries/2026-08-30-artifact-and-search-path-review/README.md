@@ -2,6 +2,7 @@
 
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** findings 1, 2, 4 and 6 closed; 5 measured and declined; 3, the timeout and the sandbox need decisions
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

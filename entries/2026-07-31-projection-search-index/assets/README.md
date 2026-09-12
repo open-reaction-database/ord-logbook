@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-31
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Scripts behind [2026-07-31 does the projection need a search index?](../../2026-07-31-projection-search-index/README.md).

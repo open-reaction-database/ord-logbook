@@ -2,6 +2,7 @@
 
 - **Date:** 2026-08-02
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (3.54× measured in CI; structural decisions recorded)
 - **Tags:** performance, validation, ord-schema, ord-data, ci, rdkit, profiling
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -2,6 +2,7 @@
 
 - **Date:** 2026-08-15
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** implemented in ord-schema#965, with two departures noted below
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 

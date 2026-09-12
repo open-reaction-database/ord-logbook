@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-31
 - **Author:** Steven Kearnes
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
 - **Status:** draft (design settled, not yet built)
 - **Tags:** ord-schema, agents, nl-query, duckdb, projection, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
