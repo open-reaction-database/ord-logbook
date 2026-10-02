@@ -2,8 +2,8 @@
 
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
-- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
-- **Status:** draft (stage 0 done; stages 1–3 not started)
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
+- **Status:** draft (stage 0 done; stage 1 in review; stages 2–3 not started)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -64,12 +64,16 @@ What produces what, from
 |---|---|---|
 | `ord_schema/proto/*_pb2.py` | `protoc --python_out` | protoc 22.3 |
 | `ord_schema/proto/*_pb2.pyi` | `protoc --pyi_out` | protoc 22.3 |
-| `js/ord-schema/proto/*_pb.js` | `protoc --js_out` (protobuf-javascript) | 3.21.2 |
-| `js/ord-schema/proto/*_pb.d.ts` | `protoc --ts_out` (ts-protoc-gen) | 0.15.0 |
+| `js/ord_schema/proto/*_pb.js` | `protoc --js_out` (protobuf-javascript) | 3.21.2 |
+| `js/ord_schema/proto/*_pb.d.ts` | `protoc --ts_out` (ts-protoc-gen) | 0.15.0 |
 | `js/ord-schema-protobufjs/index.js`, `index.d.ts` | `pbjs` / `pbts` | protobufjs-cli 1.1.3 |
 
 The Python runtime is a separate pin: `protobuf>=4.22.3,<6` in `pyproject.toml`,
 currently resolving to upb 5.29.6.
+
+The paths are those of
+[ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033), which
+moves the sources from `proto/` to `proto/ord_schema/proto/`; stage 1 below says why.
 
 ## What each piece buys
 
@@ -202,16 +206,35 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
 
 **Stage 1 — `buf breaking` in CI.** Independent of stage 0 and worth doing regardless.
 
-1. Add a minimal `buf.yaml` declaring the module at `proto/`, with `lint` restricted to
-   the rules the schema actually honors — or disabled outright, excepting
-   `ENUM_VALUE_PREFIX` and `ENUM_ZERO_VALUE_SUFFIX` by name with a comment pointing at
-   the section above, so nobody re-enables them and starts renaming enum values.
-2. Add a CI job running `buf breaking --against '.git#branch=main'`. Full history is
-   needed for the `.git` input, so the checkout needs `fetch-depth: 0`.
-3. Verify it actually fires: on a scratch branch, renumber a field and confirm the job
-   fails; delete a field without `reserved` and confirm the same.
+1. Give the schema an import root inside the repository. `dataset.proto` imported
+   `ord-schema/proto/reaction.proto`, resolved through `--proto_path=..` from the parent
+   of the checkout, which no buf module can reach. The sources move to
+   `proto/ord_schema/proto/` with `proto/` as the root. The path under the root has to
+   repeat `ord_schema/proto`: protoc names the generated Python modules after it and has
+   no option to remap them, so `proto/ord_schema/` alone would rename
+   `ord_schema.proto.reaction_pb2` for every consumer. Generated Python changes only in
+   the descriptor path, `ord-schema/` to `ord_schema/`. The JavaScript output directory
+   follows to `js/ord_schema/`, which exposed that protoc-gen-js and protoc-gen-ts reach
+   a sibling file by climbing out of the npm package and back in by the directory's name;
+   the build script rewrites those requires, and CI installs the packed package to prove
+   it loads. Under review in
+   [ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033).
+2. Add a `buf.yaml` declaring the module at `proto/`. #1033 runs the `STANDARD` lint
+   rules minus five, each excepted by name with its reason: `ENUM_VALUE_PREFIX` and
+   `ENUM_ZERO_VALUE_SUFFIX` per the section above, `PACKAGE_DIRECTORY_MATCH` because
+   step 1 fixes the directory to the Python package rather than to `ord`,
+   `PACKAGE_VERSION_SUFFIX` because it would rename every fully-qualified type, and
+   `DIRECTORY_SAME_PACKAGE` because `test.proto` is package `ord_test`.
+3. Add a CI job running `buf breaking --against '.git#branch=main'`. Full history is
+   needed for the `.git` input, so the checkout needs `fetch-depth: 0`. It follows #1033
+   in a stacked PR, since `main` has to carry a buildable module before it can serve as
+   the baseline.
+4. Verify it actually fires: on a scratch branch, renumber a field and confirm the job
+   fails; delete a field without `reserved` and confirm the same. Locally against #1033,
+   a renumbered field, a deletion without `reserved`, and a changed field type each exit
+   100; the CI job still has to be seen failing on its own.
 
-Step 3 is the point of the stage. A breaking-change check that has never been seen to
+Step 4 is the point of the stage. A breaking-change check that has never been seen to
 fail is indistinguishable from one that is misconfigured.
 
 **Stage 2 — publish to the BSR.** Independent of stage 0. Do it after stage 1, so the
@@ -237,7 +260,9 @@ breaking check is guarding the schema before anyone can depend on the published 
 2. **Disable managed mode.** It rewrites file options, which would change generated
    output for no reason anyone reviewing the diff could act on.
 3. Keep the `pbjs`/`pbts` step as a shell step — those are not protoc plugins and cannot
-   move into `buf generate`.
+   move into `buf generate`. The rewrite of the JavaScript sibling requires from stage 1
+   stays a shell step too, run after `buf generate`; remote plugins emit the same
+   climbing paths.
 4. Replace the install block in `test_proto_wrappers` with `setup-buf`, keeping whatever
    local toolchain the leftover steps still need.
 5. Confirm the drift check passes with no changes to committed generated files. If it
@@ -284,8 +309,8 @@ breaking check is guarding the schema before anyone can depend on the published 
    stage 3 survives with `ts-protoc-gen` as a local plugin.
 2. Settle who owns the buf.build organization. It gates stage 2 and is a people question,
    so start it early rather than discovering it at publish time.
-3. Land stage 1. It is small, it is additive, and it closes the one gap the current setup
-   has no answer for.
+3. Land stage 1: ord-schema#1033, then the `buf breaking` job stacked on it. It closes
+   the one gap the current setup has no answer for.
 4. Land stage 2 once stage 1 is guarding the schema.
 5. Land stage 3, keeping the version bump separate from the migration.
 
@@ -300,8 +325,8 @@ to review.
 ## References
 
 - [ord-schema](https://github.com/Open-Reaction-Database/ord-schema) —
-  `compile_proto_wrappers.sh`, `proto/reaction.proto`, and the `test_proto_wrappers` job
-  in `.github/workflows/run_tests.yml`.
+  `compile_proto_wrappers.sh`, `proto/ord_schema/proto/reaction.proto`, and the
+  `test_proto_wrappers` job in `.github/workflows/run_tests.yml`.
 - [buf documentation](https://buf.build/docs) — `buf.yaml`, `buf.gen.yaml`, and the
   breaking-change rule categories.
 - [Buf pricing](https://buf.build/pricing) — the Community tier's unlimited public
