@@ -71,9 +71,9 @@ What produces what, from
 The Python runtime is a separate pin: `protobuf>=4.22.3,<6` in `pyproject.toml`,
 currently resolving to upb 5.29.6.
 
-The paths are those of
-[ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033), which
-moves the sources from `proto/` to `proto/ord_schema/proto/`; stage 1 below says why.
+[ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033) moves
+the sources from `proto/` to `proto/ord-schema/proto/` without changing any of these
+paths; stage 1 below says why.
 
 ## What each piece buys
 
@@ -206,25 +206,22 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
 
 **Stage 1 — `buf breaking` in CI.** Independent of stage 0 and worth doing regardless.
 
-1. Give the schema an import root inside the repository. `dataset.proto` imported
+1. Give the schema an import root inside the repository. `dataset.proto` imports
    `ord-schema/proto/reaction.proto`, resolved through `--proto_path=..` from the parent
    of the checkout, which no buf module can reach. The sources move to
-   `proto/ord_schema/proto/` with `proto/` as the root. The path under the root has to
-   repeat `ord_schema/proto`: protoc names the generated Python modules after it and has
-   no option to remap them, so `proto/ord_schema/` alone would rename
-   `ord_schema.proto.reaction_pb2` for every consumer. Generated Python changes only in
-   the descriptor path, `ord-schema/` to `ord_schema/`. The JavaScript generators place
-   their output by the same path, so the build script generates into a scratch directory
-   and moves the files into `js/ord-schema/`, the npm package's own directory. They also
-   reach a sibling file by climbing to the import root and back down,
-   `../../ord_schema/proto/`, which exists neither in the repository nor in an installed
-   package; the script rewrites those requires, and CI installs the packed package,
-   loads it, and typechecks its declarations. Under review in
+   `proto/ord-schema/proto/` with `proto/` as the root, which keeps that import path and
+   every generated file byte-identical: protoc spells the hyphen as an underscore for
+   Python, so the modules stay `ord_schema.proto.*_pb2`, and the JavaScript lands in
+   `js/ord-schema/proto/`. Those files reach each other through `../../ord-schema/proto/`,
+   which resolves in an installed package only because the directory shares the npm
+   package's name — spelled `ord_schema`, `require('ord-schema')` fails — so CI installs
+   the packed package, loads it, and typechecks its declarations. The same PR fixes a
+   `pbjs` glob that has kept `Dataset` out of the protobufjs bundle. Under review in
    [ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033).
 2. Add a `buf.yaml` declaring the module at `proto/`. #1033 runs the `STANDARD` lint
    rules minus five, each excepted by name with its reason: `ENUM_VALUE_PREFIX` and
    `ENUM_ZERO_VALUE_SUFFIX` per the section above, `PACKAGE_DIRECTORY_MATCH` because
-   step 1 fixes the directory to the Python package rather than to `ord`,
+   step 1 keeps the existing import path rather than moving the sources under `ord/`,
    `PACKAGE_VERSION_SUFFIX` because it would rename every fully-qualified type, and
    `DIRECTORY_SAME_PACKAGE` because `test.proto` is package `ord_test`.
 3. Add a CI job running `buf breaking --against '.git#branch=main'`. Full history is
@@ -262,9 +259,7 @@ breaking check is guarding the schema before anyone can depend on the published 
 2. **Disable managed mode.** It rewrites file options, which would change generated
    output for no reason anyone reviewing the diff could act on.
 3. Keep the `pbjs`/`pbts` step as a shell step — those are not protoc plugins and cannot
-   move into `buf generate`. Stage 1's move of the JavaScript output into
-   `js/ord-schema/` and its rewrite of the sibling requires stay shell steps too, run
-   after `buf generate`; remote plugins place files and write requires the same way.
+   move into `buf generate`.
 4. Replace the install block in `test_proto_wrappers` with `setup-buf`, keeping whatever
    local toolchain the leftover steps still need.
 5. Confirm the drift check passes with no changes to committed generated files. If it
@@ -327,7 +322,7 @@ to review.
 ## References
 
 - [ord-schema](https://github.com/Open-Reaction-Database/ord-schema) —
-  `compile_proto_wrappers.sh`, `proto/ord_schema/proto/reaction.proto`, and the
+  `compile_proto_wrappers.sh`, `proto/ord-schema/proto/reaction.proto`, and the
   `test_proto_wrappers` job in `.github/workflows/run_tests.yml`.
 - [buf documentation](https://buf.build/docs) — `buf.yaml`, `buf.gen.yaml`, and the
   breaking-change rule categories.
