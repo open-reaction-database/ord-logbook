@@ -64,8 +64,8 @@ What produces what, from
 |---|---|---|
 | `ord_schema/proto/*_pb2.py` | `protoc --python_out` | protoc 22.3 |
 | `ord_schema/proto/*_pb2.pyi` | `protoc --pyi_out` | protoc 22.3 |
-| `js/ord_schema/proto/*_pb.js` | `protoc --js_out` (protobuf-javascript) | 3.21.2 |
-| `js/ord_schema/proto/*_pb.d.ts` | `protoc --ts_out` (ts-protoc-gen) | 0.15.0 |
+| `js/ord-schema/proto/*_pb.js` | `protoc --js_out` (protobuf-javascript) | 3.21.2 |
+| `js/ord-schema/proto/*_pb.d.ts` | `protoc --ts_out` (ts-protoc-gen) | 0.15.0 |
 | `js/ord-schema-protobufjs/index.js`, `index.d.ts` | `pbjs` / `pbts` | protobufjs-cli 1.1.3 |
 
 The Python runtime is a separate pin: `protobuf>=4.22.3,<6` in `pyproject.toml`,
@@ -213,11 +213,13 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
    repeat `ord_schema/proto`: protoc names the generated Python modules after it and has
    no option to remap them, so `proto/ord_schema/` alone would rename
    `ord_schema.proto.reaction_pb2` for every consumer. Generated Python changes only in
-   the descriptor path, `ord-schema/` to `ord_schema/`. The JavaScript output directory
-   follows to `js/ord_schema/`, which exposed that protoc-gen-js and protoc-gen-ts reach
-   a sibling file by climbing out of the npm package and back in by the directory's name;
-   the build script rewrites those requires, and CI installs the packed package to prove
-   it loads. Under review in
+   the descriptor path, `ord-schema/` to `ord_schema/`. The JavaScript generators place
+   their output by the same path, so the build script generates into a scratch directory
+   and moves the files into `js/ord-schema/`, the npm package's own directory. They also
+   reach a sibling file by climbing to the import root and back down,
+   `../../ord_schema/proto/`, which exists neither in the repository nor in an installed
+   package; the script rewrites those requires, and CI installs the packed package,
+   loads it, and typechecks its declarations. Under review in
    [ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033).
 2. Add a `buf.yaml` declaring the module at `proto/`. #1033 runs the `STANDARD` lint
    rules minus five, each excepted by name with its reason: `ENUM_VALUE_PREFIX` and
@@ -260,9 +262,9 @@ breaking check is guarding the schema before anyone can depend on the published 
 2. **Disable managed mode.** It rewrites file options, which would change generated
    output for no reason anyone reviewing the diff could act on.
 3. Keep the `pbjs`/`pbts` step as a shell step — those are not protoc plugins and cannot
-   move into `buf generate`. The rewrite of the JavaScript sibling requires from stage 1
-   stays a shell step too, run after `buf generate`; remote plugins emit the same
-   climbing paths.
+   move into `buf generate`. Stage 1's move of the JavaScript output into
+   `js/ord-schema/` and its rewrite of the sibling requires stay shell steps too, run
+   after `buf generate`; remote plugins place files and write requires the same way.
 4. Replace the install block in `test_proto_wrappers` with `setup-buf`, keeping whatever
    local toolchain the leftover steps still need.
 5. Confirm the drift check passes with no changes to committed generated files. If it
