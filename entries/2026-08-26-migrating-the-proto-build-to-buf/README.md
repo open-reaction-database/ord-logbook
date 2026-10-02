@@ -77,9 +77,11 @@ paths; stage 1 below says why.
 
 ## What each piece buys
 
-**`buf breaking --against '.git#branch=main'`.** Compares the PR's schema against main
-and fails on wire-incompatible changes: reused or renumbered field tags, changed field
-types, fields or enum values deleted without `reserved`, changed cardinality. This is new
+**`buf breaking`.** Compares the PR's schema against main and fails on incompatible
+changes: reused or renumbered field tags, changed field types, deleted fields or enum
+values, changed cardinality. Under the `FILE` category ord-schema configures, that
+includes source-level breaks too — a rename, or a deletion even with its number and name
+reserved — because consumers import the generated names. This is new
 capability, not a reorganization of existing capability. It is also the piece that
 matters most given how the schema is used — every `.pb.gz` and `.parquet` in ord-data is
 parsed by field number, so a renumbering silently changes what old records mean rather
@@ -224,14 +226,23 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
    step 1 keeps the existing import path rather than moving the sources under `ord/`,
    `PACKAGE_VERSION_SUFFIX` because it would rename every fully-qualified type, and
    `DIRECTORY_SAME_PACKAGE` because `test.proto` is package `ord_test`.
-3. Add a CI job running `buf breaking --against '.git#branch=main'`. Full history is
-   needed for the `.git` input, so the checkout needs `fetch-depth: 0`. It follows #1033
-   in a stacked PR, since `main` has to carry a buildable module before it can serve as
-   the baseline.
+3. Add a CI job running `buf breaking --against '.git#ref=origin/main'`. Full history is
+   needed for the `.git` input, so the checkout needs `fetch-depth: 0`, and the baseline
+   is the remote-tracking ref: a pull-request checkout is a detached HEAD with no local
+   `main`, so `#branch=main` fails on `couldn't find remote ref main` before reading the
+   schema. buf comes from `bufbuild/buf-action` in setup-only mode, pinned to 1.72.0;
+   `buf-setup-action` is archived. A deliberate break lands with a
+   `breaking.ignore_only` entry in `buf.yaml`, keyed by rule and by path from the
+   repository root, which comes out again once the change is on `main`. In review as
+   [ord-schema#1034](https://github.com/open-reaction-database/ord-schema/pull/1034).
 4. Verify it actually fires: on a scratch branch, renumber a field and confirm the job
-   fails; delete a field without `reserved` and confirm the same. Locally against #1033,
-   a renumbered field, a deletion without `reserved`, and a changed field type each exit
-   100; the CI job still has to be seen failing on its own.
+   fails; delete a field without `reserved` and confirm the same. Locally, a renumbered
+   field, a deletion with or without `reserved`, and a changed field type each exit 100.
+   In CI, scratch PR
+   [ord-schema#1076](https://github.com/open-reaction-database/ord-schema/pull/1076)
+   renumbered `DatasetExample.url` from 3 to 13 with the wrappers regenerated, and
+   `test_proto_breaking` failed with exit 100 on `Previously present field "3" with name
+   "url" on message "DatasetExample" was deleted`; the PR was closed unmerged.
 
 Step 4 is the point of the stage. A breaking-change check that has never been seen to
 fail is indistinguishable from one that is misconfigured.
@@ -260,8 +271,9 @@ breaking check is guarding the schema before anyone can depend on the published 
    output for no reason anyone reviewing the diff could act on.
 3. Keep the `pbjs`/`pbts` step as a shell step — those are not protoc plugins and cannot
    move into `buf generate`.
-4. Replace the install block in `test_proto_wrappers` with `setup-buf`, keeping whatever
-   local toolchain the leftover steps still need.
+4. Replace the install block in `test_proto_wrappers` with `bufbuild/buf-action` in
+   setup-only mode, as `test_proto_breaking` uses it, keeping whatever local toolchain the
+   leftover steps still need.
 5. Confirm the drift check passes with no changes to committed generated files. If it
    does not, stop and find out why before regenerating: a diff here means the toolchain
    moved, and that should be a separate, deliberate commit.
