@@ -3,7 +3,7 @@
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
-- **Status:** draft (stages 0–1 done; stage 2 publishing landed, awaiting the first release; stage 3 not started)
+- **Status:** draft (stages 0, 1, and 3 done; stage 2 publishing landed, awaiting the first release)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -282,22 +282,42 @@ breaking check is guarding the schema before anyone can depend on the published 
    `proto/README.md` is the module page, and the repository's `LICENSE` applies through
    buf's workspace-root fallback.
 
-**Stage 3 — `buf generate` (conditional on stage 0).**
+**Stage 3 — `buf generate` (conditional on stage 0). DONE.**
 
 1. Write `buf.gen.yaml` pinning each plugin to the *exact* version in use today, so the
-   regenerated output is byte-identical and the drift check passes unchanged.
+   regenerated output is byte-identical and the drift check passes unchanged. Done in
+   [ord-schema#1078](https://github.com/open-reaction-database/ord-schema/pull/1078): the
+   Python and `.pyi` generators at v22.3 and protobuf-javascript at v3.21.2 as remote
+   plugins, which run without BSR credentials, and ts-protoc-gen as a local plugin.
 2. **Disable managed mode.** It rewrites file options, which would change generated
-   output for no reason anyone reviewing the diff could act on.
+   output for no reason anyone reviewing the diff could act on. Measured: enabled with no
+   overrides, it writes eight Java, C#, PHP, Ruby, and Objective-C options into every
+   descriptor, none of which the Python or JavaScript generators read.
 3. Keep the `pbjs`/`pbts` step as a shell step — those are not protoc plugins and cannot
    move into `buf generate`.
-4. Replace the install block in `test_proto_wrappers` with `bufbuild/buf-action` in
-   setup-only mode, as `test_proto_breaking` uses it, keeping whatever local toolchain the
-   leftover steps still need.
+4. Replace the install block in `test_proto_wrappers`. What landed goes further than
+   `buf-action`: a private `package.json` and `package-lock.json` at the repository root
+   pin buf (as `@bufbuild/buf`), ts-protoc-gen, protobufjs, protobufjs-cli, and their
+   dependencies, and `compile_proto_wrappers.sh` installs them with
+   `npm ci --ignore-scripts` before generating. Contributors need only Node.js, every job
+   that runs buf installs it from the same lockfile, and no workflow uses `buf-action`.
 5. Confirm the drift check passes with no changes to committed generated files. If it
    does not, stop and find out why before regenerating: a diff here means the toolchain
-   moved, and that should be a separate, deliberate commit.
+   moved, and that should be a separate, deliberate commit. The JavaScript and TypeScript
+   came out byte-identical; the three `*_pb2.py` files did not. Their embedded descriptors
+   gained an explicit `json_name` on all 319 fields: protoc's built-in Python generator
+   omits it, and the same generator run as a plugin writes what buf sends. Every value
+   equals the camelCase name protobuf computes when the field is absent, the descriptors
+   are otherwise identical, and the test suite passes, so #1078 regenerated them as a
+   deliberate, explained change.
 6. Bump plugin versions only afterward, as its own change, so the version bump's diff is
-   readable on its own.
+   readable on its own. The first bump,
+   [ord-schema#1084](https://github.com/open-reaction-database/ord-schema/pull/1084), moved
+   protobufjs to 7.6.6, protobufjs-cli to 1.3.3, and buf to 1.73.0. Only the protobufjs
+   bundle regenerated differently, and it closed a bug in the published
+   `ord-schema-protobufjs`: a map key named `__proto__` replaced the decoded map's
+   prototype. The guard needs protobufjs 7.5.9 at runtime, so that package now requires
+   `^7.6.6`. protobufjs 8 and protobufjs-cli 2 are left for a separate decision.
 
 ## Risks and open questions
 
@@ -306,10 +326,9 @@ breaking check is guarding the schema before anyone can depend on the published 
   without changing its shape. Swapping to `ts-proto` or `protobuf-ts` would remove the
   local plugin but change the published TypeScript API, so it is a separate decision.
 - **Version skew on a local plugin.** A remote plugin's version is pinned in
-  `buf.gen.yaml` and resolved by buf; ts-protoc-gen's is pinned by an `npm i -g` line
-  somewhere else. The two pins can drift apart without anything noticing until the drift
-  check fires. Keep the version literal in one place, or at least comment each to point
-  at the other.
+  `buf.gen.yaml` and resolved by buf; ts-protoc-gen's is pinned somewhere else. Settled
+  by stage 3: the remote plugins live in `buf.gen.yaml` and every local tool in the root
+  lockfile, which Dependabot proposes bumps for.
 - **Generated-output drift.** Buf compiles with its own implementation rather than
   shelling out to protoc. Even at a matching plugin version the descriptor bytes embedded
   in `*_pb2.py` could differ. Stage 3 step 5 is where this surfaces; treat any diff as a
@@ -341,7 +360,8 @@ breaking check is guarding the schema before anyone can depend on the published 
    on #1076.
 4. Stage 2: publishing landed in ord-schema#1077. The first release pushes the module,
    then the default label moves to `latest` and step 5's breaking job can follow.
-5. Land stage 3, keeping the version bump separate from the migration.
+5. ~~Land stage 3.~~ Done — ord-schema#1078, with the first version bump separately in
+   #1084.
 
 Explicitly not in scope: changing enum naming to satisfy `buf lint`, publishing
 hand-maintained C++ or Rust bindings — the BSR generates those on demand, which is the
