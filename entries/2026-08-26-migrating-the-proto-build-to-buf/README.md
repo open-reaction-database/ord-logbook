@@ -3,7 +3,7 @@
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
-- **Status:** draft (stages 0–1 done; stage 2 started, organization claimed; stage 3 not started)
+- **Status:** draft (stages 0–1 done; stage 2 publishing landed, awaiting the first release; stage 3 not started)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -151,8 +151,10 @@ The costs are non-monetary and worth naming anyway:
   a formality. Decide who holds it before publishing, not after.
 - **The module path is effectively permanent.** Once people depend on it, renaming or
   deleting the module breaks them. The path is a one-time decision.
-- **A token in CI.** Publishing on merge needs a BSR token as a repository secret, with
-  the usual rotation question attached.
+- **A token in CI.** Publishing needs a BSR token as a repository secret, with the usual
+  rotation question attached. The public tier offers no token-less alternative: bot users
+  and their GitHub OIDC trust credentials exist only on self-hosted and dedicated
+  instances.
 - **An SDK is not the library.** Generated bindings carry the message types and nothing
   else — no validation, no `smiles_from_compound`, no unit normalization. The reference
   page should say so plainly, or the BSR listing will imply a level of support that does
@@ -251,18 +253,34 @@ fail is indistinguishable from one that is misconfigured.
 breaking check is guarding the schema before anyone can depend on the published module.
 
 1. Decide the organization and module path, and who administers the org. This is the
-   irreversible part; everything after it is mechanical.
+   irreversible part; everything after it is mechanical. The module is
+   `buf.build/open-reaction-database/ord-schema`, matching the repository, the PyPI and
+   npm packages, and the `ord-schema/proto/` import path. Admin succession is still open.
 2. Claim `buf.build/open-reaction-database` — done 2026-10-01, by Steven Kearnes — and
-   create a public module for `proto/`.
-3. Push from CI on merge to main, using a BSR token stored as a repository secret.
+   create a public module for `proto/`. Done.
+3. Push from CI on release, using a BSR token stored as a repository secret. Pushing every
+   merge would put unreleased schema under the module's default label, so a consumer who
+   pins nothing could generate code that matches no published package. `publish.yml`'s
+   `push_proto` job runs after `publish`, in its own job so buf and the token never share
+   one with `id-token: write`, and pushes the newest `v*` tag in the repository: a release
+   whose `gh release create` fails after the tag push still reaches the BSR, and a re-run of
+   an older workflow cannot move `latest` back. The public tier has no bot users, so
+   GitHub OIDC is unavailable; `BUF_TOKEN` is a limited-access token with `module.push` on
+   this module only, issued from a maintainer's personal account. Landed in
+   [ord-schema#1077](https://github.com/open-reaction-database/ord-schema/pull/1077).
 4. Tag published versions to match ord-schema releases, so a consumer can pin to the same
-   version they pin the Python package to. Unreleased commits stay reachable without a
-   tag; releases get one.
+   version they pin the Python package to. Each release is labeled with its tag, and
+   `latest` follows the newest one, as npm's `latest` dist-tag does; `main` is not used,
+   since it reads as the git branch. The module's default label moves from `main` to
+   `latest` once the first release has created it: the BSR refuses a default label that
+   does not exist yet.
 5. Once a tagged version exists, add a second `buf breaking` job comparing against the
    published release rather than `main`. This is the one that catches a break introduced
    and then compounded across several merged PRs, which the `main` comparison cannot.
 6. Write the module description to say what the SDKs do and do not include — types yes,
-   validation and derivation no, with a pointer to the Python package for those.
+   validation and derivation no, with a pointer to the Python package for those. Done:
+   `proto/README.md` is the module page, and the repository's `LICENSE` applies through
+   buf's workspace-root fallback.
 
 **Stage 3 — `buf generate` (conditional on stage 0).**
 
@@ -321,7 +339,8 @@ breaking check is guarding the schema before anyone can depend on the published 
    the module path and admin succession are the open one-time decisions.
 3. ~~Land stage 1.~~ Done — ord-schema#1033 and #1034, with the job seen failing in CI
    on #1076.
-4. Land stage 2 once stage 1 is guarding the schema.
+4. Stage 2: publishing landed in ord-schema#1077. The first release pushes the module,
+   then the default label moves to `latest` and step 5's breaking job can follow.
 5. Land stage 3, keeping the version bump separate from the migration.
 
 Explicitly not in scope: changing enum naming to satisfy `buf lint`, publishing
