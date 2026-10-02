@@ -3,7 +3,7 @@
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
-- **Status:** draft (stage 0 done; stage 1 in review; stages 2–3 not started)
+- **Status:** draft (stages 0–1 done; stage 2 started, organization claimed; stage 3 not started)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -206,7 +206,7 @@ in place before anything is published that others might depend on.
 Three of the four protoc outputs have remote plugins at exactly today's versions. The
 fourth, `--ts_out`, has none and runs as a local plugin instead.
 
-**Stage 1 — `buf breaking` in CI.** Independent of stage 0 and worth doing regardless.
+**Stage 1 — `buf breaking` in CI. DONE.** Independent of stage 0 and worth doing regardless.
 
 1. Give the schema an import root inside the repository. `dataset.proto` imports
    `ord-schema/proto/reaction.proto`, resolved through `--proto_path=..` from the parent
@@ -218,7 +218,7 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
    which resolves in an installed package only because the directory shares the npm
    package's name — spelled `ord_schema`, `require('ord-schema')` fails — so CI installs
    the packed package, loads it, and typechecks its declarations. The same PR fixes a
-   `pbjs` glob that has kept `Dataset` out of the protobufjs bundle. Under review in
+   `pbjs` glob that has kept `Dataset` out of the protobufjs bundle. Landed in
    [ord-schema#1033](https://github.com/open-reaction-database/ord-schema/pull/1033).
 2. Add a `buf.yaml` declaring the module at `proto/`. #1033 runs the `STANDARD` lint
    rules minus five, each excepted by name with its reason: `ENUM_VALUE_PREFIX` and
@@ -233,7 +233,7 @@ fourth, `--ts_out`, has none and runs as a local plugin instead.
    schema. buf comes from `bufbuild/buf-action` in setup-only mode, pinned to 1.72.0;
    `buf-setup-action` is archived. A deliberate break lands with a
    `breaking.ignore_only` entry in `buf.yaml`, keyed by rule and by path from the
-   repository root, which comes out again once the change is on `main`. In review as
+   repository root, which comes out again once the change is on `main`. Landed in
    [ord-schema#1034](https://github.com/open-reaction-database/ord-schema/pull/1034).
 4. Verify it actually fires: on a scratch branch, renumber a field and confirm the job
    fails; delete a field without `reserved` and confirm the same. Locally, a renumbered
@@ -252,7 +252,8 @@ breaking check is guarding the schema before anyone can depend on the published 
 
 1. Decide the organization and module path, and who administers the org. This is the
    irreversible part; everything after it is mechanical.
-2. Claim `buf.build/open-reaction-database` and create a public module for `proto/`.
+2. Claim `buf.build/open-reaction-database` — done 2026-10-01, by Steven Kearnes — and
+   create a public module for `proto/`.
 3. Push from CI on merge to main, using a BSR token stored as a repository secret.
 4. Tag published versions to match ord-schema releases, so a consumer can pin to the same
    version they pin the Python package to. Unreleased commits stay reachable without a
@@ -316,10 +317,10 @@ breaking check is guarding the schema before anyone can depend on the published 
 
 1. ~~Run stage 0.~~ Done — three of four outputs have exact-version remote plugins, and
    stage 3 survives with `ts-protoc-gen` as a local plugin.
-2. Settle who owns the buf.build organization. It gates stage 2 and is a people question,
-   so start it early rather than discovering it at publish time.
-3. Land stage 1: ord-schema#1033, then the `buf breaking` job stacked on it. It closes
-   the one gap the current setup has no answer for.
+2. ~~Settle who owns the buf.build organization.~~ Claimed 2026-10-01 by Steven Kearnes;
+   the module path and admin succession are the open one-time decisions.
+3. ~~Land stage 1.~~ Done — ord-schema#1033 and #1034, with the job seen failing in CI
+   on #1076.
 4. Land stage 2 once stage 1 is guarding the schema.
 5. Land stage 3, keeping the version bump separate from the migration.
 
