@@ -104,6 +104,12 @@ The fix is small: a chirality flag on the substructure predicate, passed through
 answer a chiral question. The default is a decision. Off matches what ord-interface
 answers today; on matches what a chemist who drew a stereocenter probably meant.
 
+**Decided: on**, RDKit's default, because a stereocenter someone draws — in SMARTS now, in
+a drawing tool planned beside the free-text box — is deliberate. `chirality: false` opts
+out, and ord-interface keeps its answers by passing `use_stereochemistry` through as
+that flag. Built in
+[ord-schema#1091](https://github.com/open-reaction-database/ord-schema/pull/1091).
+
 ### 3. No dataset filter
 
 `QueryParams.dataset_id` becomes a `DatasetIdQuery` in ord-interface, and the dataset
@@ -182,12 +188,13 @@ prose columns, arbitrary expressions, window functions, and joins.
 
 In order:
 
-1. **Chirality.** Add the flag and the cache-key change, and decide the default. The
-   recommendation is off, so the swap changes no answer ord-interface gives today, with
-   `use_stereochemistry` mapping onto the flag.
+1. **Chirality.** Add the flag and the cache-key change, and decide the default. This
+   recommended off; the decision was on, with an opt-out (finding 2), in
+   ord-schema#1091.
 2. **Dataset filter.** Supply `dataset_id` per file from the executor, the way
    `structure_offset` is supplied, unless the projection should carry it for readers of
-   the Parquet.
+   the Parquet. Built that way in
+   [ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092).
 3. **Reaction SMARTS.** Check what `@>` enforces against the production database, then
    pick between the two rows of finding 1.
 4. **Result details.** Decide between Postgres and fetching from the source Parquet; the
