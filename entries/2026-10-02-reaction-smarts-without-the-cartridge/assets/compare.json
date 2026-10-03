@@ -1,0 +1,310 @@
+{
+ "validation": {
+  "amide": [
+   1986,
+   1986,
+   0
+  ],
+  "amide, H counts": [
+   912,
+   762,
+   150
+  ],
+  "amide, atom maps": [
+   1986,
+   1986,
+   0
+  ],
+  "suzuki": [
+   1154,
+   1154,
+   0
+  ],
+  "boc removal": [
+   450,
+   450,
+   0
+  ],
+  "ester hydrolysis": [
+   1569,
+   1569,
+   0
+  ],
+  "buchwald": [
+   2221,
+   2221,
+   0
+  ],
+  "reductive amination": [
+   3213,
+   3213,
+   0
+  ],
+  "pyridine product": [
+   1419,
+   1419,
+   0
+  ],
+  "aryl boronic acid reactant": [
+   265,
+   265,
+   0
+  ],
+  "palladium agent": [
+   0,
+   0,
+   0
+  ]
+ },
+ "comparison": {
+  "amide": {
+   "other/both": 5965,
+   "other/cartridge only": 1701,
+   "other/decomposition only": 110,
+   "uspto/both": 4304,
+   "uspto/cartridge only": 1538,
+   "uspto/decomposition only": 1224,
+   "examples": {
+    "uspto/cartridge only": [
+     "ord-1092b44d788b43e0918548d11d88fd41",
+     "ord-4f097f997b3f4d4294c94486ed4c792e",
+     "ord-724b1f14141a4ccd892e7b49d089d1b0"
+    ],
+    "uspto/decomposition only": [
+     "ord-0b37260f9dd8434a85598fff11d35ddd",
+     "ord-9fd4ed759deb4c89998f0ece88838c2d",
+     "ord-e77687199dfc45e1a4e6df00f1b8f7a0"
+    ],
+    "other/cartridge only": [
+     "ord-d8b77e0dd1f442e787149cde2857602d",
+     "ord-ff8c835425c3407f91af01344ecef52b",
+     "ord-9ec8385adbb1426592ec0e4882376112"
+    ],
+    "other/decomposition only": [
+     "ord-ce6e3285772e4b64ac755f62020f05eb",
+     "ord-42ff4b3c067947b5ad9bba85481a3af0",
+     "ord-e0dff000d14147dba280151a9d4fd49f"
+    ]
+   }
+  },
+  "amide, H counts": {
+   "other/both": 953,
+   "other/cartridge only": 2221,
+   "other/decomposition only": 1298,
+   "uspto/both": 696,
+   "uspto/cartridge only": 1339,
+   "uspto/decomposition only": 623,
+   "examples": {
+    "uspto/cartridge only": [
+     "ord-1092b44d788b43e0918548d11d88fd41",
+     "ord-1e055435ee044e48a75ca3c72af4c6a7",
+     "ord-724b1f14141a4ccd892e7b49d089d1b0"
+    ],
+    "uspto/decomposition only": [
+     "ord-0a29249717da4e98a56e8987aa7e359b",
+     "ord-346fbb89ad9e406e845ed2afb4d285e8",
+     "ord-61038c1d2fd243b1982771d5e10af01e"
+    ],
+    "other/cartridge only": [
+     "ord-32f9531938054ca8965cd29688d26198",
+     "ord-d5cbf6ec8c13483bb7f6a30ecaa85b69",
+     "ord-20e816f583bb4a7a9aea7e30fdd34b05"
+    ],
+    "other/decomposition only": [
+     "ord-6592690b6cdc4d6988022618bb649c1d",
+     "ord-7b223868cce945daaf00c284f805bee9",
+     "ord-38a4858f15ad4eacb56ca6b8bffc04d6"
+    ]
+   }
+  },
+  "amide, atom maps": {
+   "other/both": 5965,
+   "other/cartridge only": 1701,
+   "other/decomposition only": 110,
+   "uspto/both": 4304,
+   "uspto/cartridge only": 1538,
+   "uspto/decomposition only": 1224,
+   "examples": {
+    "uspto/cartridge only": [
+     "ord-1092b44d788b43e0918548d11d88fd41",
+     "ord-4f097f997b3f4d4294c94486ed4c792e",
+     "ord-724b1f14141a4ccd892e7b49d089d1b0"
+    ],
+    "uspto/decomposition only": [
+     "ord-0b37260f9dd8434a85598fff11d35ddd",
+     "ord-9fd4ed759deb4c89998f0ece88838c2d",
+     "ord-e77687199dfc45e1a4e6df00f1b8f7a0"
+    ],
+    "other/cartridge only": [
+     "ord-d8b77e0dd1f442e787149cde2857602d",
+     "ord-ff8c835425c3407f91af01344ecef52b",
+     "ord-9ec8385adbb1426592ec0e4882376112"
+    ],
+    "other/decomposition only": [
+     "ord-ce6e3285772e4b64ac755f62020f05eb",
+     "ord-42ff4b3c067947b5ad9bba85481a3af0",
+     "ord-e0dff000d14147dba280151a9d4fd49f"
+    ]
+   }
+  },
+  "suzuki": {
+   "other/both": 525,
+   "other/cartridge only": 4600,
+   "other/decomposition only": 1,
+   "uspto/both": 437,
+   "uspto/cartridge only": 2105,
+   "uspto/decomposition only": 11,
+   "examples": {
+    "uspto/cartridge only": [
+     "ord-f2908789877e431fa8f8e88c49cc653b",
+     "ord-2c974791b4b44961a3929e9e81627411",
+     "ord-4ad2b2ca584d42539bf977bdd3ee0cff"
+    ],
+    "uspto/decomposition only": [
+     "ord-6410de8fe8024312b8a010049bac4bd3",
+     "ord-49ca3da0e2f94cecb391e301c070614d",
+     "ord-f92e2c583f964dc887b768826b6053e0"
+    ],
+    "other/cartridge only": [
+     "ord-5a43d3d49bad4df58a558949ee311322",
+     "ord-d8b77e0dd1f442e787149cde2857602d",
+     "ord-8a1ccb578f784309bd98f7face6366c1"
+    ],
+    "other/decomposition only": [
+     "ord-344f37acfe63498da614c14da31d0868"
+    ]
+   }
+  },
+  "boc removal": {
+   "other/both": 1384,
+   "uspto/both": 1656,
+   "uspto/cartridge only": 1,
+   "uspto/decomposition only": 26,
+   "examples": {
+    "uspto/decomposition only": [
+     "ord-9a099a153f594a55bc5ef8edc63a2629",
+     "ord-ba808eee0e7e4d579c30723fab71a64d",
+     "ord-56b087a137ad49ebb0eb5fa4aff9995c"
+    ],
+    "uspto/cartridge only": [
+     "ord-eb2fb0ba10e94aebb0b3acea21c04ff3"
+    ]
+   }
+  },
+  "ester hydrolysis": {
+   "other/both": 4882,
+   "uspto/both": 5658,
+   "uspto/decomposition only": 139,
+   "examples": {
+    "uspto/decomposition only": [
+     "ord-574d7a1713764bf1bd6da997304b1f97",
+     "ord-35f177985f084650acfde925312f30ee",
+     "ord-130e451af7644c7d81d4019258592759"
+    ]
+   }
+  },
+  "buchwald": {
+   "other/both": 4716,
+   "other/cartridge only": 4569,
+   "other/decomposition only": 31,
+   "uspto/both": 2617,
+   "uspto/cartridge only": 3278,
+   "uspto/decomposition only": 540,
+   "examples": {
+    "uspto/cartridge only": [
+     "ord-9799e6ade0c9481791206d516fdbe5b4",
+     "ord-efdb7497533745a4a77875ee3583e194",
+     "ord-01b80c947a5c4870882a0e0615eb96d4"
+    ],
+    "uspto/decomposition only": [
+     "ord-e5bf9c55b3674cd5a2b619d7c45fbb95",
+     "ord-956c9c0a6ced49a590b49d572ab5fcd7",
+     "ord-67837b6c9e5f4f93a5cbe2795e7003e5"
+    ],
+    "other/cartridge only": [
+     "ord-042dfbbead9e444298bacb87a267acc9",
+     "ord-4b73fa416acf40f587e7f88521119c2e",
+     "ord-bf658536e3d2403aa8ed7d6a463a591f"
+    ],
+    "other/decomposition only": [
+     "ord-ce6e3285772e4b64ac755f62020f05eb",
+     "ord-a1166500fb2b4bd2846d794eceb9efa9",
+     "ord-8b1567b2f1354f05a2041435d7515a4b"
+    ]
+   }
+  },
+  "reductive amination": {
+   "other/both": 10782,
+   "other/cartridge only": 1847,
+   "other/decomposition only": 164,
+   "uspto/both": 8030,
+   "uspto/cartridge only": 1105,
+   "uspto/decomposition only": 2450,
+   "examples": {
+    "uspto/decomposition only": [
+     "ord-0b37260f9dd8434a85598fff11d35ddd",
+     "ord-c728ed4758a84866864f9c8bc92fd5d3",
+     "ord-9fd4ed759deb4c89998f0ece88838c2d"
+    ],
+    "uspto/cartridge only": [
+     "ord-20b573977b3d429abda11f3a2d0ef818",
+     "ord-c5ed7d13fabc46128c04d369a476c4ef",
+     "ord-dc877beeb89747ecaf580b752ee09e20"
+    ],
+    "other/cartridge only": [
+     "ord-8a1ccb578f784309bd98f7face6366c1",
+     "ord-78038213d5e346ac98f9c92e270e1c8a",
+     "ord-3d14258b93fa4a3f875f912ab5f9ad13"
+    ],
+    "other/decomposition only": [
+     "ord-e71188a23a394159b921169c3a8a3c90",
+     "ord-ce6e3285772e4b64ac755f62020f05eb",
+     "ord-e6321e6d0ba341bb82016b48f22bd9a8"
+    ]
+   }
+  },
+  "pyridine product": {
+   "other/both": 4828,
+   "uspto/both": 4447,
+   "examples": {}
+  },
+  "aryl boronic acid reactant": {
+   "other/both": 1100,
+   "other/cartridge only": 13,
+   "other/decomposition only": 1,
+   "uspto/both": 695,
+   "uspto/decomposition only": 19,
+   "examples": {
+    "uspto/decomposition only": [
+     "ord-b58b4afc178e4201949ad3ca4e0f8c8a",
+     "ord-dc1888f40dd140e48b4c85957aefdf9b",
+     "ord-6410de8fe8024312b8a010049bac4bd3"
+    ],
+    "other/cartridge only": [
+     "ord-ad8c03e056db4287817fa6599fc018e6",
+     "ord-19144f4702be4de8abdeafa293bfa208",
+     "ord-be2198c5ba624c15be03a39048128c8e"
+    ],
+    "other/decomposition only": [
+     "ord-344f37acfe63498da614c14da31d0868"
+    ]
+   }
+  },
+  "palladium agent": {
+   "other/decomposition only": 1360,
+   "uspto/decomposition only": 1548,
+   "examples": {
+    "uspto/decomposition only": [
+     "ord-34696a799e5d4677a757d393de0e6b5a",
+     "ord-989d9eeb4a364fc7b50345e444461bb5",
+     "ord-372cf690f02a4ef583d7f288500604d7"
+    ],
+    "other/decomposition only": [
+     "ord-d77262446e8944e0991388431a79da92",
+     "ord-17baea874ba543cf98771e3704af5066",
+     "ord-ef4140dfe2054fe68f70b08841d4c3d9"
+    ]
+   }
+  }
+ }
+}
