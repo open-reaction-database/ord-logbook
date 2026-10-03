@@ -3,7 +3,7 @@
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
-- **Status:** draft (stages 0, 1, and 3 done; stage 2 published with v0.9.0, its breaking job against the release still to land)
+- **Status:** final (stages 0 through 3 done; admin succession for the buf.build organization still open)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -286,6 +286,11 @@ breaking check is guarding the schema before anyone can depend on the published 
 5. Once a tagged version exists, add a second `buf breaking` job comparing against the
    published release rather than `main`. This is the one that catches a break introduced
    and then compounded across several merged PRs, which the `main` comparison cannot.
+   Done in [ord-schema#1089](https://github.com/open-reaction-database/ord-schema/pull/1089),
+   as a second step in `test_proto_breaking` so the required checks are unchanged. It
+   compares with the newest `v*` tag, chosen as `push_proto` chooses the tag it pushes,
+   and a deleted field whose exemption a later change dropped passes against `main` and
+   fails against `v0.9.0`.
 6. Write the module description to say what the SDKs do and do not include — types yes,
    validation and derivation no, with a pointer to the Python package for those. Done:
    `proto/README.md` is the module page, and the repository's `LICENSE` applies through
@@ -367,9 +372,10 @@ breaking check is guarding the schema before anyone can depend on the published 
    the module path and admin succession are the open one-time decisions.
 3. ~~Land stage 1.~~ Done — ord-schema#1033 and #1034, with the job seen failing in CI
    on #1076.
-4. Stage 2: published. [v0.9.0](https://github.com/open-reaction-database/ord-schema/releases/tag/v0.9.0) reached the BSR as `v0.9.0` and `latest`, and `latest`
-   is the module's default label. Step 5's breaking job against the release is what
-   remains.
+4. ~~Land stage 2.~~ Done —
+   [v0.9.0](https://github.com/open-reaction-database/ord-schema/releases/tag/v0.9.0)
+   reached the BSR as `v0.9.0` and `latest`, `latest` is the module's default label, and
+   ord-schema#1089 checks every change against the release.
 5. ~~Land stage 3.~~ Done — ord-schema#1078, with the first version bump separately in
    #1084.
 
