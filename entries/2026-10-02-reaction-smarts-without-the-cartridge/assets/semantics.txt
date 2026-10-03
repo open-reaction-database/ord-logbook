@@ -1,0 +1,17 @@
+T1 query maps, consistent | True
+T1b query maps, swapped | True
+T2 unmapped rxn, acid template written with [OH] | False
+T2b unmapped rxn, acid template written with O | True
+T3 mapped rxn, unmapped DCM as reactant template | False
+T3b mapped rxn, DCM as agent template | True
+T3c mapped rxn, mapped acid as reactant template | True
+T3d mapped rxn without DCM, acid template | True
+T3e mapped rxn, acid template with amide product | True
+T4 two templates, one reactant (fails the count check) | False
+T4b two templates, two reactants | True
+T5 chirality, default off | True
+T5b chirality on | True
+T6 product-only template | True
+T7 product pattern on reactant side | False
+T8 one of two templates absent | True
+T9 both templates absent | False
