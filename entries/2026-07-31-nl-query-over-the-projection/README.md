@@ -3,7 +3,7 @@
 - **Date:** 2026-07-31
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
-- **Status:** draft (design settled, not yet built)
+- **Status:** final; superseded by [the 2026-08-07 entry](../2026-08-07-query-ir-versus-generated-sql/README.md), whose query IR shipped in place of generated SQL
 - **Tags:** ord-schema, agents, nl-query, duckdb, projection, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -18,6 +18,12 @@ The existing implementation answers "a fixed structured object." The question is
 that answer survives contact with a 389-column schema, and if not, what replaces it.
 
 ## Summary
+
+**Superseded.** [The 2026-08-07 entry](../2026-08-07-query-ir-versus-generated-sql/README.md)
+reversed the conclusion below: the model emits a query IR that the library compiles,
+because no validator of generated SQL can bound what a query costs. That design shipped as
+[ord-schema#948](https://github.com/open-reaction-database/ord-schema/pull/948). The
+finding that the schema fits in a prompt still holds, and is what both designs rest on.
 
 **It does not survive, and the replacement is generated SQL with the compounds pulled
 out.** The model emits DuckDB SQL against the projection, plus a separate list of the
