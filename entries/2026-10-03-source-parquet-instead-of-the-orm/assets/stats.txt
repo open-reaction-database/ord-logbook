@@ -1,0 +1,4 @@
+USPTO  inputs    rows=30 first=0.93 s repeat=0.17 s top=O x365797
+USPTO  products  rows=30 first=0.70 s repeat=0.08 s top=N x1458
+small  inputs    rows=30 first=0.10 s repeat=0.10 s top=O=C([O-])[O-].[Cs+].[Cs+] x446
+small  products  rows=30 first=0.04 s repeat=0.04 s top=c1ccc(CNc2ccnc(Nc3ccccc3)c2)cc x13
