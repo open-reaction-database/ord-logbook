@@ -21,6 +21,8 @@ intended      every template matches a different molecule on its side of the rea
 decomposition every reactant template matches a different REACTANT-role component, every
               product template a different product, every agent template a different
               non-reactant input: what ord_schema.search's reaction_smarts compiles to.
+
+In the last two, a molecule recorded twice on one side is one molecule.
 """
 
 import itertools
@@ -28,7 +30,7 @@ import json
 import sys
 
 import pyarrow.parquet as pq
-from rdkit import RDLogger
+from rdkit import Chem, RDLogger
 from rdkit.Chem import rdChemReactions
 
 from compare import QUERIES, cartridge_match, cartridge_reaction, molecules
@@ -38,7 +40,11 @@ RDLogger.DisableLog("rdApp.*")
 
 
 def distinct(templates, mols):
-    """Whether each template matches a different molecule."""
+    """Whether each template matches a different molecule; one recorded twice is one."""
+    seen = {}
+    for m in mols:
+        seen.setdefault(Chem.MolToSmiles(m), m)
+    mols = list(seen.values())
     hits = [[i for i, m in enumerate(mols) if m.HasSubstructMatch(t)] for t in templates]
     return all(hits) and any(
         len(set(choice)) == len(choice) for choice in itertools.product(*hits)

@@ -33,19 +33,20 @@ different molecule on its side:
 | query | intended | `@>` | decomposition | `@>` agreement | decomposition agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `cB(O)O.c[Br,I]>>cc` (Suzuki) | 943 | 7,667 | 971 | 0.12 | 0.97 |
-| `c[Br,Cl,I].N>>cN` (Buchwald) | 5,715 | 15,180 | 6,052 | 0.38 | 0.90 |
-| `C(=O)O.N>>C(=O)N` (amide) | 7,965 | 13,508 | 9,328 | 0.59 | 0.85 |
-| `C=O.N>>CN` (reductive amination) | 13,812 | 21,764 | 16,066 | 0.63 | 0.85 |
+| `c[Br,Cl,I].N>>cN` (Buchwald) | 5,715 | 15,180 | 6,025 | 0.38 | 0.90 |
+| `C(=O)O.N>>C(=O)N` (amide) | 7,965 | 13,508 | 9,312 | 0.59 | 0.85 |
+| `C=O.N>>CN` (reductive amination) | 13,812 | 21,764 | 16,020 | 0.63 | 0.86 |
 
 Agreement is the Jaccard index with the intended set. Decomposition is what
-`reaction_smarts` compiles to: each reactant template on a different `REACTANT`-role
-component, each product template on a different product. On single-template sides `@>`
+`reaction_smarts` compiles to: each reactant template on a different molecule among the
+`REACTANT`-role components, each product template on a different product. In both
+readings a molecule recorded twice is one molecule. On single-template sides `@>`
 and the intended reading coincide, and decomposition agrees with both at 0.98 to 1.0.
 
 **Correction, same day.** The first version of this entry let one molecule satisfy two
 templates, in the intended reading and in decomposition alike. That reading accepts a Boc
 deprotection as an amide coupling, because the carbamate holds both `C(=O)O` and `N`,
-and it added 1,950 amide reactions to decomposition. The tables now hold each template
+and it added 1,966 amide reactions to decomposition. The tables now hold each template
 to a different molecule, and so does
 [ord-schema#1093](https://github.com/open-reaction-database/ord-schema/pull/1093).
 
@@ -73,8 +74,8 @@ the swap happens rather than a regression to avoid.
 - **Comparison.** [`compare3.py`](assets/compare3.py) computes three readings of each
   query over the sample: `@>`; the intended reading, every template matching a different
   molecule on its side of the reaction SMILES after the cartridge's move of unmapped
-  reactants; and decomposition, every template matching a different component in its
-  role. Results in [`compare3.json`](assets/compare3.json).
+  reactants; and decomposition, every template matching a different molecule among the
+  components in its role. Results in [`compare3.json`](assets/compare3.json).
   [`extras.py`](assets/extras.py) classifies the reactions decomposition adds
   ([`extras.txt`](assets/extras.txt)).
 - **Earlier comparison.** [`compare2.py`](assets/compare2.py) and
@@ -114,14 +115,14 @@ matched none of the 40,000.
 Decomposition agrees with the intended reading at 0.85 to 0.97 on the two-template
 queries and 0.98 to 1.0 on the single-template ones, leaving out the agent query
 (finding 3). Nearly all of the difference is reactions decomposition adds rather than
-misses: on the amide query it adds 1,383 and misses 20. The full table is in
+misses: on the amide query it adds 1,367 and misses 20. The full table is in
 [`compare3.json`](assets/compare3.json).
 
-The added reactions are mostly an artifact of the intended reading's own rule. In 1,357
-of the 1,383 amide additions, the reaction SMILES lists the amine as a reactant, but the
+The added reactions are mostly an artifact of the intended reading's own rule. In 1,356
+of the 1,367 amide additions, the reaction SMILES lists the amine as a reactant, but the
 cartridge's rule moves it to agents for having under 20% of its atoms mapped. The record's
 components call it a `REACTANT`, and decomposition believes them. The same rule
-accounts for 394 of Buchwald's 477 additions and 2,191 of reductive amination's 2,296
+accounts for 394 of Buchwald's 450 additions and 2,190 of reductive amination's 2,251
 ([`extras.txt`](assets/extras.txt)). The few that remain are reactions where the
 components and the reaction SMILES disagree about what was a reactant, which is a
 property of the record rather than of either design. Reading reactant templates from
@@ -142,7 +143,8 @@ a template such as `N` matches a solvent or reagent, such as acetonitrile.
 - **Atom maps.** Neither checks them, so neither can say which atoms a reaction
   changed; a template-to-template mapping check would be a different feature.
 - **Distinct molecules.** Decomposition requires the templates on a side to match
-  different components, checked as a count per subset of two or more templates; `@>`
+  different molecules, checked as a count of distinct SMILES per subset of two or more
+  templates, so a molecule recorded twice is still one; `@>`
   checks only that the side holds enough molecules. A grouped template, `(A.B)`, asks for
   both pieces in one molecule.
 
