@@ -1,0 +1,8 @@
+index {'build_s': 1.55, 'ids': 2428291, 'max_rss_growth_mib': 573}
+random 1                                   direct=(0.059, 0.022)  indexed x1=(0.007, 0.002)  indexed x8=(0.002, 0.002)  row groups=1  MiB returned=0.0
+random 10                                  direct=(0.283, 0.192)  indexed x1=(0.017, 0.015)  indexed x8=(0.006, 0.005)  row groups=10  MiB returned=0.02
+random 100                                 direct=(0.202, 0.185)  indexed x1=(0.141, 0.12)  indexed x8=(0.027, 0.026)  row groups=99  MiB returned=0.29
+random 1000                                direct=(0.186, 0.187)  indexed x1=(1.073, 1.057)  indexed x8=(0.162, 0.165)  row groups=836  MiB returned=2.65
+search: amide SMARTS, first page (1000)    direct=(0.186, 0.183)  indexed x1=(0.096, 0.092)  indexed x8=(0.017, 0.017)  row groups=76  MiB returned=2.69
+search: yield above 90% (1000)             direct=(0.196, 0.191)  indexed x1=(0.016, 0.014)  indexed x8=(0.004, 0.004)  row groups=9  MiB returned=2.96
+search: one small dataset (750)            direct=(0.23, 0.196)  indexed x1=(0.002, 0.001)  indexed x8=(0.001, 0.002)  row groups=1  MiB returned=1.41

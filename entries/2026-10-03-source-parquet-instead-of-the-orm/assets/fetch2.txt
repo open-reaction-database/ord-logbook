@@ -1,0 +1,5 @@
+md5 of all 53 sources: 11.7 s
+projections whose stamped source is local: 53/53; row order identical: 53/53
+random 1     positional x8=0.002  direct in files=0.015  row lookup over projections=0.744
+random 100   positional x8=0.027  direct in files=0.207  row lookup over projections=0.906
+random 1000  positional x8=0.244  direct in files=0.187  row lookup over projections=0.725

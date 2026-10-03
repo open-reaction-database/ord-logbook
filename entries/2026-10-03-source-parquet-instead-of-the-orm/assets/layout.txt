@@ -1,0 +1,6 @@
+files 53 rows 2,428,291 row groups 2,466
+reaction column: 1,145 MiB compressed, 6,526 MiB uncompressed
+compressed bytes per row group: median 572 KiB, p90 641 KiB, max 743 KiB
+rows per row group: [762, 960, 1000] (largest values)
+compression codec: ZSTD
+largest file: ('ord_dataset-1158e351757f315b93cbcbe7bc55f38e.parquet', 1771032, 1772, 1112719074)

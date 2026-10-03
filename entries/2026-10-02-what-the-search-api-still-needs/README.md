@@ -141,8 +141,9 @@ export whole reactions from Postgres. Two ways to keep them working:
   `Corpus.fingerprint` can name the artifact snapshot; nothing yet compares it with
   what the database was loaded from.
 - **Fetch by ID from the source Parquet.** A reaction's record is one row of its
-  dataset's source file, which retires Postgres from the read path entirely. Not yet
-  written or measured.
+  dataset's source file, which retires Postgres from the read path entirely. Measured
+  in [2026-10-03](../2026-10-03-source-parquet-instead-of-the-orm/README.md): DuckDB over the source files returns any batch of up to 1,000 in under
+  0.2 s.
 
 ### 5. Latency
 
@@ -208,7 +209,8 @@ In order:
 3. **Reaction SMARTS — merged.** Check what `@>` enforces, then pick between the two
    rows of finding 1: decomposition, in [ord-schema#1093](https://github.com/open-reaction-database/ord-schema/pull/1093).
 4. **Result details.** Decide between Postgres and fetching from the source Parquet; the
-   second wants a measurement of fetch-by-ID first.
+   second wants a measurement of fetch-by-ID first. Measured in [2026-10-03](../2026-10-03-source-parquet-instead-of-the-orm/README.md), which
+   recommends the source Parquet.
 5. **Re-run the eval** over all 28 cases.
 
 Not on that list, because it is a deployment choice rather than API work: whether a
