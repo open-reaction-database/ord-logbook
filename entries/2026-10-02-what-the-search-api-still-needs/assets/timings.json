@@ -1,0 +1,442 @@
+{
+ "configurations": {
+  "pivots and occurrences, default bound": {
+   "open_seconds": 14.239377125049941,
+   "queries": {
+    "scalar_comparison": {
+     "first": 0.009568333975039423,
+     "repeat": 0.006447709049098194,
+     "rows": 1000
+    },
+    "existential_quantifier": {
+     "first": 0.764994667028077,
+     "repeat": 0.08281724993139505,
+     "rows": 1000
+    },
+    "universal_quantifier": {
+     "first": 0.08277704194188118,
+     "repeat": 0.08272812492214143,
+     "rows": 1000
+    },
+    "correlated_conditions": {
+     "first": 0.08113816706463695,
+     "repeat": 0.04879570798948407,
+     "rows": 1000
+    },
+    "nested_quantifiers": {
+     "first": 1.3346237499499694,
+     "repeat": 0.05712337500881404,
+     "rows": 1000
+    },
+    "reduction_ordering": {
+     "first": 0.05041145801078528,
+     "repeat": 0.04859287501312792,
+     "rows": 25
+    },
+    "filtered_reduction": {
+     "first": 0.09783412504475564,
+     "repeat": 0.09772841702215374,
+     "rows": 1
+    },
+    "aggregate_grouping": {
+     "first": 0.06264133402146399,
+     "repeat": 0.03940354206133634,
+     "rows": 6
+    },
+    "substructure_screen": {
+     "first": 1.1952167080016807,
+     "repeat": 0.06245470803696662,
+     "rows": 1000
+    },
+    "similarity_screen": {
+     "first": 0.11028166592586786,
+     "repeat": 0.06002062500920147,
+     "rows": 1000
+    },
+    "compound_identity": {
+     "first": 0.06652145809493959,
+     "repeat": 0.05990358395501971,
+     "rows": 1000
+    },
+    "parent_identity": {
+     "first": 0.07245058298576623,
+     "repeat": 0.05948349996469915,
+     "rows": 1000
+    },
+    "bounded_range": {
+     "first": 0.010419582948088646,
+     "repeat": 0.007080457988195121,
+     "rows": 1000
+    },
+    "at_most": {
+     "first": 0.031305667012929916,
+     "repeat": 0.028595249983482063,
+     "rows": 1000
+    },
+    "disjunction": {
+     "first": 0.08971158298663795,
+     "repeat": 0.09043137496337295,
+     "rows": 1000
+    },
+    "negation": {
+     "first": 0.07996470795478672,
+     "repeat": 0.0805841670371592,
+     "rows": 1000
+    },
+    "presence": {
+     "first": 0.004667541943490505,
+     "repeat": 0.004188958089798689,
+     "rows": 1000
+    },
+    "text_edges": {
+     "first": 0.004223625059239566,
+     "repeat": 0.004381290986202657,
+     "rows": 1000
+    },
+    "text_predicate": {
+     "first": 0.08805450005456805,
+     "repeat": 0.0864488750230521,
+     "rows": 3
+    },
+    "null_check": {
+     "first": 0.005023917066864669,
+     "repeat": 0.004883707966655493,
+     "rows": 1000
+    }
+   }
+  },
+  "pivots and occurrences, unbounded": {
+   "open_seconds": 13.825010875007138,
+   "queries": {
+    "scalar_comparison": {
+     "first": 0.08157650008797646,
+     "repeat": 0.0780086669838056,
+     "rows": 211457
+    },
+    "existential_quantifier": {
+     "first": 0.8510514999506995,
+     "repeat": 0.14521745906677097,
+     "rows": 1542319
+    },
+    "universal_quantifier": {
+     "first": 0.14462679205462337,
+     "repeat": 0.1441864169901237,
+     "rows": 885972
+    },
+    "correlated_conditions": {
+     "first": 0.07944562507327646,
+     "repeat": 0.04834195808507502,
+     "rows": 24932
+    },
+    "nested_quantifiers": {
+     "first": 1.3814667500555515,
+     "repeat": 0.05716712505090982,
+     "rows": 22666
+    },
+    "reduction_ordering": {
+     "first": 0.05190362490247935,
+     "repeat": 0.04948225000407547,
+     "rows": 25
+    },
+    "filtered_reduction": {
+     "first": 0.10734183306340128,
+     "repeat": 0.10099512489978224,
+     "rows": 1
+    },
+    "aggregate_grouping": {
+     "first": 0.04923862498253584,
+     "repeat": 0.038163833087310195,
+     "rows": 6
+    },
+    "substructure_screen": {
+     "first": 1.2769950829679146,
+     "repeat": 0.12595491693355143,
+     "rows": 660671
+    },
+    "similarity_screen": {
+     "first": 0.16843349998816848,
+     "repeat": 0.14007204200606793,
+     "rows": 179055
+    },
+    "compound_identity": {
+     "first": 0.09750483301468194,
+     "repeat": 0.08839004102628678,
+     "rows": 97263
+    },
+    "parent_identity": {
+     "first": 0.13304612506181002,
+     "repeat": 0.14151533297263086,
+     "rows": 112322
+    },
+    "bounded_range": {
+     "first": 0.06452820799313486,
+     "repeat": 0.054089457960799336,
+     "rows": 185050
+    },
+    "at_most": {
+     "first": 0.035398957901634276,
+     "repeat": 0.036167833022773266,
+     "rows": 41335
+    },
+    "disjunction": {
+     "first": 0.09788970893714577,
+     "repeat": 0.09530341706704348,
+     "rows": 61216
+    },
+    "negation": {
+     "first": 0.1413231670157984,
+     "repeat": 0.14116045902483165,
+     "rows": 885972
+    },
+    "presence": {
+     "first": 0.17466633406002074,
+     "repeat": 0.1639695829944685,
+     "rows": 2377486
+    },
+    "text_edges": {
+     "first": 0.16677287500351667,
+     "repeat": 0.16727404203265905,
+     "rows": 2377486
+    },
+    "text_predicate": {
+     "first": 0.08881799993105233,
+     "repeat": 0.08883479190990329,
+     "rows": 3
+    },
+    "null_check": {
+     "first": 0.2513360839802772,
+     "repeat": 0.22575216693803668,
+     "rows": 1820984
+    }
+   }
+  },
+  "occurrences, no pivots, default bound": {
+   "open_seconds": 14.052303707925603,
+   "queries": {
+    "scalar_comparison": {
+     "first": 0.00886987498961389,
+     "repeat": 0.006020582979544997,
+     "rows": 1000
+    },
+    "existential_quantifier": {
+     "first": 0.3090611669467762,
+     "repeat": 0.2375937079777941,
+     "rows": 1000
+    },
+    "universal_quantifier": {
+     "first": 0.025287583004683256,
+     "repeat": 0.024656249908730388,
+     "rows": 1000
+    },
+    "correlated_conditions": {
+     "first": 0.05600533296819776,
+     "repeat": 0.04791341698728502,
+     "rows": 1000
+    },
+    "nested_quantifiers": {
+     "first": 2.495487582986243,
+     "repeat": 1.8670261669903994,
+     "rows": 1000
+    },
+    "reduction_ordering": {
+     "first": 1.8856707499362528,
+     "repeat": 1.8064849589718506,
+     "rows": 25
+    },
+    "filtered_reduction": {
+     "first": 1.8143634590087458,
+     "repeat": 1.790587833034806,
+     "rows": 1
+    },
+    "aggregate_grouping": {
+     "first": 0.17915787501260638,
+     "repeat": 0.17302145902067423,
+     "rows": 6
+    },
+    "substructure_screen": {
+     "first": 1.1943601249950007,
+     "repeat": 0.10347162501420826,
+     "rows": 1000
+    },
+    "similarity_screen": {
+     "first": 0.19138729199767113,
+     "repeat": 0.10277895804028958,
+     "rows": 1000
+    },
+    "compound_identity": {
+     "first": 0.10991300002206117,
+     "repeat": 0.13912249996792525,
+     "rows": 1000
+    },
+    "parent_identity": {
+     "first": 0.07975495897699147,
+     "repeat": 0.06119670800399035,
+     "rows": 1000
+    },
+    "bounded_range": {
+     "first": 0.012548375059850514,
+     "repeat": 0.007288165972568095,
+     "rows": 1000
+    },
+    "at_most": {
+     "first": 0.04199462500400841,
+     "repeat": 0.028451374964788556,
+     "rows": 1000
+    },
+    "disjunction": {
+     "first": 0.09596825006883591,
+     "repeat": 0.10590029193554074,
+     "rows": 1000
+    },
+    "negation": {
+     "first": 0.02574179193470627,
+     "repeat": 0.02501700003631413,
+     "rows": 1000
+    },
+    "presence": {
+     "first": 0.007085500052198768,
+     "repeat": 0.004393750103190541,
+     "rows": 1000
+    },
+    "text_edges": {
+     "first": 0.004492958076298237,
+     "repeat": 0.004494874970987439,
+     "rows": 1000
+    },
+    "text_predicate": {
+     "first": 0.08785229199565947,
+     "repeat": 0.0858270829776302,
+     "rows": 3
+    },
+    "null_check": {
+     "first": 0.005348584032617509,
+     "repeat": 0.0050044580129906535,
+     "rows": 1000
+    }
+   }
+  },
+  "occurrences, no pivots, unbounded": {
+   "open_seconds": 14.48410604102537,
+   "queries": {
+    "scalar_comparison": {
+     "first": 0.09849304205272347,
+     "repeat": 0.08055862504988909,
+     "rows": 211457
+    },
+    "existential_quantifier": {
+     "first": 2.301845666952431,
+     "repeat": 1.8224575000349432,
+     "rows": 1542319
+    },
+    "universal_quantifier": {
+     "first": 1.9755432920064777,
+     "repeat": 2.208501833025366,
+     "rows": 885972
+    },
+    "correlated_conditions": {
+     "first": 0.095026999944821,
+     "repeat": 0.06462600000668317,
+     "rows": 24932
+    },
+    "nested_quantifiers": {
+     "first": 2.8615932080429047,
+     "repeat": 2.061855165986344,
+     "rows": 22666
+    },
+    "reduction_ordering": {
+     "first": 1.81621908408124,
+     "repeat": 1.8092173329787329,
+     "rows": 25
+    },
+    "filtered_reduction": {
+     "first": 1.8492858749814332,
+     "repeat": 1.8121820000233129,
+     "rows": 1
+    },
+    "aggregate_grouping": {
+     "first": 0.2428647499764338,
+     "repeat": 0.08670566708315164,
+     "rows": 6
+    },
+    "substructure_screen": {
+     "first": 1.4103915829909965,
+     "repeat": 0.264770417008549,
+     "rows": 660671
+    },
+    "similarity_screen": {
+     "first": 0.3751986250281334,
+     "repeat": 0.1578087080270052,
+     "rows": 179055
+    },
+    "compound_identity": {
+     "first": 0.17258745897561312,
+     "repeat": 0.30707099998835474,
+     "rows": 97263
+    },
+    "parent_identity": {
+     "first": 0.35092799994163215,
+     "repeat": 0.1880269160028547,
+     "rows": 112322
+    },
+    "bounded_range": {
+     "first": 0.09563666593749076,
+     "repeat": 0.07697054196614772,
+     "rows": 185050
+    },
+    "at_most": {
+     "first": 0.20045429200399667,
+     "repeat": 0.07360579201485962,
+     "rows": 41335
+    },
+    "disjunction": {
+     "first": 0.11063637502957135,
+     "repeat": 0.10495041590183973,
+     "rows": 61216
+    },
+    "negation": {
+     "first": 2.307628875016235,
+     "repeat": 2.301575666991994,
+     "rows": 885972
+    },
+    "presence": {
+     "first": 0.17326791596133262,
+     "repeat": 0.1672078330302611,
+     "rows": 2377486
+    },
+    "text_edges": {
+     "first": 0.17896458401810378,
+     "repeat": 0.19350633409339935,
+     "rows": 2377486
+    },
+    "text_predicate": {
+     "first": 0.08702374994754791,
+     "repeat": 0.08626574999652803,
+     "rows": 3
+    },
+    "null_check": {
+     "first": 0.22080749995075166,
+     "repeat": 0.2270277920179069,
+     "rows": 1820984
+    }
+   }
+  }
+ },
+ "warming": {
+  "no warming": {
+   "warm_seconds": 2.08965502679348e-07,
+   "first": {
+    "nested_quantifiers": 1.3687462919624522,
+    "existential_quantifier": 0.7357777500292286,
+    "substructure_screen": 1.1066684579709545
+   }
+  },
+  "check_pivots at open": {
+   "warm_seconds": 24.556487624999136,
+   "first": {
+    "nested_quantifiers": 0.07384412502869964,
+    "existential_quantifier": 0.11639700003433973,
+    "substructure_screen": 1.107787083950825
+   }
+  }
+ }
+}
