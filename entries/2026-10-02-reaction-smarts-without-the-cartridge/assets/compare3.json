@@ -2,34 +2,34 @@
  "amide": {
   "cartridge": 13508,
   "intended": 7965,
-  "decomposition": 9328,
+  "decomposition": 9312,
   "jaccard intended~cartridge": 0.59,
   "cartridge only": 5543,
   "intended only vs cartridge": 0,
-  "jaccard intended~decomposition": 0.85,
-  "decomposition only": 1383,
+  "jaccard intended~decomposition": 0.851,
+  "decomposition only": 1367,
   "intended only vs decomposition": 20
  },
  "amide, H counts": {
   "cartridge": 5209,
   "intended": 3119,
-  "decomposition": 3324,
+  "decomposition": 3322,
   "jaccard intended~cartridge": 0.202,
   "cartridge only": 3811,
   "intended only vs cartridge": 1721,
-  "jaccard intended~decomposition": 0.937,
-  "decomposition only": 207,
+  "jaccard intended~decomposition": 0.938,
+  "decomposition only": 205,
   "intended only vs decomposition": 2
  },
  "amide, atom maps": {
   "cartridge": 13508,
   "intended": 7965,
-  "decomposition": 9328,
+  "decomposition": 9312,
   "jaccard intended~cartridge": 0.59,
   "cartridge only": 5543,
   "intended only vs cartridge": 0,
-  "jaccard intended~decomposition": 0.85,
-  "decomposition only": 1383,
+  "jaccard intended~decomposition": 0.851,
+  "decomposition only": 1367,
   "intended only vs decomposition": 20
  },
  "suzuki": {
@@ -68,24 +68,24 @@
  "buchwald": {
   "cartridge": 15180,
   "intended": 5715,
-  "decomposition": 6052,
+  "decomposition": 6025,
   "jaccard intended~cartridge": 0.376,
   "cartridge only": 9465,
   "intended only vs cartridge": 0,
-  "jaccard intended~decomposition": 0.9,
-  "decomposition only": 477,
+  "jaccard intended~decomposition": 0.904,
+  "decomposition only": 450,
   "intended only vs decomposition": 140
  },
  "reductive amination": {
   "cartridge": 21764,
   "intended": 13812,
-  "decomposition": 16066,
+  "decomposition": 16020,
   "jaccard intended~cartridge": 0.635,
   "cartridge only": 7952,
   "intended only vs cartridge": 0,
-  "jaccard intended~decomposition": 0.855,
-  "decomposition only": 2296,
-  "intended only vs decomposition": 42
+  "jaccard intended~decomposition": 0.857,
+  "decomposition only": 2251,
+  "intended only vs decomposition": 43
  },
  "pyridine product": {
   "cartridge": 9275,
