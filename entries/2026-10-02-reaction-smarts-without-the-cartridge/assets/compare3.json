@@ -1,0 +1,123 @@
+{
+ "amide": {
+  "cartridge": 13508,
+  "intended": 7965,
+  "decomposition": 9328,
+  "jaccard intended~cartridge": 0.59,
+  "cartridge only": 5543,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.85,
+  "decomposition only": 1383,
+  "intended only vs decomposition": 20
+ },
+ "amide, H counts": {
+  "cartridge": 5209,
+  "intended": 3119,
+  "decomposition": 3324,
+  "jaccard intended~cartridge": 0.202,
+  "cartridge only": 3811,
+  "intended only vs cartridge": 1721,
+  "jaccard intended~decomposition": 0.937,
+  "decomposition only": 207,
+  "intended only vs decomposition": 2
+ },
+ "amide, atom maps": {
+  "cartridge": 13508,
+  "intended": 7965,
+  "decomposition": 9328,
+  "jaccard intended~cartridge": 0.59,
+  "cartridge only": 5543,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.85,
+  "decomposition only": 1383,
+  "intended only vs decomposition": 20
+ },
+ "suzuki": {
+  "cartridge": 7667,
+  "intended": 943,
+  "decomposition": 971,
+  "jaccard intended~cartridge": 0.123,
+  "cartridge only": 6724,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.971,
+  "decomposition only": 28,
+  "intended only vs decomposition": 0
+ },
+ "boc removal": {
+  "cartridge": 3041,
+  "intended": 3040,
+  "decomposition": 3066,
+  "jaccard intended~cartridge": 1.0,
+  "cartridge only": 1,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.992,
+  "decomposition only": 26,
+  "intended only vs decomposition": 0
+ },
+ "ester hydrolysis": {
+  "cartridge": 10540,
+  "intended": 10537,
+  "decomposition": 10599,
+  "jaccard intended~cartridge": 1.0,
+  "cartridge only": 3,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.994,
+  "decomposition only": 62,
+  "intended only vs decomposition": 0
+ },
+ "buchwald": {
+  "cartridge": 15180,
+  "intended": 5715,
+  "decomposition": 6052,
+  "jaccard intended~cartridge": 0.376,
+  "cartridge only": 9465,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.9,
+  "decomposition only": 477,
+  "intended only vs decomposition": 140
+ },
+ "reductive amination": {
+  "cartridge": 21764,
+  "intended": 13812,
+  "decomposition": 16066,
+  "jaccard intended~cartridge": 0.635,
+  "cartridge only": 7952,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.855,
+  "decomposition only": 2296,
+  "intended only vs decomposition": 42
+ },
+ "pyridine product": {
+  "cartridge": 9275,
+  "intended": 9273,
+  "decomposition": 9275,
+  "jaccard intended~cartridge": 1.0,
+  "cartridge only": 2,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 1.0,
+  "decomposition only": 2,
+  "intended only vs decomposition": 0
+ },
+ "aryl boronic acid reactant": {
+  "cartridge": 1808,
+  "intended": 1796,
+  "decomposition": 1814,
+  "jaccard intended~cartridge": 0.993,
+  "cartridge only": 12,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.976,
+  "decomposition only": 31,
+  "intended only vs decomposition": 13
+ },
+ "palladium agent": {
+  "cartridge": 0,
+  "intended": 0,
+  "decomposition": 2908,
+  "jaccard intended~cartridge": 1.0,
+  "cartridge only": 0,
+  "intended only vs cartridge": 0,
+  "jaccard intended~decomposition": 0.0,
+  "decomposition only": 2908,
+  "intended only vs decomposition": 0
+ }
+}
