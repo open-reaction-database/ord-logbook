@@ -3,7 +3,7 @@
 - **Date:** 2026-10-02
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft
+- **Status:** draft; the three parity gaps are closed ([ord-schema#1091](https://github.com/open-reaction-database/ord-schema/pull/1091), [ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092), [ord-schema#1093](https://github.com/open-reaction-database/ord-schema/pull/1093)), and result details and the eval re-run are open
 - **Tags:** ord-schema, ord-interface, search, nl-query, rdkit, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -87,6 +87,13 @@ or role assignment beyond matching each side's templates.** If it does not, the
 decomposition answers what ord-interface answers today at no new cost. That is the
 first thing to measure, against the production database, before writing either.
 
+**Decided: decomposition.** `@>` checks any one template per side, after a count of
+molecules, and ignores atom maps
+([2026-10-02](../2026-10-02-reaction-smarts-without-the-cartridge/README.md)), measured
+on a throwaway cartridge and read from RDKit's source rather than against production.
+Decomposition, with each template on a different molecule, answers what a query means
+more closely than `@>` does. Merged in [ord-schema#1093](https://github.com/open-reaction-database/ord-schema/pull/1093).
+
 ### 2. Stereochemistry defaults the other way
 
 | `GetMatches` call | matched |
@@ -107,7 +114,7 @@ answers today; on matches what a chemist who drew a stereocenter probably meant.
 **Decided: on**, RDKit's default, because a stereocenter someone draws — in SMARTS now, in
 a drawing tool planned beside the free-text box — is deliberate. `chirality: false` opts
 out, and ord-interface keeps its answers by passing `use_stereochemistry` through as
-that flag. Built in
+that flag. Merged in
 [ord-schema#1091](https://github.com/open-reaction-database/ord-schema/pull/1091).
 
 ### 3. No dataset filter
@@ -119,6 +126,9 @@ per-file column the projection lacks — `structure_offset` — and could supply
 `dataset_id` the same way, from the file each row came from; or the projection could
 carry it. Either is small. The first keeps the artifact unchanged before it is
 published; the second makes the column visible to anyone reading the Parquet directly.
+
+**Built the first way**, from each projection's `ord.source_dataset_id` stamp, and merged
+in [ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092).
 
 ### 4. Where result details come from
 
@@ -171,7 +181,7 @@ against 0.004 s bounded.
 
 ### 6. What can wait
 
-- **The eval.** 27 cases; the last full run scored Haiku and Sonnet 22/25 each, before
+- **The eval.** 28 cases; the last full run scored Haiku and Sonnet 22/25 each, before
   several grammar additions
   ([ord-schema#1022](https://github.com/open-reaction-database/ord-schema/pull/1022)).
   Worth re-running before the swap rather than before anything else.
@@ -188,18 +198,18 @@ prose columns, arbitrary expressions, window functions, and joins.
 
 In order:
 
-1. **Chirality.** Add the flag and the cache-key change, and decide the default. This
-   recommended off; the decision was on, with an opt-out (finding 2), in
+1. **Chirality — merged.** Add the flag and the cache-key change, and decide the
+   default. This recommended off; the decision was on, with an opt-out (finding 2), in
    ord-schema#1091.
-2. **Dataset filter.** Supply `dataset_id` per file from the executor, the way
-   `structure_offset` is supplied, unless the projection should carry it for readers of
-   the Parquet. Built that way in
+2. **Dataset filter — merged.** Supply `dataset_id` per file from the executor, the
+   way `structure_offset` is supplied, unless the projection should carry it for readers
+   of the Parquet. Built that way in
    [ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092).
-3. **Reaction SMARTS.** Check what `@>` enforces against the production database, then
-   pick between the two rows of finding 1.
+3. **Reaction SMARTS — merged.** Check what `@>` enforces, then pick between the two
+   rows of finding 1: decomposition, in [ord-schema#1093](https://github.com/open-reaction-database/ord-schema/pull/1093).
 4. **Result details.** Decide between Postgres and fetching from the source Parquet; the
    second wants a measurement of fetch-by-ID first.
-5. **Re-run the eval** over all 27 cases.
+5. **Re-run the eval** over all 28 cases.
 
 Not on that list, because it is a deployment choice rather than API work: whether a
 server calls `check_pivots()` at open. It costs 24.6 s once and removes the only
