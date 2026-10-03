@@ -1,0 +1,103 @@
+line,validator,severity,check,route,instances,option,note
+356,_ensure_float_nonnegative,error,numeric field is non-negative,field,29,,"value and precision of 11 unit types; precision of Temperature, Percentage, FloatValue; StirringRate.rpm; MassSpec tic_minimum_mz and tic_maximum_mz"
+378,_ensure_float_range,error,Temperature value is above absolute zero for its units,cel,1,,bound depends on units
+389,_check_value_and_units,error,unit message has value,field,12,,
+391,_check_value_and_units,error,unit message has units,field,12,,enum not UNSPECIFIED
+401,_check_type_and_details,error,type is not UNSPECIFIED,cel,27,,an entirely empty message is exempt
+403,_check_type_and_details,error,CUSTOM type has details,cel,27,,an entirely empty message is exempt
+574,DatasetCrossRefState.report,error,no two reactions share an ID,dataset,1,,
+576,DatasetCrossRefState.report,error,a reaction does not reference its own ID,cel,1,,decidable from the reaction alone
+579,DatasetCrossRefState.report,error,every referenced reaction ID is defined in the dataset,dataset,1,,
+599,_validate_dataset_scalars,error,Dataset has name,field,1,,
+601,_validate_dataset_scalars,error,Dataset has description,field,1,,
+603,_validate_dataset_scalars,error,Dataset has reactions or reaction_ids,cel,1,,
+605,_validate_dataset_scalars,error,Dataset does not have both reactions and reaction_ids,cel,1,,
+609,_validate_dataset_scalars,error,each reaction_ids entry matches ord-<32 hex>,field,1,,
+613,_validate_dataset_scalars,error,dataset_id matches ord_dataset-<32 hex>,field,1,validate_ids,
+674,_validate_dataset_example,error,DatasetExample has description,field,1,,
+676,_validate_dataset_example,error,DatasetExample has url,field,1,,
+678,_validate_dataset_example,error,DatasetExample has created,field,1,,
+695,_validate_reaction,error,Reaction has an input unless it is reaction-SMILES-only,cel,1,allow_reaction_smiles_only,
+697,_validate_reaction,error,Reaction has an outcome unless it is reaction-SMILES-only,cel,1,allow_reaction_smiles_only,
+701,_validate_reaction,error,every input component has an amount,cel,1,,map traversal and oneof presence
+705,_validate_reaction,error,an internal standard is used only if a component has that role,cel,1,,traverses inputs and workups
+713,_validate_reaction,error,conversion is reported only if a component is limiting,cel,1,,
+719,_validate_reaction,error,reaction_id matches ord-<32 hex>,field,1,validate_ids,
+722,_validate_reaction,error,Reaction has provenance,field,1,require_provenance,
+751,_check_surrounding_whitespace,warning,identifier value has no surrounding whitespace,cel,2,,block formats exempt; CompoundIdentifier and ReactionIdentifier
+763,_check_cxsmiles_type,warning,a SMILES-typed value carries no CXSMILES extension block,cel,2,,"regex; RE2's \s is ASCII where Python's split is Unicode-aware"
+780,_validate_reaction_identifier,error,reaction SMILES parses,code,1,,RDKit
+785,_validate_reaction_identifier,warning,is_mapped implies atom maps,cel,1,,regex on the SMILES before any extension block
+790,_validate_reaction_identifier,warning,atom maps imply is_mapped,cel,1,,regex on the SMILES before any extension block
+795,_validate_reaction_identifier,error,ReactionIdentifier has value,field,1,,
+827,_validate_reaction_input,error,ReactionInput has a component or crude component,cel,1,,
+835,_validate_reaction_input,warning,SATURATED amount is not the only component,cel,1,,
+849,_validate_reaction_input,warning,input texture is consistent with its components',cel,1,,texture-to-state table written out in CEL
+862,_validate_amount,error,volume_includes_solutes only with a volume amount,cel,1,,
+870,_validate_crude_component,error,CrudeComponent has reaction_id,field,1,,
+872,_validate_crude_component,error,derived amount excludes an explicit amount,cel,1,,
+879,_validate_crude_component,error,derived amount or an explicit amount,cel,1,,
+884,_validate_crude_component,error,amount is mass or volume,cel,1,,
+886,_validate_crude_component,error,no volume_includes_solutes,cel,1,,
+895,_validate_compound_identifiers,error,compound has an identifier,field,2,,Compound and ProductCompound
+897,_validate_compound_identifiers,warning,identifiers are not all NAME,cel,2,,Compound and ProductCompound
+904,_validate_compound_identifiers,warning,structural identifiers parse and agree,code,2,,RDKit
+920,_validate_compound_preparation,error,reaction_id only when SYNTHESIZED,cel,1,,
+933,_validate_compound_identifier,error,CompoundIdentifier has value,field,1,,
+952,_validate_compound_identifier,error,structural identifier parses,code,1,,RDKit
+957,_validate_compound_identifier,warning,structural identifier sanitizes,code,1,,RDKit
+965,_validate_compound_identifier,warning,CAS number is well formed,cel,1,,regex conditional on type
+970,_validate_compound_identifier,warning,InChIKey is well formed,cel,1,,regex conditional on type
+976,_validate_compound_identifier,warning,PubChem CID or ChemSpider ID is an integer,cel,1,,"regex conditional on type; Python's isdecimal also accepts non-ASCII digits"
+984,_validate_reaction_conditions,error,dynamic conditions have details,cel,1,,
+990,_validate_reaction_conditions,warning,details imply dynamic conditions,cel,1,,
+996,_validate_reaction_conditions,warning,pH is within 0-14,field,1,,
+1017,_validate_illumination_conditions,warning,no peak_wavelength for DARK or AMBIENT,cel,1,,
+1032,_validate_electrochemistry_conditions,warning,CONSTANT_CURRENT has current,cel,1,,
+1039,_validate_electrochemistry_conditions,warning,CONSTANT_VOLTAGE has voltage,cel,1,,
+1050,_validate_reaction_workup,warning,WAIT has duration,cel,1,,
+1054,_validate_reaction_workup,warning,TEMPERATURE has temperature,cel,1,,
+1065,_validate_reaction_workup,warning,EXTRACTION or FILTRATION has keep_phase,cel,1,,
+1081,_validate_reaction_workup,warning,addition-like workups have inputs,cel,1,,
+1085,_validate_reaction_workup,warning,STIRRING has stirring,cel,1,,
+1089,_validate_reaction_workup,warning,PH_ADJUST has target_ph,cel,1,,
+1091,_validate_reaction_workup,warning,target_ph is within 0-14,field,1,,
+1097,_validate_reaction_workup,warning,ALIQUOT has an amount,cel,1,,
+1099,_validate_reaction_workup,warning,ALIQUOT amount is mass or volume,cel,1,,
+1101,_validate_reaction_workup,warning,ALIQUOT has no volume_includes_solutes,cel,1,,
+1109,_validate_reaction_workup,warning,amount only for ALIQUOT or CUSTOM,cel,1,,
+1125,_validate_reaction_outcome,warning,at most one desired PRODUCT,cel,1,,
+1139,_validate_reaction_outcome,error,every analysis_key names an analysis,cel,1,,key lookup in the analyses map
+1148,_validate_reaction_outcome,warning,products or conversion are reported,cel,1,,
+1164,_validate_product_compound,error,a SIDE_PRODUCT is not desired,cel,1,,
+1173,_validate_product_measurement,warning,measurement has analysis_key,field,1,,
+1179,_validate_product_measurement,error,IDENTITY has no value,cel,1,,
+1185,_validate_product_measurement,warning,YIELD is a percentage,cel,1,,
+1190,_validate_product_measurement,warning,PURITY is a percentage,cel,1,,
+1199,_validate_product_measurement,error,"AREA, COUNTS, INTENSITY are numeric",cel,1,,
+1206,_validate_product_measurement,error,selectivity only for SELECTIVITY,cel,1,,
+1225,_validate_mass_spec_measurement_type,error,tic_minimum_mz does not exceed tic_maximum_mz,cel,1,,
+1230,_validate_mass_spec_measurement_type,error,eic_masses are non-negative,field,1,,
+1235,_validate_mass_spec_measurement_type,warning,EIC has eic_masses,cel,1,,
+1245,_validate_mass_spec_measurement_type,warning,eic_masses only for EIC,cel,1,,
+1302,_validate_date_time,error,DateTime value parses,code,1,,"dateutil reads free-form dates; CEL's timestamp() reads RFC 3339 only"
+1319,_validate_reaction_provenance,error,provenance has record_created,field,1,,
+1334,_validate_reaction_provenance,warning,provenance DateTimes parse,code,1,,dateutil
+1338,_validate_reaction_provenance,error,record created after the experiment started,code,1,,needs the parsed times
+1341,_validate_reaction_provenance,error,record modified after it was created,code,1,,needs the parsed times
+1343,_validate_reaction_provenance,error,record_created person has email,cel,1,,repeats line 1372 for this event
+1346,_validate_reaction_provenance,error,every record_modified person has email,cel,1,,repeats line 1372 for these events
+1351,_validate_reaction_provenance,error,DOI has nothing around it,field,1,,"with line 1353, a full-match pattern"
+1353,_validate_reaction_provenance,error,DOI parses,field,1,,"with line 1351, a full-match pattern"
+1355,_validate_reaction_provenance,warning,publication_url looks like a URL,field,1,,
+1365,_validate_record_event,error,RecordEvent has a time,cel,1,,DateTime.value is optional elsewhere
+1368,_validate_record_event,error,"person has a username, name, or ORCID",cel,1,,
+1372,_validate_record_event,error,person has email,cel,1,,Person.email is optional elsewhere
+1379,_validate_person,error,ORCID is well formed with a valid checksum,code,1,,"the format is a pattern; the MOD 11-2 checksum needs arithmetic over each digit"
+1386,_validate_person,error,email is well formed,field,1,,
+1408,_validate_percentage,error,Percentage has value,field,1,,
+1410,_validate_percentage,warning,percentage is not a fraction in (0-1),field,1,,an exclusive range
+1414,_validate_percentage,warning,percentage is within 0-100,field,1,,
+1430,_validate_data,error,"Data has one of value, bytes_value, url",field,1,,oneof required
+1432,_validate_data,error,bytes_value has a format,cel,1,,
+1434,_validate_data,warning,Data URL looks like a URL,field,1,,
