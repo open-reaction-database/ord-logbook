@@ -3,7 +3,7 @@
 - **Date:** 2026-08-26
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
-- **Status:** draft (stages 0, 1, and 3 done; stage 2 publishing landed, awaiting the first release)
+- **Status:** draft (stages 0, 1, and 3 done; stage 2 published with v0.9.0, its breaking job against the release still to land)
 - **Tags:** ord-schema, protobuf, buf, ci, tooling, schema-evolution
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -268,12 +268,21 @@ breaking check is guarding the schema before anyone can depend on the published 
    GitHub OIDC is unavailable; `BUF_TOKEN` is a limited-access token with `module.push` on
    this module only, issued from a maintainer's personal account. Landed in
    [ord-schema#1077](https://github.com/open-reaction-database/ord-schema/pull/1077).
+   First exercised by
+   [v0.9.0](https://github.com/open-reaction-database/ord-schema/releases/tag/v0.9.0) on
+   2026-10-02, where that ordering mattered: the `publish` job failed after pushing the
+   tag, because the `main` ruleset's bypass for `ord-service`'s maintain role applied only
+   to pull requests, and `push_proto` published the release anyway.
 4. Tag published versions to match ord-schema releases, so a consumer can pin to the same
    version they pin the Python package to. Each release is labeled with its tag, and
    `latest` follows the newest one, as npm's `latest` dist-tag does; `main` is not used,
    since it reads as the git branch. The module's default label moves from `main` to
    `latest` once the first release has created it: the BSR refuses a default label that
-   does not exist yet.
+   does not exist yet. Done: the release is labeled `v0.9.0`, and the module's default
+   label is `latest`. The two labels sit on different BSR commits —
+   `latest` on one pushed a minute after the workflow's, from the same source commit —
+   whose exported files are identical. The workflow pushed once; where the second push
+   came from is unknown.
 5. Once a tagged version exists, add a second `buf breaking` job comparing against the
    published release rather than `main`. This is the one that catches a break introduced
    and then compounded across several merged PRs, which the `main` comparison cannot.
@@ -358,8 +367,9 @@ breaking check is guarding the schema before anyone can depend on the published 
    the module path and admin succession are the open one-time decisions.
 3. ~~Land stage 1.~~ Done — ord-schema#1033 and #1034, with the job seen failing in CI
    on #1076.
-4. Stage 2: publishing landed in ord-schema#1077. The first release pushes the module,
-   then the default label moves to `latest` and step 5's breaking job can follow.
+4. Stage 2: published. [v0.9.0](https://github.com/open-reaction-database/ord-schema/releases/tag/v0.9.0) reached the BSR as `v0.9.0` and `latest`, and `latest`
+   is the module's default label. Step 5's breaking job against the release is what
+   remains.
 5. ~~Land stage 3.~~ Done — ord-schema#1078, with the first version bump separately in
    #1084.
 
