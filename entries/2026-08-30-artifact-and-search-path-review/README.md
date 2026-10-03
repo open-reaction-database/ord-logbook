@@ -3,7 +3,7 @@
 - **Date:** 2026-08-30
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
-- **Status:** findings 1, 2, 4 and 6 closed; 5 measured and declined; 3, the timeout and the sandbox need decisions
+- **Status:** final; findings 1, 2, 3, 4, 6 and 7 closed; 5 measured and declined
 - **Tags:** ord-schema, artifacts, search, duckdb, parquet, rdkit, deployment, caching
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -206,6 +206,13 @@ revisited later. **Still a decision, not a conclusion** — keeping the shared v
 accepting an 81-minute rebuild on any definition change is defensible for a corpus that is
 derived rarely.
 
+**Decided, and shipped** as
+[ord-schema#1013](https://github.com/open-reaction-database/ord-schema/pull/1013): one
+version per artifact in `base.ARTIFACT_VERSIONS`, and an `ord.artifact_lineage` stamp
+carrying every version up the derivation chain, so a projection bump reaches the
+occurrences three derivations down while an occurrences bump re-derives only occurrences.
+Every version is still `"1"`.
+
 The README's rationale is sound: a reader comparing two artifacts needs to know they were
 built by one definition. But a fourth artifact is arriving, and the scheme is worth an
 explicit decision rather than an inherited one — a per-artifact version beside a shared
@@ -309,10 +316,11 @@ threshold, so a permissive query is not the one to worry about.
 
 ### 7. Four smaller things worth fixing before a deployment depends on them
 
-- **The timeout does not cover the expensive part.** `Corpus.search(timeout_seconds=)`
-  starts its timer after name resolution, the library and index builds, screening, and
-  verification. A caller setting a 10 s bound gets no protection from a 60 s screen. The
-  docstring is explicit about this; the behavior is still a trap.
+- ~~**The timeout does not cover the expensive part.**~~ — fixed in
+  [ord-schema#1011](https://github.com/open-reaction-database/ord-schema/pull/1011). The
+  bound covers the whole call: the final query is interrupted, and the phases that cannot
+  be — screening, verification, name resolution, the shared builds — are checked as each
+  finishes, so a search can overrun its bound and reports the phase that did.
 - ~~**`limit` is optional and unbounded**~~ — fixed in #1005. `Corpus(max_rows=)` bounds
   every search whether or not the query asked for a limit, and a result that comes back
   at the bound is logged as possibly cut short.
@@ -320,8 +328,11 @@ threshold, so a permissive query is not the one to worry about.
   search README (#1010): a second `Corpus` and a reference swap, so peak memory is twice
   the steady state — the figure a container must be sized against to take an update
   without a restart.
-- **Execution still has no sandbox.** The search README lists this under "not yet solved";
-  for a deployment it is a blocker rather than an open question.
+- ~~**Execution still has no sandbox.**~~ — fixed in
+  [ord-schema#1087](https://github.com/open-reaction-database/ord-schema/pull/1087). A
+  `Corpus` sets `allowed_directories` to its own trees, disables external access, and locks
+  the configuration, and the compiler binds every literal as a parameter. Writes inside the
+  trees are still possible, so a deployment mounts them read-only.
 
 ## Conclusions / next steps
 
@@ -338,11 +349,9 @@ In order, and the first one is the only one with a deadline:
    is closed**; the format decision and the cost it was for have both landed.
 5. ~~Measure similarity (finding 6)~~ — done: 0.11 s worst case, no artifact needed.
 
-What is left needs decisions rather than work: the `ARTIFACT_VERSION` scheme (finding 3),
-whether the search timeout should cover screening (finding 7), and the sandbox (finding 7).
-Finding 5 is measured and recommended against.
-
-Findings 3, 5, and the rest of 7 are worth doing and are not on the critical path.
+The three decisions this left open were made and shipped: the version scheme (finding 3)
+in ord-schema#1013, the whole-call timeout (finding 7) in #1011, and the sandbox (finding 7)
+in #1087. Finding 5 is measured and recommended against.
 
 ## Status
 
@@ -350,11 +359,11 @@ Findings 3, 5, and the rest of 7 are worth doing and are not on the critical pat
 | --- | --- | --- |
 | 1 | occurrence index as an artifact | done: written by ord-schema#1006, read by #1009 |
 | 2 | dataset-local ID rule unwritten | done, artifacts README |
-| 3 | `ARTIFACT_VERSION` shared | measured: a 1.9 s artifact costs an 81 min rebuild; recommend splitting before publication — **decision** |
+| 3 | `ARTIFACT_VERSION` shared | done: per-artifact versions with the chain stamped, ord-schema#1013 |
 | 4 | match-set cache holds sixteen | sizing resolved by packing the bitmap (#1010); the bound still wants a workload |
 | 5 | library build is 8 s of Python | measured 7.4 s; a prototype reaches 5.8 s and 4.3 s of that is RDKit — recommend stay put |
 | 6 | similarity unaccelerated, unmeasured | done: 0.11 s worst case, no acceleration needed |
-| 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005, swap documented in #1010; timeout and sandbox open |
+| 7 | timeout, `limit`, corpus swap, sandbox | `limit` done in #1005, swap documented in #1010, timeout in #1011, sandbox in #1087 |
 
 The reader is the half that pays, and it is measured. `Corpus(occurrences_dir=...)`
 publishes the index as a **view over Parquet** where every indexed path is covered, and

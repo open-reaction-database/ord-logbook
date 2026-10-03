@@ -3,7 +3,7 @@
 - **Date:** 2026-08-07
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
-- **Status:** draft (proposal; prototype measured, not built)
+- **Status:** final; built as [ord-schema#948](https://github.com/open-reaction-database/ord-schema/pull/948), with D5's sandbox in [ord-schema#1087](https://github.com/open-reaction-database/ord-schema/pull/1087)
 - **Tags:** ord-schema, agents, nl-query, duckdb, projection, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -231,11 +231,17 @@ nested-document predicate into list lambdas over
 - **D5 — Execution still needs a sandbox.** Deferred from #948 and unchanged by this:
   `enable_external_access=false` cannot be used with a lazy Parquet view, so running
   against the real corpus needs `allowed_directories` or a subprocess. An IR removes the
-  reasons to *fear* the query, not the reasons to contain the process.
+  reasons to *fear* the query, not the reasons to contain the process. **Done** in
+  [ord-schema#1087](https://github.com/open-reaction-database/ord-schema/pull/1087):
+  `allowed_directories` over the corpus's own trees, external access off, the
+  configuration locked, and every literal bound as a parameter. Writes inside those trees
+  are still possible, so a deployment mounts them read-only.
 
 Open: whether `forall` earns its place (it is easy to compile and easy to misread — "all
 products are alcohols" is true of a reaction with no products), and whether `order_by`
-should accept only aggregate output names rather than arbitrary paths.
+should accept only aggregate output names rather than arbitrary paths. Both settled in
+what shipped: `forall` stayed, with its vacuous truth over an empty level documented, and
+an aggregated query orders by a measure name or a `group_by` path and nothing else.
 
 ## References
 
