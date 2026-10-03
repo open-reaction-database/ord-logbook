@@ -1,0 +1,4 @@
+amide {'a reactant moved to agents as mostly unmapped': 1357, 'fewer reactants in the reaction SMILES than templates': 16, 'reactant side differs otherwise': 10}
+buchwald {'a reactant moved to agents as mostly unmapped': 394, 'product side differs': 44, 'reactant side differs otherwise': 26, 'fewer reactants in the reaction SMILES than templates': 13}
+reductive amination {'a reactant moved to agents as mostly unmapped': 2191, 'product side differs': 46, 'fewer reactants in the reaction SMILES than templates': 30, 'reactant side differs otherwise': 29}
+suzuki {'a reactant moved to agents as mostly unmapped': 13, 'fewer reactants in the reaction SMILES than templates': 12, 'reactant side differs otherwise': 3}
