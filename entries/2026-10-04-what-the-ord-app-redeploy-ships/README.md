@@ -3,7 +3,7 @@
 - **Date:** 2026-10-04
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; local verification done, checks that need a signed-in account remain
+- **Status:** draft; fixes in review, checks that need a signed-in account remain
 - **Tags:** ord-app, deployment, pulumi, aws, dependencies, verification
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -39,11 +39,14 @@ already in prod:**
 
 - Text-format (`.txtpb`) downloads of any dataset or reaction containing a non-ASCII
   character — `µ`, `°`, an en dash — return 500. This is a regression from protobuf 5.
+  [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) fixes it.
 - On the 4 GB task #41 introduced, a JSON or text download of a 50,688-reaction
   dataset is OOM-killed. The live version needs as much memory for the same download,
   so the cause is the downsizing, not `main`.
+  [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
+  returns the task to 8 GB.
 - Already in prod: a dataset whose name has a character outside Latin-1, such as an en
-  dash, cannot be downloaded in any format.
+  dash, cannot be downloaded in any format. ord-app#840 fixes this too.
 
 Everything else checked passes: stored reactions are wire-compatible and validate the
 same, uploads in all five formats, exact download round trips, pagination, edit and
@@ -189,7 +192,7 @@ entry.
 | # | check | why | local result |
 | --- | --- | --- | --- |
 | 1 | Existing prod reactions and datasets open, edit, save, and validate | Reactions are stored as serialized protos (`binpb`); the schema moved 0.3 → 0.6 | pass on ord-data reactions (§5.1); prod's own data not tried |
-| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | **fail**: `.txtpb` on non-ASCII (§5.2), large downloads at 4 GB (§5.3); the rest pass (§5.5) |
+| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | **fail**: `.txtpb` on non-ASCII (§5.2), large downloads at 4 GB (§5.3); the rest pass (§5.5). Fixes in §5.6 |
 | 3 | Paginated lists: datasets, reactions, groups, members | fastapi-pagination 0.12 → 0.15 | pass for datasets and reactions |
 | 4 | Structure drawing, SMILES and molblock round trips, image copy | Ketcher 3.8 → 3.15 | Ketcher 3.15 opens; drawing and image copy not tried |
 | 5 | Login, and API calls going to the site's own origin | #734 | pass up to Auth0's sign-in page, given the `.env` files (§5.4) |
@@ -282,6 +285,33 @@ limiting-reactant badge, units, and outcome time, an amount edited and saved wit
 Identifier**. The E2E suite, one smoke test, passes. `main`'s CI is green at
 `87ca9d5`.
 
+#### 5.6 The fixes, tested
+
+[ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) fixes both
+download failures:
+
+- `write_message` serializes text format with `as_utf8=True`.
+- Downloads name the file as RFC 6266 describes: an ASCII `filename` fallback, with
+  `"`, `\`, and anything outside printable ASCII replaced by `_`, and the exact name,
+  percent-encoded as UTF-8, in `filename*`. The UI read the name with
+  `/^.*filename="(.*)"/`, which would have kept the trailing `filename*` parameter in
+  the saved name, so it reads `filename*` first and falls back to `filename`.
+
+| test | result |
+| --- | --- |
+| New tests: a non-ASCII reaction round-trips through `binpb`, JSON, and text; a dataset named `C–N coupling at 25 °C` downloads in all four formats; a reaction's `.txtpb` download with non-ASCII text; the header fallbacks; the UI's header parser | pass |
+| ord-app's backend suite (`pytest -n auto`), `ruff`, `ruff format`, `ty` | 104 passed; clean |
+| The download thunk's `vitest` file, `tsc -b`, `eslint`, `prettier` | 7 passed; clean |
+| Local stack: the 96-reaction dataset's `.txtpb` download, and one of its reactions' | 500 before, 200 after |
+| Local stack: the 1,536-reaction dataset renamed `C–N coupling at 25 °C`, downloaded from the UI | saved under that exact name in all four formats |
+| Local stack: the non-ASCII reaction downloaded from the UI | `.binpb`, `.txtpb`, and `.json` all saved |
+| #840's CI: Python on Ubuntu and macOS, UI, E2E, lint and build, duplication, license headers, SonarCloud | all pass; Greptile 5/5 |
+
+[ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
+sets ord-app's prod task to 2 vCPU / 8 GB, a valid Fargate pairing, at about $13 a
+month more. Its `ruff`, `ty`, and `pytest` (13 passed) are clean; `pulumi preview` was
+not run, since it builds the ord-app image from the sibling checkout.
+
 ## Conclusions / next steps
 
 - **Restore the Auth0 settings before any rebuild.** The `.env` files from the machine
@@ -289,13 +319,28 @@ Identifier**. The E2E suite, one smoke test, passes. `main`'s CI is green at
   the values from ord-infrastructure's stack config as build arguments and task
   environment, and fail the build when they are empty, so a clean checkout builds a
   working image.
-- **Fix `.txtpb` downloads before shipping `main`** (§5.2).
-- **Decide the task's memory before large downloads are allowed.** Either return to
-  8 GB or stream JSON and text downloads. Prod's largest datasets
+- **Merge ord-app#840 before the redeploy,** so `main` ships with working `.txtpb`
+  downloads and download names (§5.6).
+- **Deploy ord-infrastructure#46 with the redeploy.** An app-stack deploy rebuilds the
+  image from the sibling checkout, so it ships whatever ord-app `main` is then: merge
+  #840 first and have the `.env` files in place.
+- **Stream JSON and text downloads** as the lasting fix for memory. Two 50,688-reaction
+  JSON downloads at once would exceed even 8 GB. The change is contained, about 200
+  lines with tests:
+  - read the stored `binpb` in batches of 1,000 instead of loading the whole dataset;
+  - `binpb`: write the dataset's own fields, then copy each stored reaction in as a
+    length-prefixed `reactions` field, with no parsing;
+  - JSON and text: write the dataset's fields, then one reaction at a time;
+  - Parquet: ord-schema's `parquet.DatasetWriter`, which flushes every 1,000 rows,
+    into a temp file;
+  - every check runs before the first byte, since a later failure truncates a 200.
+
+  FastAPI 0.138 keeps a request's yield-dependency session open until a streamed
+  response finishes, so the database can be read as the response is written. The
+  steady flow of bytes also keeps nginx's 60 s read timeout from firing. Prod's
+  largest datasets
   (`SELECT dataset_id, count(*) FROM reactions GROUP BY 1 ORDER BY 2 DESC LIMIT 10`)
-  say how urgent this is.
-- **Fix download file names** with an RFC 6266 `filename*` parameter. This is already
-  broken in prod, so it need not block the redeploy.
+  say how soon this is needed.
 - **Read the crashed tasks' logs.** Section 2 leaves the missing Auth0 settings, the
   task size, and base-image drift; the logs should say which one crashed the
   containers.
@@ -314,6 +359,10 @@ Identifier**. The E2E suite, one smoke test, passes. `main`'s CI is green at
   — everything the redeploy ships.
 - [ord-infrastructure#41](https://github.com/open-reaction-database/ord-infrastructure/pull/41)
   — the infrastructure change in the crashed deploy.
+- [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) — the
+  `.txtpb` and download-name fixes.
+- [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
+  — ord-app's task back to 8 GB.
 - [ord-app#739](https://github.com/open-reaction-database/ord-app/pull/739) — the
   revision label that identified the crashed image.
 - [ord-app#656](https://github.com/open-reaction-database/ord-app/issues/656) — the
