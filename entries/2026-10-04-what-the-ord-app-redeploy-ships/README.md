@@ -3,7 +3,7 @@
 - **Date:** 2026-10-04
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; fixes in review, checks that need a signed-in account remain
+- **Status:** draft; ord-app#840, ord-app#841, and ord-infrastructure#49 in review, checks that need a signed-in account remain
 - **Tags:** ord-app, deployment, pulumi, aws, dependencies, verification
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -32,7 +32,9 @@ and Ketcher 3.8 → 3.15 — about 40 UI and backend fixes, and Parquet dataset 
 built from `b95551f` as well, but from a checkout without the two untracked files
 the build takes its Auth0 settings from, `ui/.env` and `ord_app/.env`. A build without
 them sends every visitor to `https://undefined/authorize`. The tasks' logs would say
-whether the containers also crashed.
+whether the containers also crashed. ord-app#841 and ord-infrastructure#47 have the app
+stack pass these settings as build arguments, and an image build fails without them
+(§5.7).
 
 **Local verification of `main` found two problems to fix before the redeploy, and one
 already in prod:**
@@ -43,8 +45,8 @@ already in prod:**
 - On the 4 GB task #41 introduced, a JSON or text download of a 50,688-reaction
   dataset is OOM-killed. The live version needs as much memory for the same download,
   so the cause is the downsizing, not `main`.
-  [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
-  returns the task to 8 GB.
+  [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46),
+  merged, returns the task to 8 GB.
 - Already in prod: a dataset whose name has a character outside Latin-1, such as an en
   dash, cannot be downloaded in any format. ord-app#840 fixes this too.
 
@@ -310,20 +312,49 @@ download failures:
 [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
 sets ord-app's prod task to 2 vCPU / 8 GB, a valid Fargate pairing, at about $13 a
 month more. Its `ruff`, `ty`, and `pytest` (13 passed) are clean; `pulumi preview` was
-not run, since it builds the ord-app image from the sibling checkout.
+not run, since it builds the ord-app image from the sibling checkout. It has merged.
+
+#### 5.7 The Auth0 settings, from the stack
+
+An image build no longer depends on `.env` files in the deploy checkout:
+
+- [ord-app#841](https://github.com/open-reaction-database/ord-app/pull/841):
+  `Dockerfile.single` takes `VITE_AUTH0_DOMAIN`, `_CLIENT_ID`, `_AUDIENCE`, `_ISSUER`,
+  and `_SCOPE` as build arguments, which take precedence over `ui/.env`. An argument not
+  passed stays unset, so `ui/.env` still works. The image build sets
+  `ORD_APP_REQUIRE_AUTH0`, and `vite.config.ts` then fails the build, naming any
+  missing setting; other builds are unaffected.
+- [ord-infrastructure#47](https://github.com/open-reaction-database/ord-infrastructure/pull/47),
+  merged: the app stack passes the settings as build arguments, and as task environment
+  for the backend's token checks. The tenant domain and the ORD App client ID come from
+  the `auth` stack, which owns that client.
+- [ord-infrastructure#49](https://github.com/open-reaction-database/ord-infrastructure/pull/49):
+  the app stack reads those two outputs with `require_output`. With `get_output`, an
+  `auth` stack not yet redeployed with its new `domain` output gave the issuer as
+  `https://None/` and dropped the domain build argument. The change first reached
+  `main` without review and was reverted in #48.
+
+| test | result |
+| --- | --- |
+| `vite build` with the check on: no settings; only the domain; `ui/.env`; environment only | fails naming all five; fails naming the other four; passes; passes |
+| `vite build` with the check off | builds as before |
+| `docker build --target react-build`: no arguments or `ui/.env`; arguments and a conflicting `ui/.env` | fails with the message; the bundle holds the argument's domain |
+| #841's CI: a step requiring an image-style build to fail without the settings, and the regular build with the check on and placeholder values | pass, SonarCloud included; the step fails when the check is disabled; Greptile 5/5 |
+| ord-infrastructure, under Pulumi mocks: `make_web_service` and the app stack program | 17 pass; they fail when a caller's `GIT_COMMIT` wins, `build_args` is dropped, the scope is left out, or `get_output` replaces `require_output` |
 
 ## Conclusions / next steps
 
-- **Restore the Auth0 settings before any rebuild.** The `.env` files from the machine
-  that built the May image go in the checkout Pulumi builds from. Longer term, pass
-  the values from ord-infrastructure's stack config as build arguments and task
-  environment, and fail the build when they are empty, so a clean checkout builds a
-  working image.
-- **Merge ord-app#840 before the redeploy,** so `main` ships with working `.txtpb`
-  downloads and download names (§5.6).
-- **Deploy ord-infrastructure#46 with the redeploy.** An app-stack deploy rebuilds the
-  image from the sibling checkout, so it ships whatever ord-app `main` is then: merge
-  #840 first and have the `.env` files in place.
+- **Redeploy in this order:**
+  1. Merge ord-app#840 (§5.6) and #841, and ord-infrastructure#49 (§5.7).
+  2. Deploy the `auth` stack, which adds the `domain` output the app stack reads.
+  3. Run `pulumi refresh` on the app stack's `ord/prod`, so Pulumi stops treating the
+     crashed task definition as live.
+  4. Bring `~/ord/ord-app` to a clean, current `main`, and deploy the app stack. It
+     rebuilds the image from that checkout, with #46's 8 GB and #47's build arguments.
+
+  The `.env` files from the machine that built the May image are back in
+  `~/ord/ord-app` as of 2026-10-04, so a build before #841 merges still gets the Auth0
+  settings.
 - **Stream JSON and text downloads** as the lasting fix for memory. Two 50,688-reaction
   JSON downloads at once would exceed even 8 GB. The change is contained, about 200
   lines with tests:
@@ -346,8 +377,6 @@ not run, since it builds the ord-app image from the sibling checkout.
   containers.
 - **Signed-in checks for the redeploy:** rows 1, 4, 5, and 7 of §4, on prod's data
   and accounts.
-- **Run `pulumi refresh` on `ord/prod` before the next `up`,** so Pulumi stops treating
-  the crashed task definition as live.
 - **Pin the base images and `uv`** in `Dockerfile.single`, so a rebuild of an old
   commit reproduces the image that ran.
 - **Deploy from a clean checkout.** Update 58 built with `PULUMI_ALLOW_DIRTY`, which
@@ -363,6 +392,11 @@ not run, since it builds the ord-app image from the sibling checkout.
   `.txtpb` and download-name fixes.
 - [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
   — ord-app's task back to 8 GB.
+- [ord-app#841](https://github.com/open-reaction-database/ord-app/pull/841) and
+  [ord-infrastructure#47](https://github.com/open-reaction-database/ord-infrastructure/pull/47)
+  — the Auth0 settings as image build arguments from the app stack, and the build check.
+- [ord-infrastructure#49](https://github.com/open-reaction-database/ord-infrastructure/pull/49)
+  — `require_output` for the auth stack's outputs.
 - [ord-app#739](https://github.com/open-reaction-database/ord-app/pull/739) — the
   revision label that identified the crashed image.
 - [ord-app#656](https://github.com/open-reaction-database/ord-app/issues/656) — the
