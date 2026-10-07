@@ -3,7 +3,7 @@
 - **Date:** 2026-10-04
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; ord-app#840, ord-app#841, and ord-infrastructure#49 in review, checks that need a signed-in account remain
+- **Status:** draft; fixes merged and awaiting the redeploy, checks that need a signed-in account remain
 - **Tags:** ord-app, deployment, pulumi, aws, dependencies, verification
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -41,7 +41,8 @@ already in prod:**
 
 - Text-format (`.txtpb`) downloads of any dataset or reaction containing a non-ASCII
   character — `µ`, `°`, an en dash — return 500. This is a regression from protobuf 5.
-  [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) fixes it.
+  [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840), merged,
+  fixes it.
 - On the 4 GB task #41 introduced, a JSON or text download of a 50,688-reaction
   dataset is OOM-killed. The live version needs as much memory for the same download,
   so the cause is the downsizing, not `main`.
@@ -289,8 +290,8 @@ Identifier**. The E2E suite, one smoke test, passes. `main`'s CI is green at
 
 #### 5.6 The fixes, tested
 
-[ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) fixes both
-download failures:
+[ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840), merged, fixes
+both download failures:
 
 - `write_message` serializes text format with `as_utf8=True`.
 - Downloads name the file as RFC 6266 describes: an ASCII `filename` fallback, with
@@ -318,7 +319,7 @@ not run, since it builds the ord-app image from the sibling checkout. It has mer
 
 An image build no longer depends on `.env` files in the deploy checkout:
 
-- [ord-app#841](https://github.com/open-reaction-database/ord-app/pull/841):
+- [ord-app#841](https://github.com/open-reaction-database/ord-app/pull/841), merged:
   `Dockerfile.single` takes `VITE_AUTH0_DOMAIN`, `_CLIENT_ID`, `_AUDIENCE`, `_ISSUER`,
   and `_SCOPE` as build arguments, which take precedence over `ui/.env`. An argument not
   passed stays unset, so `ui/.env` still works. The image build sets
@@ -328,7 +329,8 @@ An image build no longer depends on `.env` files in the deploy checkout:
   merged: the app stack passes the settings as build arguments, and as task environment
   for the backend's token checks. The tenant domain and the ORD App client ID come from
   the `auth` stack, which owns that client.
-- [ord-infrastructure#49](https://github.com/open-reaction-database/ord-infrastructure/pull/49):
+- [ord-infrastructure#49](https://github.com/open-reaction-database/ord-infrastructure/pull/49),
+  merged:
   the app stack reads those two outputs with `require_output`. With `get_output`, an
   `auth` stack not yet redeployed with its new `domain` output gave the issuer as
   `https://None/` and dropped the domain build argument. The change first reached
@@ -342,19 +344,38 @@ An image build no longer depends on `.env` files in the deploy checkout:
 | #841's CI: a step requiring an image-style build to fail without the settings, and the regular build with the check on and placeholder values | pass, SonarCloud included; the step fails when the check is disabled; Greptile 5/5 |
 | ord-infrastructure, under Pulumi mocks: `make_web_service` and the app stack program | 17 pass; they fail when a caller's `GIT_COMMIT` wins, `build_args` is dropped, the scope is left out, or `get_output` replaces `require_output` |
 
+#### 5.8 Also in the redeploy
+
+- [ord-app#839](https://github.com/open-reaction-database/ord-app/pull/839), merged:
+  nginx compresses the UI bundles, the API's JSON, and downloads, at level 6. Downloads
+  needed a content type for nginx to compress them, so each format has one. At level 6
+  the 12.7 MB UI bundle sends 4.3 MB, and the 50,688-reaction dataset sends 5.0 MB as
+  binpb (from 181 MB), 19.5 MB as JSON (from 956 MB), and 11.3 MB as text (from
+  673 MB); Parquet, already compressed, is left alone. Level 6 is where zlib's ratio on
+  JSON levels off: 41× at 5, 55× at 6, and 63× at 8 at half the speed.
+- [ord-app#842](https://github.com/open-reaction-database/ord-app/pull/842), merged:
+  resolves the 81 Dependabot alerts open on `main`, four of them critical (PyJWT,
+  anyio, and tinypool twice). It takes Vitest 3 → 4 and csv-parse 5 → 7, with a new
+  test of CSV upload that passes on both csv-parse versions. Vitest 4 counts branches
+  differently (61% of 1,487 where Vitest 3 counted 84% of 1,623 for the same tests),
+  so the branch-coverage floor moves from 80% to 57%.
+- [ord-interface#228](https://github.com/open-reaction-database/ord-interface/pull/228),
+  merged: ord-interface's nginx had `gzip on` but no `gzip_types`, so it compressed
+  only `text/html`. It now compresses its bundles and JSON the same way.
+
 ## Conclusions / next steps
 
 - **Redeploy in this order:**
-  1. Merge ord-app#840 (§5.6) and #841, and ord-infrastructure#49 (§5.7).
-  2. Deploy the `auth` stack, which adds the `domain` output the app stack reads.
-  3. Run `pulumi refresh` on the app stack's `ord/prod`, so Pulumi stops treating the
+  1. Deploy the `auth` stack, which adds the `domain` output the app stack reads.
+  2. Run `pulumi refresh` on the app stack's `ord/prod`, so Pulumi stops treating the
      crashed task definition as live.
-  4. Bring `~/ord/ord-app` to a clean, current `main`, and deploy the app stack. It
-     rebuilds the image from that checkout, with #46's 8 GB and #47's build arguments.
+  3. Bring `~/ord/ord-app` to a clean, current `main`, and deploy the app stack. It
+     rebuilds the image from that checkout, with #46's 8 GB, #47's build arguments, and
+     the fixes in §5.6–5.8.
+  4. Deploy the `interface` stack for ord-interface#228; it is independent of the app.
 
-  The `.env` files from the machine that built the May image are back in
-  `~/ord/ord-app` as of 2026-10-04, so a build before #841 merges still gets the Auth0
-  settings.
+  With #841 and #47 merged, the build no longer needs the `.env` files restored in
+  `~/ord/ord-app` on 2026-10-04.
 - **Stream JSON and text downloads** as the lasting fix for memory. Two 50,688-reaction
   JSON downloads at once would exceed even 8 GB. The change is contained, about 200
   lines with tests:
@@ -397,6 +418,11 @@ An image build no longer depends on `.env` files in the deploy checkout:
   — the Auth0 settings as image build arguments from the app stack, and the build check.
 - [ord-infrastructure#49](https://github.com/open-reaction-database/ord-infrastructure/pull/49)
   — `require_output` for the auth stack's outputs.
+- [ord-app#839](https://github.com/open-reaction-database/ord-app/pull/839) and
+  [ord-interface#228](https://github.com/open-reaction-database/ord-interface/pull/228)
+  — compression in nginx.
+- [ord-app#842](https://github.com/open-reaction-database/ord-app/pull/842) — the
+  Dependabot alerts.
 - [ord-app#739](https://github.com/open-reaction-database/ord-app/pull/739) — the
   revision label that identified the crashed image.
 - [ord-app#656](https://github.com/open-reaction-database/ord-app/issues/656) — the
