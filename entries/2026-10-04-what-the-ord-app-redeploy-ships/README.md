@@ -48,7 +48,8 @@ already in prod:**
   so the cause is the downsizing, not `main`.
   [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46),
   merged, returns the task to 8 GB. That is not enough: a download that large also
-  outlasts nginx's 60 s timeout, and streaming the downloads is the fix (§5.9).
+  outlasts nginx's 60 s timeout, and streaming the downloads, in ord-app#843, is the
+  fix (§5.9).
 - Already in prod: a dataset whose name has a character outside Latin-1, such as an en
   dash, cannot be downloaded in any format. ord-app#840 fixes this too.
 
@@ -376,7 +377,7 @@ the way the app stack now builds it: the five Auth0 settings as build arguments 
 | `.txtpb` of the 96-reaction dataset, and of one of its reactions | 200 |
 | The 50,688-reaction dataset, named with an en dash: `binpb`, Parquet | 200, saved under the exact name; `binpb` gzipped |
 | The same dataset as JSON, then as text, with nothing else running | 504 after nginx's 60 s timeout; the text download, overlapping the abandoned JSON one, took memory to 8 GB and was OOM-killed |
-| The same downloads while 101,376 new reactions validate in the background | the same: 504, then an OOM kill, three workers dead |
+| The same downloads while 101,376 new reactions validate in the background | the same: 504, then an OOM kill |
 
 JSON and text downloads build the whole document before sending a byte. Serializing
 this dataset takes 31.8 s as JSON and 19.9 s as text natively on an M5 Pro, before the
@@ -399,24 +400,15 @@ timeout and serializes the same way, so this is not new in `main`.
 
   With #841 and #47 merged, the build no longer needs the `.env` files restored in
   `~/ord/ord-app` on 2026-10-04.
-- **Stream JSON and text downloads.** 8 GB does not make a 50,688-reaction JSON
-  download work: it outlasts nginx's 60 s timeout, and the abandoned request keeps its
-  memory while the next one starts (§5.9). The change is contained, about 200 lines
-  with tests:
-  - read the stored `binpb` in batches of 1,000 instead of loading the whole dataset;
-  - `binpb`: write the dataset's own fields, then copy each stored reaction in as a
-    length-prefixed `reactions` field, with no parsing;
-  - JSON and text: write the dataset's fields, then one reaction at a time;
-  - Parquet: ord-schema's `parquet.DatasetWriter`, which flushes every 1,000 rows,
-    into a temp file;
-  - every check runs before the first byte, since a later failure truncates a 200.
-
-  FastAPI 0.138 keeps a request's yield-dependency session open until a streamed
-  response finishes, so the database can be read as the response is written. The
-  steady flow of bytes also keeps nginx's 60 s read timeout from firing. Prod's
-  largest datasets
-  (`SELECT dataset_id, count(*) FROM reactions GROUP BY 1 ORDER BY 2 DESC LIMIT 10`)
-  say how soon this is needed.
+- **Merge [ord-app#843](https://github.com/open-reaction-database/ord-app/pull/843),
+  which streams downloads.** It reads the stored reactions 1,000 at a time and writes
+  each batch as it goes: binpb copies the stored bytes with no parsing, JSON and text
+  write one reaction at a time, and Parquet goes through ord-schema's `DatasetWriter`.
+  In the production image at 2 vCPU / 8 GB, through nginx, with 101,376 new reactions
+  validating in the background, the 50,688-reaction dataset downloads with 200 in every
+  format (JSON 955 MB in 106 s under amd64 emulation) at a peak of 1.74 GB, where §5.9's
+  run returned 504 and was OOM-killed. Natively the first byte arrives within 50 ms and
+  the JSON finishes in 25.5 s.
 - **Read the crashed tasks' logs.** Section 2 leaves the missing Auth0 settings, the
   task size, and base-image drift; the logs should say which one crashed the
   containers.
