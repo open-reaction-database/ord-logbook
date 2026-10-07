@@ -47,7 +47,8 @@ already in prod:**
   dataset is OOM-killed. The live version needs as much memory for the same download,
   so the cause is the downsizing, not `main`.
   [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46),
-  merged, returns the task to 8 GB.
+  merged, returns the task to 8 GB. That is not enough: a download that large also
+  outlasts nginx's 60 s timeout, and streaming the downloads is the fix (§5.9).
 - Already in prod: a dataset whose name has a character outside Latin-1, such as an en
   dash, cannot be downloaded in any format. ord-app#840 fixes this too.
 
@@ -195,11 +196,11 @@ entry.
 | # | check | why | local result |
 | --- | --- | --- | --- |
 | 1 | Existing prod reactions and datasets open, edit, save, and validate | Reactions are stored as serialized protos (`binpb`); the schema moved 0.3 → 0.6 | pass on ord-data reactions (§5.1); prod's own data not tried |
-| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | **fail**: `.txtpb` on non-ASCII (§5.2), large downloads at 4 GB (§5.3); the rest pass (§5.5). Fixes in §5.6 |
+| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | on `main`, pass: `.txtpb` with non-ASCII text, non-Latin-1 dataset names, and the other formats (§5.5, §5.9). **Fail**: JSON and text downloads of the 50,688-reaction dataset, at 8 GB too (§5.3, §5.9) |
 | 3 | Paginated lists: datasets, reactions, groups, members | fastapi-pagination 0.12 → 0.15 | pass for datasets and reactions |
 | 4 | Structure drawing, SMILES and molblock round trips, image copy | Ketcher 3.8 → 3.15 | Ketcher 3.15 opens; drawing and image copy not tried |
-| 5 | Login, and API calls going to the site's own origin | #734 | pass up to Auth0's sign-in page, given the `.env` files (§5.4) |
-| 6 | An unauthenticated API request is refused | the bypass in #667/#668 must stay off in prod | pass (§5.4) |
+| 5 | Login, and API calls going to the site's own origin | #734 | on `main`, pass up to Auth0's sign-in page, from build arguments alone (§5.9) |
+| 6 | An unauthenticated API request is refused | the bypass in #667/#668 must stay off in prod | pass, on `main` too (§5.4, §5.9) |
 | 7 | Access, role, and attachment-cap behavior with real accounts | #779, #783, #782, #610, #770, #771 | not run locally; `main`'s CI covers the backend side |
 | 8 | Spot-check the UI fixes | §3 | the badges, units, outcome time, size pill, and Save and Close render and work |
 
@@ -249,8 +250,7 @@ Serializing that dataset in one process, with nothing else running:
 | text | 4.1 GB | 4.1 GB | 641 MB |
 
 JSON and text downloads build the whole document in memory, so a dataset of this size
-does not fit in 4 GB under either version. By these numbers one such download at a
-time fits in the old 8 GB task; that was not tested.
+does not fit in 4 GB under either version. 8 GB does not fix it either (§5.9).
 
 #### 5.4 The production image and sign-in
 
@@ -363,6 +363,29 @@ An image build no longer depends on `.env` files in the deploy checkout:
   merged: ord-interface's nginx had `gzip on` but no `gzip_types`, so it compressed
   only `text/html`. It now compresses its bundles and JSON the same way.
 
+#### 5.9 `main` after the fixes
+
+The production image built from a clean export of `main` (`7858249`, with #839–#842)
+the way the app stack now builds it: the five Auth0 settings as build arguments and no
+`.env` files. It ran at prod's 2 vCPU / 8 GB, under amd64 emulation.
+
+| check | result |
+| --- | --- |
+| The bundle and sign-in | names the tenant and client ID, calls `/api/v1`; the browser goes to the tenant's `/authorize` with the client ID, scope, and audience |
+| An unauthenticated request; the E2E dev token without the bypass | 401; 403 |
+| `.txtpb` of the 96-reaction dataset, and of one of its reactions | 200 |
+| The 50,688-reaction dataset, named with an en dash: `binpb`, Parquet | 200, saved under the exact name; `binpb` gzipped |
+| The same dataset as JSON, then as text, with nothing else running | 504 after nginx's 60 s timeout; the text download, overlapping the abandoned JSON one, took memory to 8 GB and was OOM-killed |
+| The same downloads while 101,376 new reactions validate in the background | the same: 504, then an OOM kill, three workers dead |
+
+JSON and text downloads build the whole document before sending a byte. Serializing
+this dataset takes 31.8 s as JSON and 19.9 s as text natively on an M5 Pro, before the
+database reads, and the emulated image did not finish the JSON within 60 s. Fargate's
+x86 vCPUs are slower per core than an M5 Pro, so a download this size likely times out
+in prod as well. nginx gives up at 60 s, but the backend keeps serializing, so the abandoned
+request holds its ~5 GB while the next one starts. Prod's May image has the same
+timeout and serializes the same way, so this is not new in `main`.
+
 ## Conclusions / next steps
 
 - **Redeploy in this order:**
@@ -376,9 +399,10 @@ An image build no longer depends on `.env` files in the deploy checkout:
 
   With #841 and #47 merged, the build no longer needs the `.env` files restored in
   `~/ord/ord-app` on 2026-10-04.
-- **Stream JSON and text downloads** as the lasting fix for memory. Two 50,688-reaction
-  JSON downloads at once would exceed even 8 GB. The change is contained, about 200
-  lines with tests:
+- **Stream JSON and text downloads.** 8 GB does not make a 50,688-reaction JSON
+  download work: it outlasts nginx's 60 s timeout, and the abandoned request keeps its
+  memory while the next one starts (§5.9). The change is contained, about 200 lines
+  with tests:
   - read the stored `binpb` in batches of 1,000 instead of loading the whole dataset;
   - `binpb`: write the dataset's own fields, then copy each stored reaction in as a
     length-prefixed `reactions` field, with no parsing;
