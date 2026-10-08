@@ -17,6 +17,10 @@ should be checked before it ships?
 
 ## Summary
 
+**After the redeploy, hand [`assets/redeploy-checklist.md`](assets/redeploy-checklist.md)
+to whoever checks prod while signed in.** It lists the checks local verification could
+not make.
+
 **Prod serves the image built on 2026-05-11 from ord-app
 [`b95551f`](https://github.com/open-reaction-database/ord-app/commit/b95551ff697781c286c45317dd62c126caf6eacb)
 (#649).** Pulumi's state does not say so: it records the image that crashed, and the
@@ -78,8 +82,9 @@ save, Ketcher, and the refusal of unauthenticated requests.
     `Dockerfile.single` for `linux/amd64` and run with prod's 2 CPUs and 4 GB;
   - uploads of three ord-data datasets (96, 1,536, and 50,688 reactions) in every
     format, downloads in every format, and a headless-Chromium pass over the UI.
-- No AWS credentials were available, so the ECS service's running task definition and
-  the crashed tasks' logs were not read.
+- **Previews, 2026-10-07.** `pulumi preview --refresh` of every prod stack, from clones
+  of ord-infrastructure, ord-app, and ord-interface at `main`, and the app service's
+  task definitions read with `aws ecs`. The crashed tasks' logs were not read.
 
 ## Findings
 
@@ -115,6 +120,7 @@ the ord-app checkout is a clean, current `main`.
 | 00:26:19 | app stack update 58 (#41) starts |
 | 00:29:54 | image built: `GIT_COMMIT=b95551f…-dirty`, digest `sha256:574566a7…` |
 | 00:33:53 | new task definition registered: 2048 CPU units, 4096 MB |
+| 00:37:09 | task definition `service-29ca0ae4:2` registered by hand, at the same size, with the May image (`sha256:b293a614…`); the service moves to it |
 | 00:40:46 | the checkout moves back to `main` |
 | 01:05:08 | backend stack update 54 ([#42](https://github.com/open-reaction-database/ord-infrastructure/pull/42): one load balancer for both sites, NAT-instance egress) starts |
 | 01:06:10 | the live site answers with the May build |
@@ -136,8 +142,8 @@ that works. What did differ:
 - the backend stack's changes from #41, applied 20 minutes before. ord-app's task
   receives only `PG_DSN` and `PGPASSWORD`, so it does not use the cache.
 
-When the rollback happened, and the crashed tasks' own logs, were not read for this
-entry.
+The rollback is `:2`, three minutes after the crashed `:1`; Pulumi's state still
+records `:1`. The crashed tasks' own logs were not read for this entry.
 
 ### 3. What `main` changes
 
@@ -434,14 +440,27 @@ without leaving the page.
 ## Conclusions / next steps
 
 - **Redeploy in this order:**
-  1. Deploy the `auth` stack, which adds the `domain` output the app stack reads.
-  2. Run `pulumi refresh` on the app stack's `ord/prod`, so Pulumi stops treating the
-     crashed task definition as live.
-  3. Bring `~/ord/ord-app` to a clean, current `main`, and deploy the app stack. It
-     rebuilds the image from that checkout, with #51's 4 GB, #50's download link key,
-     #47's build arguments, and the fixes in §5.6–5.10. The same update creates the
-     key's secret, before the service.
-  4. Deploy the `interface` stack for ord-interface#228; it is independent of the app.
+  1. The `auth` stack, which adds the `domain` output the app stack reads: deployed on
+     2026-10-06.
+  2. Bring the ord-app and ord-interface checkouts the stacks build from
+     (`~/ord/ord-app`, `~/ord/ord-interface`) to a clean, current `main`.
+  3. Run `pulumi refresh` on the app stack's `ord/prod`, or deploy with
+     `pulumi up --refresh`: the service runs `:2`, and Pulumi's state records `:1`.
+  4. Deploy the app stack. It rebuilds the image from that checkout, with #51's 4 GB,
+     #50's download link key, #47's build arguments, and the fixes in §5.6–5.10, and
+     creates the key's secret before the service. It also finishes
+     [ord-infrastructure#42](https://github.com/open-reaction-database/ord-infrastructure/pull/42)'s
+     move to one load balancer, since the app stack has not been deployed since: it adds
+     a target group and a host rule on the shared HTTPS listener, whose wildcard
+     certificate covers `app.`, repoints the DNS alias, and deletes the app's own load
+     balancer, 17 changes in all. Expect a short interruption while the new task passes
+     its health check. `:2` is not in Pulumi's state, so it stays registered as the
+     rollback target.
+  5. Deploy the `interface` stack for ord-interface#228. It rebuilds that image and
+     changes nothing else.
+
+  The previews show nothing to deploy in `auth`, `database`, or `domain`; `backend`
+  would only replace the bastion, whose AMI lookup finds a newer image.
 
   With #841 and #47 merged, the build no longer needs the `.env` files restored in
   `~/ord/ord-app` on 2026-10-04.
@@ -450,6 +469,8 @@ without leaving the page.
   containers.
 - **Signed-in checks for the redeploy:** rows 1, 4, 5, and 7 of §4, on prod's data
   and accounts, and a dataset download from the UI, which goes through #845's link.
+  [`assets/redeploy-checklist.md`](assets/redeploy-checklist.md) lists them step by
+  step.
 - **Pin the base images and `uv`** in `Dockerfile.single`, so a rebuild of an old
   commit reproduces the image that ran.
 - **Deploy from a clean checkout.** Update 58 built with `PULUMI_ALLOW_DIRTY`, which
