@@ -22,3 +22,5 @@ example `uv run --no-project --python 3.12 --with 'ord-schema==0.3.100' --with
 | `roundtrip.py` | Compares each downloaded dataset with the uploaded original, reaction by reaction. |
 | `serialize_mem.py <binpb\|json\|txtpb>` | Peak memory of parsing `uploads/large.pb` and serializing it one way. |
 | `check_image.sh <container> <base URL>` | Against a running production image in no-auth mode: uploads the small and large fixtures, downloads the large dataset in every format while its reactions validate, and reports each response, the peak of the container's memory, OOM kills, and worker deaths. Start the image with `docker run --platform linux/amd64 --cpus 2 --memory 4g -e APP_ENV=localhost -e ORD_APP_E2E=true -e PG_DSN=... -p 8089:5173 <image>`. Needs `jq`. |
+
+`redeploy-checklist.md` is the list of signed-in checks to run on prod after the redeploy.
