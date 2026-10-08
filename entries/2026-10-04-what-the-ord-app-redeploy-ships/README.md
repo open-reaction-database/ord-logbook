@@ -44,12 +44,12 @@ already in prod:**
   [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840), merged,
   fixes it.
 - On the 4 GB task #41 introduced, a JSON or text download of a 50,688-reaction
-  dataset is OOM-killed. The live version needs as much memory for the same download,
-  so the cause is the downsizing, not `main`.
-  [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46),
-  merged, returns the task to 8 GB. That is not enough: a download that large also
-  outlasts nginx's 60 s timeout, and streaming the downloads, in ord-app#843, is the
-  fix (§5.9).
+  dataset is OOM-killed, and on 8 GB
+  ([ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46))
+  it still outlasts nginx's 60 s timeout. The live version builds downloads the same
+  way, so the cause is the downsizing, not `main`. ord-app#843, merged, streams
+  downloads, and ord-infrastructure#51, merged, returns the task to 4 GB, where the same
+  run peaks at 1.9 GiB (§5.10).
 - Already in prod: a dataset whose name has a character outside Latin-1, such as an en
   dash, cannot be downloaded in any format. ord-app#840 fixes this too.
 
@@ -197,7 +197,7 @@ entry.
 | # | check | why | local result |
 | --- | --- | --- | --- |
 | 1 | Existing prod reactions and datasets open, edit, save, and validate | Reactions are stored as serialized protos (`binpb`); the schema moved 0.3 → 0.6 | pass on ord-data reactions (§5.1); prod's own data not tried |
-| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | on `main`, pass: `.txtpb` with non-ASCII text, non-Latin-1 dataset names, and the other formats (§5.5, §5.9). **Fail**: JSON and text downloads of the 50,688-reaction dataset, at 8 GB too (§5.3, §5.9) |
+| 2 | Dataset upload and download in every existing format, and Parquet | ord-schema and python-multipart upgrades; new pyarrow path | on `main`, pass: `.txtpb` with non-ASCII text, non-Latin-1 dataset names, and every format of the 50,688-reaction dataset, streamed, at 4 GB (§5.5, §5.9, §5.10) |
 | 3 | Paginated lists: datasets, reactions, groups, members | fastapi-pagination 0.12 → 0.15 | pass for datasets and reactions |
 | 4 | Structure drawing, SMILES and molblock round trips, image copy | Ketcher 3.8 → 3.15 | Ketcher 3.15 opens; drawing and image copy not tried |
 | 5 | Login, and API calls going to the site's own origin | #734 | on `main`, pass up to Auth0's sign-in page, from build arguments alone (§5.9) |
@@ -251,7 +251,8 @@ Serializing that dataset in one process, with nothing else running:
 | text | 4.1 GB | 4.1 GB | 641 MB |
 
 JSON and text downloads build the whole document in memory, so a dataset of this size
-does not fit in 4 GB under either version. 8 GB does not fix it either (§5.9).
+does not fit in 4 GB under either version. 8 GB does not fix it either (§5.9);
+streaming does (§5.10).
 
 #### 5.4 The production image and sign-in
 
@@ -314,7 +315,8 @@ both download failures:
 [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
 sets ord-app's prod task to 2 vCPU / 8 GB, a valid Fargate pairing, at about $13 a
 month more. Its `ruff`, `ty`, and `pytest` (13 passed) are clean; `pulumi preview` was
-not run, since it builds the ord-app image from the sibling checkout. It has merged.
+not run, since it builds the ord-app image from the sibling checkout. It has merged;
+ord-infrastructure#51 has since returned the task to 4 GB (§5.10).
 
 #### 5.7 The Auth0 settings, from the stack
 
@@ -368,7 +370,7 @@ An image build no longer depends on `.env` files in the deploy checkout:
 
 The production image built from a clean export of `main` (`7858249`, with #839–#842)
 the way the app stack now builds it: the five Auth0 settings as build arguments and no
-`.env` files. It ran at prod's 2 vCPU / 8 GB, under amd64 emulation.
+`.env` files. It ran at #46's 2 vCPU / 8 GB, under amd64 emulation.
 
 | check | result |
 | --- | --- |
@@ -387,6 +389,48 @@ in prod as well. nginx gives up at 60 s, but the backend keeps serializing, so t
 request holds its ~5 GB while the next one starts. Prod's May image has the same
 timeout and serializes the same way, so this is not new in `main`.
 
+#### 5.10 Streamed downloads, and links the browser fetches
+
+- [ord-app#843](https://github.com/open-reaction-database/ord-app/pull/843), merged:
+  downloads stream. The backend reads a dataset's stored reactions through one database
+  cursor, 1,000 at a time, so every batch comes from the same snapshot, and sends each
+  batch as it is serialized: binpb copies the stored bytes with no parsing, JSON and
+  text write one reaction at a time, and Parquet writes row groups to a staged file
+  through ord-schema's `DatasetWriter`, then sends it. For a dataset with reactions,
+  streamed binpb, JSON, and text are byte-identical to the whole-file output.
+- [ord-app#845](https://github.com/open-reaction-database/ord-app/pull/845), merged: the
+  UI downloads a dataset by asking the backend for a link and letting the browser fetch
+  it, so the file streams to disk and appears in the browser's downloads list with its
+  progress, rather than collecting in the page first. The link's token names the
+  dataset, format, and user, expires after 30 s, and is signed with HMAC-SHA256;
+  fetching it checks the user's access again. The backend does not start without
+  `DOWNLOAD_LINK_SECRET` unless `APP_ENV` is `localhost`. Reaction downloads are
+  unchanged.
+- [ord-infrastructure#50](https://github.com/open-reaction-database/ord-infrastructure/pull/50),
+  merged: the app stack generates that key per environment, stores it in Secrets
+  Manager, and injects it into the task, which starts only once the key has a value.
+- [ord-infrastructure#51](https://github.com/open-reaction-database/ord-infrastructure/pull/51),
+  merged: ord-app's task returns to 2 vCPU / 4 GB, the least memory Fargate pairs with
+  2 vCPU.
+
+The production image built from ord-app `main` at `9a058db` (#845), run at 2 vCPU /
+4 GB under amd64 emulation, through nginx, twice, the second time with
+`assets/check_image.sh`. Timings vary with how much validation is running: the second
+run also validated the first run's reactions.
+
+| check | result |
+| --- | --- |
+| idle | 635 MiB |
+| upload the 50,688-reaction dataset as `.pb.gz` and as `.parquet`, and the 96-reaction one | all succeed; 101,376 reactions start validating |
+| download the large dataset while they validate | 200 in every format: binpb 180 MB in 11–30 s, JSON 955 MB in 87–120 s, text 672 MB in 66–97 s, Parquet 5 MB in 3–12 s |
+| peak memory | 1.88 GiB and 1.75 GiB; no OOM kill, no worker deaths |
+
+Natively, with #843, every format's response headers arrive within 50 ms, and the
+dataset takes 25.2 s as JSON, 21.3 s as text, 0.9 s as binpb, and 1.2 s as Parquet,
+whose body starts once its staged file is complete. In Playwright's Chromium, Firefox,
+and WebKit, the dataset menu's link saves the same bytes as the bearer download,
+without leaving the page.
+
 ## Conclusions / next steps
 
 - **Redeploy in this order:**
@@ -394,26 +438,18 @@ timeout and serializes the same way, so this is not new in `main`.
   2. Run `pulumi refresh` on the app stack's `ord/prod`, so Pulumi stops treating the
      crashed task definition as live.
   3. Bring `~/ord/ord-app` to a clean, current `main`, and deploy the app stack. It
-     rebuilds the image from that checkout, with #46's 8 GB, #47's build arguments, and
-     the fixes in §5.6–5.8.
+     rebuilds the image from that checkout, with #51's 4 GB, #50's download link key,
+     #47's build arguments, and the fixes in §5.6–5.10. The same update creates the
+     key's secret, before the service.
   4. Deploy the `interface` stack for ord-interface#228; it is independent of the app.
 
   With #841 and #47 merged, the build no longer needs the `.env` files restored in
   `~/ord/ord-app` on 2026-10-04.
-- **Merge [ord-app#843](https://github.com/open-reaction-database/ord-app/pull/843),
-  which streams downloads.** It reads the stored reactions 1,000 at a time and writes
-  each batch as it goes: binpb copies the stored bytes with no parsing, JSON and text
-  write one reaction at a time, and Parquet goes through ord-schema's `DatasetWriter`.
-  In the production image at 2 vCPU / 8 GB, through nginx, with 101,376 new reactions
-  validating in the background, the 50,688-reaction dataset downloads with 200 in every
-  format (JSON 955 MB in 106 s under amd64 emulation) at a peak of 1.74 GB, where §5.9's
-  run returned 504 and was OOM-killed. Natively the first byte arrives within 50 ms and
-  the JSON finishes in 25.5 s.
 - **Read the crashed tasks' logs.** Section 2 leaves the missing Auth0 settings, the
   task size, and base-image drift; the logs should say which one crashed the
   containers.
 - **Signed-in checks for the redeploy:** rows 1, 4, 5, and 7 of §4, on prod's data
-  and accounts.
+  and accounts, and a dataset download from the UI, which goes through #845's link.
 - **Pin the base images and `uv`** in `Dockerfile.single`, so a rebuild of an old
   commit reproduces the image that ran.
 - **Deploy from a clean checkout.** Update 58 built with `PULUMI_ALLOW_DIRTY`, which
@@ -428,7 +464,7 @@ timeout and serializes the same way, so this is not new in `main`.
 - [ord-app#840](https://github.com/open-reaction-database/ord-app/pull/840) — the
   `.txtpb` and download-name fixes.
 - [ord-infrastructure#46](https://github.com/open-reaction-database/ord-infrastructure/pull/46)
-  — ord-app's task back to 8 GB.
+  — ord-app's task back to 8 GB, until #51.
 - [ord-app#841](https://github.com/open-reaction-database/ord-app/pull/841) and
   [ord-infrastructure#47](https://github.com/open-reaction-database/ord-infrastructure/pull/47)
   — the Auth0 settings as image build arguments from the app stack, and the build check.
@@ -439,6 +475,12 @@ timeout and serializes the same way, so this is not new in `main`.
   — compression in nginx.
 - [ord-app#842](https://github.com/open-reaction-database/ord-app/pull/842) — the
   Dependabot alerts.
+- [ord-app#843](https://github.com/open-reaction-database/ord-app/pull/843) and
+  [ord-app#845](https://github.com/open-reaction-database/ord-app/pull/845) — streamed
+  downloads, and links the browser fetches.
+- [ord-infrastructure#50](https://github.com/open-reaction-database/ord-infrastructure/pull/50)
+  and [ord-infrastructure#51](https://github.com/open-reaction-database/ord-infrastructure/pull/51)
+  — the download link key, and the task back to 4 GB.
 - [ord-app#739](https://github.com/open-reaction-database/ord-app/pull/739) — the
   revision label that identified the crashed image.
 - [ord-app#656](https://github.com/open-reaction-database/ord-app/issues/656) — the
