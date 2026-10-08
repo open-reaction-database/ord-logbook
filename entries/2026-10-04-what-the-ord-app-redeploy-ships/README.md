@@ -23,7 +23,7 @@ not make.
 
 **Prod serves the image built on 2026-05-11 from ord-app
 [`b95551f`](https://github.com/open-reaction-database/ord-app/commit/b95551ff697781c286c45317dd62c126caf6eacb)
-(#649).** Pulumi's state does not say so: it records the image that crashed, and the
+(#649), with a local dependency fix (§2).** Pulumi's state does not say so: it records the image that crashed, and the
 rollback happened outside Pulumi.
 
 **`main` (`87ca9d5`, 2026-10-02) is 156 commits ahead.** 61 are test-only and about 30
@@ -32,13 +32,15 @@ are ord-schema 0.3 → 0.6, protobuf 4 → 5, FastAPI 0.115 → 0.138, Starlette
 and Ketcher 3.8 → 3.15 — about 40 UI and backend fixes, and Parquet dataset support.
 **There are no new Alembic migrations**, so the redeploy needs no database step.
 
-**The crashed image could not have served users, whatever else went wrong.** It was
-built from `b95551f` as well, but from a checkout without the two untracked files
-the build takes its Auth0 settings from, `ui/.env` and `ord_app/.env`. A build without
-them sends every visitor to `https://undefined/authorize`. The tasks' logs would say
-whether the containers also crashed. ord-app#841 and ord-infrastructure#47 have the app
-stack pass these settings as build arguments, and an image build fails without them
-(§5.7).
+**The crashed image could not start.** It is a clean build of `b95551f`, where the
+backend imports `httpx` at startup but `httpx` is only a development dependency, which
+the image does not install: `ModuleNotFoundError: No module named 'httpx'`. The May
+image runs because its build carried a local fix moving `httpx` and `psycopg` to
+runtime dependencies, which #653 later merged. The crashed build also lacked the two
+untracked files the build takes its Auth0 settings from, `ui/.env` and `ord_app/.env`,
+so had it started it would have sent every visitor to `https://undefined/authorize`.
+`main` has #653, and ord-app#841 and ord-infrastructure#47 have the app stack pass the
+Auth0 settings as build arguments, failing the image build without them (§5.7).
 
 **Local verification of `main` found two problems to fix before the redeploy, and one
 already in prod:**
@@ -84,7 +86,8 @@ save, Ketcher, and the refusal of unauthenticated requests.
     format, downloads in every format, and a headless-Chromium pass over the UI.
 - **Previews, 2026-10-07.** `pulumi preview --refresh` of every prod stack, from clones
   of ord-infrastructure, ord-app, and ord-interface at `main`, and the app service's
-  task definitions read with `aws ecs`. The crashed tasks' logs were not read.
+  task definitions read with `aws ecs`; the May and crashed images pulled from ECR and
+  their files compared with `b95551f`.
 
 ## Findings
 
@@ -100,8 +103,8 @@ save, Ketcher, and the refusal of unauthenticated requests.
 
 The May build predates the revision label, so its commit is inferred: `main` sat at
 `b95551f` from 2026-04-18 to 2026-05-12, and the bundle's React 19.2.4 entered the
-lockfile with #647 (2026-02-17), so the build is no older than that. The rollback
-restored this image.
+lockfile with #647 (2026-02-17), so the build is no older than that. Its files are
+`b95551f` plus a local change (§2). The rollback restored this image.
 
 ### 2. What the crashed deploy built
 
@@ -125,11 +128,30 @@ the ord-app checkout is a clean, current `main`.
 | 01:05:08 | backend stack update 54 ([#42](https://github.com/open-reaction-database/ord-infrastructure/pull/42): one load balancer for both sites, NAT-instance egress) starts |
 | 01:06:10 | the live site answers with the May build |
 
-`-dirty` counts untracked files as well as modified ones. The checkout's untracked
-files are new modules (`ord_app/service_api/services/structures.py` and its tests,
-`ui/src/store/entities/reactions/reactionEntity/structureIdentifiers.ts`) that nothing
-at `b95551f` imports, so the crashed image ran the same application code as the one
-that works. What did differ:
+The crashed image's files match `b95551f` exactly. The checkout's reflog records a stash
+(`reset: moving to HEAD`) at 00:24:43, just before the move to `b95551f`, and the
+uncommitted work it held, now
+[ord-app#847](https://github.com/open-reaction-database/ord-app/pull/847), reappeared
+when the checkout moved back, so the build saw none of it. What marked the tree
+`-dirty` is not recorded.
+
+The May image's files are not `b95551f`'s:
+
+| | May image (`sha256:b293a614…`) | crashed image (`sha256:574566a7…`) |
+| --- | --- | --- |
+| application files | `b95551f`, except as below | `b95551f` |
+| `pyproject.toml`, `uv.lock` | `httpx` and `psycopg` moved from the `dev` group to runtime dependencies | both only in `dev` |
+| `import httpx` | 0.28.1 | `ModuleNotFoundError` |
+| `ord_app/.env` | the five `VITE_AUTH0_*` settings | absent |
+| also | stale `.pytype` caches in `ord_app/api/` and `ord_app/visualization/`, directories git dropped in #332 | — |
+
+**That is the crash.** `Dockerfile.single` installs with `uv sync --frozen --no-dev`,
+and at `b95551f` the backend imports `httpx` (`domain/users.py`,
+`services/resolvers.py`) while `uv.lock` reaches it only through the `dev` group, so a
+clean build of `b95551f` cannot start. The May build carried the local fix that #653
+later merged.
+
+The other differences from the May build, none needed to explain the crash:
 
 - the Auth0 settings. The checkout had no `ui/.env` or `ord_app/.env`; both are
   gitignored. Vite compiles `VITE_AUTH0_*` from `ui/.env` into the bundle, and the
@@ -142,8 +164,8 @@ that works. What did differ:
 - the backend stack's changes from #41, applied 20 minutes before. ord-app's task
   receives only `PG_DSN` and `PGPASSWORD`, so it does not use the cache.
 
-The rollback is `:2`, three minutes after the crashed `:1`; Pulumi's state still
-records `:1`. The crashed tasks' own logs were not read for this entry.
+The rollback is `:2`, three minutes after the crashed `:1`; Pulumi's state recorded
+`:1` until a refresh of the service on 2026-10-08.
 
 ### 3. What `main` changes
 
@@ -443,9 +465,12 @@ without leaving the page.
   1. The `auth` stack, which adds the `domain` output the app stack reads: deployed on
      2026-10-06.
   2. Bring the ord-app and ord-interface checkouts the stacks build from
-     (`~/ord/ord-app`, `~/ord/ord-interface`) to a clean, current `main`.
-  3. Run `pulumi refresh` on the app stack's `ord/prod`, or deploy with
-     `pulumi up --refresh`: the service runs `:2`, and Pulumi's state records `:1`.
+     (`~/ord/ord-app`, `~/ord/ord-interface`) to a clean, current `main`: done on
+     2026-10-08, at `b2423d4` and `1953940`.
+  3. Refresh the app stack's record of its service, which runs `:2` while Pulumi's state
+     recorded `:1`: done on 2026-10-08 with `pulumi refresh --target` on the service. A
+     full refresh would also drop the crashed image from state, only because the
+     registry token stored with it has expired.
   4. Deploy the app stack. It rebuilds the image from that checkout, with #51's 4 GB,
      #50's download link key, #47's build arguments, and the fixes in §5.6–5.10, and
      creates the key's secret before the service. It also finishes
@@ -464,17 +489,20 @@ without leaving the page.
 
   With #841 and #47 merged, the build no longer needs the `.env` files restored in
   `~/ord/ord-app` on 2026-10-04.
-- **Read the crashed tasks' logs.** Section 2 leaves the missing Auth0 settings, the
-  task size, and base-image drift; the logs should say which one crashed the
-  containers.
+- **Delete the crashed image** (`sha256:574566a7…`) from the app's ECR repository once
+  the redeploy is verified. It is tagged, so the repository's lifecycle rule, which
+  expires only untagged images, keeps it. Keep the May image while task definition
+  `:2` is the rollback target.
 - **Signed-in checks for the redeploy:** rows 1, 4, 5, and 7 of §4, on prod's data
   and accounts, and a dataset download from the UI, which goes through #845's link.
   [`assets/redeploy-checklist.md`](assets/redeploy-checklist.md) lists them step by
   step.
 - **Pin the base images and `uv`** in `Dockerfile.single`, so a rebuild of an old
   commit reproduces the image that ran.
-- **Deploy from a clean checkout.** Update 58 built with `PULUMI_ALLOW_DIRTY`, which
-  is how untracked files reached a prod image.
+- **Deploy from a clean checkout.** The May image carries an uncommitted fix,
+  `ord_app/.env`, and stale caches from its checkout, so no commit reproduces it, and
+  update 58 built with `PULUMI_ALLOW_DIRTY`. With the gate on, an image is exactly a
+  commit on `main`.
 
 ## References
 
