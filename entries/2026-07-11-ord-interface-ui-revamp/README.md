@@ -2,9 +2,12 @@
 
 - **Date:** 2026-07-11
 - **Author:** Steven Kearnes
-- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Fable 5)
-- **Status:** draft — PR open:
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Fable 5, Claude Opus 5.5)
+- **Status:** final; superseded by
+  [the 2026-10-09 entry](../2026-10-09-search-and-browse-inside-ord-app/README.md),
+  which builds the viewer inside ord-app instead.
   [ord-interface#210](https://github.com/open-reaction-database/ord-interface/pull/210)
+  was closed unmerged on 2026-10-09
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, landing-page, code-reuse
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
