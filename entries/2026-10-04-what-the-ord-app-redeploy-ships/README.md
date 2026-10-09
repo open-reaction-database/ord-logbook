@@ -3,7 +3,7 @@
 - **Date:** 2026-10-04
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; fixes merged and awaiting the redeploy, checks that need a signed-in account remain
+- **Status:** final; redeployed on 2026-10-09
 - **Tags:** ord-app, deployment, pulumi, aws, dependencies, verification
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -17,14 +17,16 @@ should be checked before it ships?
 
 ## Summary
 
-**After the redeploy, hand [`assets/redeploy-checklist.md`](assets/redeploy-checklist.md)
-to whoever checks prod while signed in.** It lists the checks local verification could
-not make.
+**Redeployed on 2026-10-09 (§6).** ord-app `main` at `b064d94` reached prod at 01:22
+UTC, after Ben ran the signed-in checks in
+[`assets/redeploy-checklist.md`](assets/redeploy-checklist.md) on a staging deploy
+against prod's database. The interface stack's rebuild, for ord-interface#228, went out
+the day before.
 
-**Prod serves the image built on 2026-05-11 from ord-app
+**Before that, prod served the image built on 2026-05-11 from ord-app
 [`b95551f`](https://github.com/open-reaction-database/ord-app/commit/b95551ff697781c286c45317dd62c126caf6eacb)
-(#649), with a local dependency fix (§2).** Pulumi's state does not say so: it records the image that crashed, and the
-rollback happened outside Pulumi.
+(#649), with a local dependency fix (§2).** Pulumi's state did not say so: it recorded
+the image that crashed, and the rollback happened outside Pulumi.
 
 **`main` (`87ca9d5`, 2026-10-02) is 156 commits ahead.** 61 are test-only and about 30
 are CI, lint, and tooling. What reaches users is 7 dependency upgrades — the large ones
@@ -459,44 +461,61 @@ whose body starts once its staged file is complete. In Playwright's Chromium, Fi
 and WebKit, the dataset menu's link saves the same bytes as the bearer download,
 without leaving the page.
 
+### 6. The redeploy
+
+All times are UTC.
+
+**Staging, 2026-10-08 12:48 to 2026-10-09 01:12.** The app stack's staging stack ran
+ord-app `b2423d4` against prod's `app` database at prod's 2 vCPU / 4 GB
+([ord-infrastructure#52](https://github.com/open-reaction-database/ord-infrastructure/pull/52)).
+Its task had `PG_DSN` ending in `/app` and both secrets, its three workers started
+cleanly, and its bundle named the Auth0 tenant. Ben ran the checklist there. One
+`.parquet` download returned 422, for a dataset with no description, and the UI said
+only "Unknown error";
+[ord-app#848](https://github.com/open-reaction-database/ord-app/pull/848) shows the
+backend's message for a 400, 409, or 422 and rewords three that had not been written
+for users.
+
+**Interface, 2026-10-08 01:18.** The interface stack rebuilt ord-interface at
+`1953940`, with #228's compression. Its main bundle now transfers 202 KB gzipped
+instead of 929 KB.
+
+**App, 2026-10-09 01:22.** The app stack deployed ord-app `main` at `b064d94`, which
+adds #848 to what staging ran, from ord-infrastructure `98d3958`. The update made 18 changes: the new task definition and image, the download
+link key, and the move onto the shared load balancer, which deleted the app's own.
+
+| check | result |
+| --- | --- |
+| ECS | one deployment, rollout complete, 1 task on `service-6163e898:1` |
+| task | 2 vCPU / 4 GB; `PG_DSN` names `app`; `PGPASSWORD` and `DOWNLOAD_LINK_SECRET` |
+| startup | all three workers report "Application startup complete"; no errors |
+| site | health check 200, an unauthenticated request 401, `index.html` built at 01:23:42 |
+| bundle | names the Auth0 tenant and client ID, calls `/api/v1`, served gzipped |
+| load balancer | DNS points at the shared load balancer; the app's own is deleted |
+| availability | 2 of 84 health checks, at 01:28:22 and 01:28:27, returned 503 during the cutover |
+
+**Afterwards, 2026-10-09.**
+
+- A refresh of all seven prod stacks changed only the `domain` and `database` stacks'
+  copies of the backend stack's outputs.
+- The `database` stack dropped `app_staging` (#52), and every database it manages is
+  protected
+  ([ord-infrastructure#54](https://github.com/open-reaction-database/ord-infrastructure/pull/54)).
+- A sweep for AWS resources in no stack's state found nothing running or billing
+  unexpectedly. It removed six RDS subnet groups for VPCs that no longer exist and 13
+  ECR images: the crashed one, eleven older builds, and, once Ben signed off, the May
+  image with its task definition `:2`. Each web service's repository now keeps its
+  newest five images
+  ([ord-infrastructure#53](https://github.com/open-reaction-database/ord-infrastructure/pull/53)).
+  Two manual Aurora snapshots, from 2025-03-31 and 2026-06-14, were kept.
+
 ## Conclusions / next steps
 
-- **Redeploy in this order:**
-  1. The `auth` stack, which adds the `domain` output the app stack reads: deployed on
-     2026-10-06.
-  2. Bring the ord-app and ord-interface checkouts the stacks build from
-     (`~/ord/ord-app`, `~/ord/ord-interface`) to a clean, current `main`: done on
-     2026-10-08, at `b2423d4` and `1953940`.
-  3. Refresh the app stack's record of its service, which runs `:2` while Pulumi's state
-     recorded `:1`: done on 2026-10-08 with `pulumi refresh --target` on the service. A
-     full refresh would also drop the crashed image from state, only because the
-     registry token stored with it has expired.
-  4. Deploy the app stack. It rebuilds the image from that checkout, with #51's 4 GB,
-     #50's download link key, #47's build arguments, and the fixes in §5.6–5.10, and
-     creates the key's secret before the service. It also finishes
-     [ord-infrastructure#42](https://github.com/open-reaction-database/ord-infrastructure/pull/42)'s
-     move to one load balancer, since the app stack has not been deployed since: it adds
-     a target group and a host rule on the shared HTTPS listener, whose wildcard
-     certificate covers `app.`, repoints the DNS alias, and deletes the app's own load
-     balancer, 17 changes in all. Expect a short interruption while the new task passes
-     its health check. `:2` is not in Pulumi's state, so it stays registered as the
-     rollback target.
-  5. Deploy the `interface` stack for ord-interface#228. It rebuilds that image and
-     changes nothing else.
-
-  The previews show nothing to deploy in `auth`, `database`, or `domain`; `backend`
-  would only replace the bastion, whose AMI lookup finds a newer image.
-
-  With #841 and #47 merged, the build no longer needs the `.env` files restored in
-  `~/ord/ord-app` on 2026-10-04.
-- **Delete the crashed image** (`sha256:574566a7…`) from the app's ECR repository once
-  the redeploy is verified. It is tagged, so the repository's lifecycle rule, which
-  expires only untagged images, keeps it. Keep the May image while task definition
-  `:2` is the rollback target.
-- **Signed-in checks for the redeploy:** rows 1, 4, 5, and 7 of §4, on prod's data
-  and accounts, and a dataset download from the UI, which goes through #845's link.
-  [`assets/redeploy-checklist.md`](assets/redeploy-checklist.md) lists them step by
-  step.
+- **The redeploy is done (§6).** `main` is in prod, the signed-in checks passed on
+  staging against prod's data, and the crashed image, the rollback, and `app_staging`
+  are gone. Rolling back now means redeploying an earlier commit.
+- **The `backend` stack's bastion** would be replaced on its next deploy, because its
+  AMI lookup finds a newer image; nothing else in that stack has drifted.
 - **Pin the base images and `uv`** in `Dockerfile.single`, so a rebuild of an old
   commit reproduces the image that ran.
 - **Deploy from a clean checkout.** The May image carries an uncommitted fix,
@@ -530,6 +549,13 @@ without leaving the page.
 - [ord-infrastructure#50](https://github.com/open-reaction-database/ord-infrastructure/pull/50)
   and [ord-infrastructure#51](https://github.com/open-reaction-database/ord-infrastructure/pull/51)
   — the download link key, and the task back to 4 GB.
+- [ord-app#848](https://github.com/open-reaction-database/ord-app/pull/848) — the
+  backend's message in error notifications.
+- [ord-infrastructure#52](https://github.com/open-reaction-database/ord-infrastructure/pull/52),
+  [#53](https://github.com/open-reaction-database/ord-infrastructure/pull/53), and
+  [#54](https://github.com/open-reaction-database/ord-infrastructure/pull/54) — staging
+  on prod's database and size without `app_staging`, the ECR lifecycle rule, and one
+  list of protected databases.
 - [ord-app#739](https://github.com/open-reaction-database/ord-app/pull/739) — the
   revision label that identified the crashed image.
 - [ord-app#656](https://github.com/open-reaction-database/ord-app/issues/656) — the
