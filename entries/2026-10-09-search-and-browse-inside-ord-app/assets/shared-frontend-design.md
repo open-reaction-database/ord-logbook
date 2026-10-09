@@ -3,7 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** design agreed; implementation plan next
+- **Status:** design agreed; W1, W2, and A planned in
+  [`shared-frontend-plan.md`](shared-frontend-plan.md)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 2 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -46,7 +47,6 @@ frontend/
   tsconfig.base.json      compiler options every project extends
   eslint.config.mjs       one flat config, with blocks per workspace
   .prettierrc.json  .prettierignore  .stylelintrc.json  .stylelintignore
-  vitest.config.ts        lists the projects below
   apps/
     editor/               today's ui/: src/, public/, e2e/, index.html, vite and
                           Playwright configs, .env.template
@@ -56,6 +56,7 @@ frontend/
       package.json  tsconfig.json  vitest.config.ts  README.md
       src/
         theme/            Mantine theme, CSS variables, color and type modules, icons
+        display/          KeyValueDisplay, RequiredOptionalFields, DataField, Counter
         shell/            PageContainer, Breadcrumbs, Footer
         reaction/         model and converters, provider and hooks, previews, cards,
                           sections, header, drawer and forms
@@ -73,11 +74,11 @@ deploys while `packages/` holds what is shared. The Python layout is step 3's de
   `dependencies`. wouter is a peer dependency that only `shell/` imports.
   `import/no-extraneous-dependencies` checks every import against the package's own
   `package.json`, because hoisting would otherwise let an undeclared import resolve.
-- **`exports` is the public surface:** `./theme`, `./shell`, `./reaction`, and
-  `./testing`. Apps import only through it; a lint rule rejects deep imports such as
+- **`exports` is the public surface:** `./theme`, `./display`, `./shell`, `./reaction`,
+  and `./testing`. Apps import only through it; a lint rule rejects deep imports such as
   `@open-reaction-database/ui/src/...`.
 - **Internal imports use `package.json` `imports`** (`#theme/...`, `#reaction/...`),
-  which travel with the package where tsconfig `paths` would not. Step W confirms that
+  which travel with the package where tsconfig `paths` would not. Step W2 confirms that
   Vite, Vitest, and `tsc -b` resolve them; if any does not, the package uses relative
   imports instead.
 - **Apps consume TypeScript source.** `exports` point at `src/`, and each app's Vite
@@ -102,13 +103,9 @@ interface ReactionSource {
   subscribe(listener: () => void): () => void;
 }
 
-interface ReactionSnapshot {
-  data: AppReaction;
-  summary: ReactionSummary;
-  pbReactionId?: string;
-  isValid?: boolean;
-  validation?: ReactionValidation | null;
-}
+/** The store's own object, so the Redux source needs no mapping to stay stable. */
+type ReactionSnapshot = BaseReaction &
+  Partial<Pick<DatasetReaction, 'pb_reaction_id' | 'is_valid' | 'validation'>>;
 
 /** Present only when the reaction can be edited. */
 interface ReactionActions {
@@ -140,7 +137,7 @@ settles the final list.
 | Hook | Replaces |
 | --- | --- |
 | `useReactionPart(path)` | `useSelector(selectReactionPartByPath(id, path))`, 15 files |
-| `useReactionMeta()` | `useSelector(selectReactionById(id))` for `pb_reaction_id`, `is_valid`, `validation`, `summary`, in the shared callers among its 15 |
+| `useReactionSnapshot()` | `useSelector(selectReactionById(id))`, in the shared callers among its 15 |
 | `useOrderedInputs()` | `selectOrderedInputsWrapper`, 2 files |
 | `usePreviews(ids)` | `selectPreviewsByIdsWrapper`, 4 files |
 | `useReactionActions()` | direct dispatches of `addUpdateReactionField` (10 files), `deleteReactionField`, `addIdentifierByName`, the lookup thunks |
@@ -148,10 +145,10 @@ settles the final list.
 | `useDrawer()` | the `features.reactionForm` slice and its five actions |
 | `useReactionLinks()`, `useReactionSlots()` | `reactionContext`'s injected components, and hard-coded editor routes |
 
-The data hooks use `useSyncExternalStore` with a selector, so a component re-renders
-only when its own part changes, as it does with Redux today. Redux Toolkit's Immer
-keeps unchanged parts' identity, so `getDeepReactionPart` on a new snapshot returns the
-same object for an untouched path.
+The data hooks use `useSyncExternalStoreWithSelector`, so a component re-renders when
+what it selected changes, as it does with `useSelector` today. The reducer rebuilds a
+reaction's `data` with a deep merge on every edit, so an edit re-renders every reader of
+that reaction, today and after; readers of other reactions do not re-render.
 
 ### What moves out of Redux
 
@@ -181,10 +178,10 @@ becomes a link from `useReactionLinks()`.
 
 ### Sources
 
-- `reduxReactionSource(store, reactionId)`, in the editor, maps
-  `reactionsById[reactionId]` and the previews slice to a snapshot, memoized with
-  `createSelector` so `getSnapshot` is stable. It handles numeric dataset IDs and the
-  templates' string IDs alike.
+- `reduxReactionSource(store, reactionId)`, in the editor, returns
+  `reactionsById[reactionId]` and the previews slice as they are, so `getSnapshot` is
+  stable without memoization. It handles numeric dataset IDs and the templates' string
+  IDs alike.
 - `createStaticReactionSource(snapshot)`, in the package, holds a fixed snapshot and
   fills previews through `reaction/previews`. The viewer and the tests use it.
 
@@ -197,19 +194,20 @@ touchpoints. Open UI PRs should land or rebase before W; Git follows the renames
 
 | Step | Change | Size |
 | --- | --- | --- |
-| W | Create the workspace; `git mv ui frontend/apps/editor`; create `packages/ui` with the theme and the leaf components that already take plain props (`KeyValueDisplay`, `RequiredOptionalFields`, `DataField`, `Counter`, `ReactionComponentPreview`, `renderValuePrecisionUnit`), with their tests. Update the files listed below. | moves everything; ~25 edited |
-| A | Add `ReactionProvider`, the hooks, `reduxReactionSource`, and `createStaticReactionSource`. Wrap `ReactionPage`, `TemplatePage`, and the list cards; the provider absorbs `reactionContext`. Add the Playwright flows and screenshots. No consumers yet. | ~8 |
-| B | Display reads: sections, previews, header, cards, validation results use the hooks. | ~21 |
+| W1 | Create the workspace: `git mv ui frontend/apps/editor`, root tool configs, and the files listed below. No source changes. | moves everything; ~15 edited |
+| W2 | Create `packages/ui` with the theme and the display primitives that have no store dependencies (`KeyValueDisplay`, `RequiredOptionalFields`, `DataField`, `Counter`), with their tests, and lint its dependencies. | ~45 |
+| A | Add `ReactionProvider`, the hooks, `reduxReactionSource`, and `createStaticReactionSource` in `apps/editor/src/features/reactions/provider/`, linted to stay free of the store. Wrap `ReactionPage` and `TemplatePage`; the provider supplies `reactionContext` too. Add the Playwright flows and screenshots. No consumers yet. | ~12 |
+| B | Display reads: sections, previews, header, cards, validation results use the hooks. Wrap the list cards; add the provider's `links`. | ~21 |
 | C | The drawer's stack moves into the provider; delete `features.reactionForm`. | ~8 |
 | D | Form reads: `buildUseInitialValues`, `buildUseSelectItems`, `reactionEntityToValidation`, and the custom nodes use the hooks. | ~16 |
 | E | Edits go through `useReactionActions()`; the lookup flags move to local state; delete `features.reactionLookup`. The editor supplies `actions` only for an editable dataset. Read-only drawers lose the Delete icon `ReactionEntityTitle` shows today whenever `hasDelete` is set. | ~14 |
 | F | The preview worker becomes `reaction/previews`; the middleware calls it. | ~4 |
-| G | Move the decoupled code, `AppReaction` and its converters (`ordBinpbToReaction`, `getReactionPreviews`, `parseValidation`, `getDeepReactionPart`, the copy and paste models) into `packages/ui/src/reaction` and the shell into `src/shell`. `PageContainer` takes header slots instead of importing `UserMenu`. | ~60 moved |
+| G | Move the provider, the decoupled code, the icons, `ReactionComponentPreview`, `renderValuePrecisionUnit`, `AppReaction` and its converters (`ordBinpbToReaction`, `getReactionPreviews`, `parseValidation`, `getDeepReactionPart`, the copy and paste models) into `packages/ui/src/reaction` and the shell into `src/shell`. `PageContainer` takes header slots instead of importing `UserMenu`. | ~60 moved |
 
 B through F depend on A, which adds every hook, and not on each other. G comes last.
 The viewer (step 4) starts after G.
 
-### Files W updates
+### Files W1 updates
 
 | File | Change |
 | --- | --- |
@@ -228,22 +226,23 @@ Dependabot covers only GitHub Actions today, so it needs no change.
 
 ## Testing
 
-- **Vitest projects.** `frontend/vitest.config.ts` lists one project per app and
-  package; `npx vitest run` at `frontend/` runs them all. The editor keeps its coverage
-  floors (lines 60, statements 60, branches 57, functions 60). `packages/ui` starts at
-  its measured coverage after W and is raised as code moves in.
+- **One Vitest config per workspace.** Vitest applies coverage options at the root of
+  a projects run, so each app and package keeps its own config and floors, and the
+  root `test:coverage` script runs each. The editor keeps its floors (lines 60,
+  statements 60, branches 57, functions 60). `packages/ui` starts at its measured
+  coverage after W2 and is raised as code moves in.
 - **`renderWithReaction(reaction, { actions, previews })`**, exported from
   `./testing`, renders under a plain source. Tests of shared components use it instead
   of building a Redux store; the editor keeps `renderWithProviders` for its pages.
-- **A contract suite** runs against both sources with the full-reaction fixture from
-  ord-app#837: the same snapshot gives the same hook output; the Redux source notifies
+- **A contract suite** runs against both sources (in A with small fixtures; B and D add
+  the full-reaction fixture from ord-app#837): the same snapshot gives the same hook output; the Redux source notifies
   subscribers when a field changes and returns the same snapshot when nothing did; and
   with no `actions` no edit control renders.
 - **Refactor PRs keep their assertions.** Only the render harness changes. A changed
   assertion is called out in its PR; E's Delete icon is the only one expected.
 - **Playwright**, added in A on the no-auth stack `test_e2e` already boots: open a
-  reaction, switch tabs and list, open and walk the drawer, and check that a read-only
-  dataset shows no edit or Delete controls. A few `toHaveScreenshot` captures (reaction
+  reaction, switch tabs and list, and open and close the drawer. E adds the check that a
+  read-only dataset shows no edit or Delete controls, when it changes that behavior. A few `toHaveScreenshot` captures (reaction
   page, open drawer, dataset card) catch look changes through G, when moving SCSS modules
   can reorder CSS. Baselines are generated in CI's Linux container and compared only
   there.
@@ -252,8 +251,8 @@ Dependabot covers only GitHub Actions today, so it needs no change.
 
 ## Risks
 
-- **Conflicts.** W moves every frontend file. Land or rebase the open UI PRs first, and
-  schedule W when few are open.
+- **Conflicts.** W1 moves every frontend file. Land or rebase the open UI PRs first, and
+  schedule W1 when few are open.
 - **Snapshot stability.** A `getSnapshot` that builds a new object on every call makes
   `useSyncExternalStore` loop. The contract suite checks that an unchanged store returns
   the same snapshot.
