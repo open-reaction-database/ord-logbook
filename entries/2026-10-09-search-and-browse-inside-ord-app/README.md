@@ -138,7 +138,9 @@ Five steps, each with its own design and PRs:
    reaction display and drawer, taking their data from a provider instead of the
    editor's store. The editor moves onto it first, so the refactor is proven before a
    viewer depends on it. Designed in
-   [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md).
+   [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md); its first
+   three PRs are planned in
+   [`assets/shared-frontend-plan.md`](assets/shared-frontend-plan.md).
 3. **Bring the search backend into ord-app** as its own package.
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
