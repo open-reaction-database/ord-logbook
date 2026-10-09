@@ -3,7 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; plan agreed, and the shared display layer (step 2) is designed next
+- **Status:** draft; plan agreed, and step 2 is designed in
+  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md)
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, code-reuse, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -54,6 +55,16 @@ Decided so far:
   charts, structure, SMARTS, and yield search, reaction detail, downloads, and `/ask`.
 - Keeping today's URLs (`/id/:reactionId`, `/dataset/:datasetId`) working is a
   nice-to-have, not a requirement.
+- The viewer's reaction page matches ord-app's view-only mode, including the read-only
+  form drawer behind each section's View button.
+- The shared code takes its data from a provider each app implements, Redux in the
+  editor and a plain object in the viewer, rather than the viewer running the editor's
+  store.
+- The frontend becomes an npm workspace in `frontend/`, with `apps/editor`,
+  `apps/viewer`, and one private shared package in `packages/ui`. Nothing is published
+  yet, but the package is built so that publishing later is a small step.
+- Molecules are drawn in the browser with Indigo in both apps, so the viewer's API
+  returns molblocks rather than SVG.
 
 ## Method
 
@@ -123,10 +134,11 @@ Five steps, each with its own design and PRs:
 
 1. **Land protobuf-es in ord-app**
    ([ord-app#837](https://github.com/open-reaction-database/ord-app/pull/837)).
-2. **Extract a shared display layer in ord-app:** the theme, the page shell, and the
-   reaction preview and sections, taking their data from a provider instead of the
+2. **Extract a shared frontend package in ord-app:** the theme, the page shell, and the
+   reaction display and drawer, taking their data from a provider instead of the
    editor's store. The editor moves onto it first, so the refactor is proven before a
-   viewer depends on it. This is designed next.
+   viewer depends on it. Designed in
+   [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md).
 3. **Bring the search backend into ord-app** as its own package.
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
@@ -139,11 +151,6 @@ Open questions:
   replace ord-interface's Postgres search with `ord_schema.search` and DuckDB over the
   source files. If that is ready by step 3, the new package builds on it rather than
   porting the cartridge-backed code.
-- **How much the viewer's reaction page shows.** ord-app shows section summaries and
-  puts every field in the read-only form drawer. Using that drawer in the viewer brings
-  the editor's form configuration (5.3k lines) into the viewer's bundle.
-- **Molecule drawing.** Following ord-app means drawing in the browser with Indigo, so
-  the viewer's API returns molblocks rather than SVG.
 - **ord-interface's open PRs**, including the protobuf-es migration (#221), matter only
   for as long as ord-interface serves the apex domain.
 
