@@ -3,8 +3,9 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** design agreed; W1, W2, and A planned in
-  [`shared-frontend-plan.md`](shared-frontend-plan.md)
+- **Status:** design agreed; W1, W2, and A done (planned in
+  [`shared-frontend-plan.md`](shared-frontend-plan.md)); B through G planned in
+  [`shared-frontend-plan-b-g.md`](shared-frontend-plan-b-g.md)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 2 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -75,8 +76,9 @@ deploys while `packages/` holds what is shared. The Python layout is step 3's de
   `import/no-extraneous-dependencies` checks every import against the package's own
   `package.json`, because hoisting would otherwise let an undeclared import resolve.
 - **`exports` is the public surface:** `./theme`, `./display`, `./shell`, `./reaction`,
-  and `./testing`. Apps import only through it; a lint rule rejects deep imports such as
-  `@open-reaction-database/ui/src/...`.
+  `./reaction/model` (types and converters, safe to import from a worker),
+  `./reaction/previews`, and `./testing`. Apps import only through it; a lint rule
+  rejects deep imports such as `@open-reaction-database/ui/src/...`.
 - **Internal imports use `package.json` `imports`** (`#theme/...`, `#reaction/...`),
   which travel with the package where tsconfig `paths` would not. Step W2 confirms that
   Vite, Vitest, and `tsc -b` resolve them; if any does not, the package uses relative
@@ -98,8 +100,8 @@ provider's hooks.
 interface ReactionSource {
   /** Returns the same object until the reaction changes. */
   getSnapshot(): ReactionSnapshot | undefined;
-  /** SVGs keyed by component ID; same stability rule. */
-  getPreviews(): PreviewsById;
+  /** Preview states (loading, SVG) keyed by component ID; same stability rule. */
+  getPreviews(): PreviewStatesById;
   subscribe(listener: () => void): () => void;
 }
 
@@ -107,30 +109,27 @@ interface ReactionSource {
 type ReactionSnapshot = BaseReaction &
   Partial<Pick<DatasetReaction, 'pb_reaction_id' | 'is_valid' | 'validation'>>;
 
-/** Present only when the reaction can be edited. */
+/** Present only when the reaction can be edited; each promise resolves even if the save fails. */
 interface ReactionActions {
-  update(path: ReactionPathComponents, value: unknown): void;
-  remove(path: ReactionPathComponents): void;
-  lookupCompound(query: string): Promise<LookupResult>;
-  currentPerson?(): Person | undefined;
-}
-
-interface ReactionLinks {
-  /** Where a reaction ID links to, or undefined for no link. */
-  reaction(pbReactionId: string): string | undefined;
+  update(path: ReactionPathComponents, value: unknown): Promise<void>;
+  remove(path: ReactionPathComponents): Promise<void>;
+  /** Resolves a compound name and appends it as an identifier; false if it did not resolve. */
+  addIdentifierByName(identifiersPath: ReactionPathComponents, name: string): Promise<boolean>;
+  currentPerson?(): ReactionPerson | undefined;
 }
 
 <ReactionProvider
+  reactionId={reactionId}    // the host's ID, for its own slots
   source={source}
   actions={actions}          // omitted ⇒ read-only
   isTemplate={false}
-  links={links}
-  slots={{ ViewDeleteButtons, ValueLabel, ViewOnlyLabel, HeaderActions }}
+  slots={{ ViewDeleteButtons, ValueLabel, ViewOnlyLabel, ReactionLink, MoleculeEditor }}
 >
 ```
 
-The `ReactionActions` methods above come from the dispatch inventory below; step E
-settles the final list.
+`ReactionLink` (how another reaction is linked by its ORD ID) and `MoleculeEditor` (the
+Ketcher drawing dialog) are optional; without them, a linked ID shows as text and
+molblocks cannot be drawn.
 
 ### Hooks
 
@@ -142,8 +141,9 @@ settles the final list.
 | `usePreviews(ids)` | `selectPreviewsByIdsWrapper`, 4 files |
 | `useReactionActions()` | direct dispatches of `addUpdateReactionField` (10 files), `deleteReactionField`, `addIdentifierByName`, the lookup thunks |
 | `useIsViewOnly()` | `isViewOnly` from `reactionContext`, 24 files; true when no `actions` were supplied |
-| `useDrawer()` | the `features.reactionForm` slice and its five actions |
-| `useReactionLinks()`, `useReactionSlots()` | `reactionContext`'s injected components, and hard-coded editor routes |
+| `useIsTemplate()`, `useReactionId()` | `isTemplate` and `reactionId` from `reactionContext` and `reactionEntityContext` |
+| `useDrawerStack()`, `useDrawer()` | the `features.reactionForm` slice and its five actions; the stack and the actions are separate, so components that only open forms do not re-render |
+| `useReactionSlots()` | `reactionContext`'s injected components, and the crude component's editor route |
 
 The data hooks use `useSyncExternalStoreWithSelector`, so a component re-renders when
 what it selected changes, as it does with `useSelector` today. The reducer rebuilds a
@@ -153,28 +153,33 @@ that reaction, today and after; readers of other reactions do not re-render.
 ### What moves out of Redux
 
 - **The drawer's stack** (`features.reactionForm`) becomes `useReducer` state inside the
-  provider. Only `ReactionDetailsSidebar`, the View buttons, `ReactionValidationList`,
-  and the templates' `VariablesSidebar` use it, all inside the provider. The provider is
-  keyed by reaction, so the stack resets on navigation, which the reducer did by hand on
+  provider. `ReactionDetailsSidebar` reads it; thirteen components write it, all inside
+  the provider. The templates' `VariablesSidebar` closed itself by listening to the
+  stack's actions and now closes itself when a variable is clicked. The pages key the
+  provider by reaction (wouter does not remount a page when only its parameters
+  change), so the stack resets on navigation, which the reducer did by hand on
   `searchReactionActions.success`.
 - **The compound lookup's flags** (`features.reactionLookup`) become local state in
   `ComponentsLookup` and `CustomIdentifiers`, with the request going through
-  `actions.lookupCompound`.
+  `actions.addIdentifierByName`.
 - **The preview worker** becomes a plain module, `reaction/previews`:
-  `renderPreviews(molblocksById): Promise<Record<string, string>>`, which owns
-  `initIndigo()` (moved out of `src/core/AppRoot.tsx`). The editor's
-  `previewsWorkerMiddleware` calls it; the plain source calls it and notifies its
-  subscribers when the SVGs arrive.
+  `renderPreviews(molblocksById, { size }): Promise<PreviewsById>` (a base64 SVG or null
+  per key), which owns one worker for every caller and rejects if the worker cannot
+  start. The editor's `previewsWorkerMiddleware` calls it, and so does the drawer's
+  molblock preview, so Indigo no longer loads on the main thread (`initIndigo()` leaves
+  `src/core/AppRoot.tsx`). The plain source calls it on first subscription and notifies
+  its subscribers when the SVGs arrive.
 
 ### What stays in the editor
 
 Templates' variables and `VariablesSidebar`, enumeration, Save as Template, rename,
-remove, downloads, the dataset list with its pagination and filters, and the users,
-groups, and datasets slices. They plug in through `slots` and `actions`. The header's
-action buttons become the `HeaderActions` slot, which also keeps `EnumerationWizard`,
-`SaveAsTemplate`, and their Redux imports out of the package. `CrudeComponentView`'s
-`searchReaction` thunk, which looks a reaction up and navigates to an editor route,
-becomes a link from `useReactionLinks()`.
+remove, downloads, the dataset list with its pagination and filters, the Ketcher
+editor, and the users, groups, and datasets slices. They plug in through `slots`,
+`actions`, and props. The header takes its editor controls as props
+(`ReactionHeader({ actions, titleActions })`), which keeps `SaveAsTemplate`, the
+download menu, rename, and their Redux imports out of the package.
+`CrudeComponentView`'s `searchReaction` thunk, which looks a reaction up in the active
+dataset and navigates to an editor route, becomes the editor's `ReactionLink` slot.
 
 ### Sources
 
@@ -197,15 +202,15 @@ touchpoints. Open UI PRs should land or rebase before W; Git follows the renames
 | W1 | Create the workspace: `git mv ui frontend/apps/editor`, root tool configs, and the files listed below. No source changes. | moves everything; ~15 edited |
 | W2 | Create `packages/ui` with the theme and the display primitives that have no store dependencies (`KeyValueDisplay`, `RequiredOptionalFields`, `DataField`, `Counter`), with their tests, and lint its dependencies. | ~45 |
 | A | Add `ReactionProvider`, the hooks, `reduxReactionSource`, and `createStaticReactionSource` in `apps/editor/src/features/reactions/provider/`, linted to stay free of the store. Wrap `ReactionPage` and `TemplatePage`; the provider supplies `reactionContext` too. Add the Playwright flows and screenshots. No consumers yet. | ~12 |
-| B | Display reads: sections, previews, header, cards, validation results use the hooks. Wrap the list cards; add the provider's `links`. | ~21 |
-| C | The drawer's stack moves into the provider; delete `features.reactionForm`. | ~8 |
-| D | Form reads: `buildUseInitialValues`, `buildUseSelectItems`, `reactionEntityToValidation`, and the custom nodes use the hooks. | ~16 |
-| E | Edits go through `useReactionActions()`; the lookup flags move to local state; delete `features.reactionLookup`. The editor supplies `actions` only for an editable dataset. Read-only drawers lose the Delete icon `ReactionEntityTitle` shows today whenever `hasDelete` is set. | ~14 |
-| F | The preview worker becomes `reaction/previews`; the middleware calls it. | ~4 |
-| G | Move the provider, the decoupled code, the icons, `ReactionComponentPreview`, `renderValuePrecisionUnit`, `AppReaction` and its converters (`ordBinpbToReaction`, `getReactionPreviews`, `parseValidation`, `getDeepReactionPart`, the copy and paste models) into `packages/ui/src/reaction` and the shell into `src/shell`. `PageContainer` takes header slots instead of importing `UserMenu`. | ~60 moved |
+| B | Display reads: sections, previews, header, cards, validation results use the hooks. Every preview gets a provider (the list cards and the enumeration wizard too); the header's editor controls become props; the crude component's link becomes a slot. | ~35 |
+| C | The drawer's stack moves into the provider; delete `features.reactionForm`. | ~20, with tests ~40 |
+| D | Form reads: `buildUseInitialValues`, `buildUseSelectItems`, `reactionEntityToValidation`, and the custom nodes use the hooks. | ~30 |
+| E | Edits go through `useReactionActions()`; the lookup flags move to local state; delete `features.reactionLookup`. The editor supplies `actions` only for an editable dataset. Read-only drawers, templates' included, lose the Delete icon `ReactionEntityTitle` shows today whenever `hasDelete` is set. `reactionContext` goes. | ~25 |
+| F | The preview worker becomes `reaction/previews`; the middleware, the drawer's molblock preview, and the plain source call it. | ~12 |
+| G | In three PRs. G1 moves `AppReaction` and its converters (`ordBinpbToReaction`, `getReactionPreviews`, `parseValidation`, `getDeepReactionPart`, the copy and paste models) into `reaction/model`, and the provider and test helpers. G2 moves the view and drawer, the icons, `ReactionComponentPreview`, `renderValuePrecisionUnit`, and the `common/` controls they use; Ketcher becomes a slot. G3 moves the shell into `src/shell`; `PageContainer` takes header controls instead of importing `UserMenu`. | ~230 moved, ~134 tests |
 
-B through F depend on A, which adds every hook, and not on each other. G comes last.
-The viewer (step 4) starts after G.
+B through E run in order, since they touch the same files; F needs only A. G comes
+last. The viewer (step 4) starts after G.
 
 ### Files W1 updates
 
@@ -259,8 +264,9 @@ Dependabot covers only GitHub Actions today, so it needs no change.
 - **The lockfile.** Moving to a workspace regenerates `package-lock.json`. W's diff
   should change locations, not versions; any version change is a bug in the move.
 - **Bundle size.** The drawer imports Ketcher statically through `CustomIdentifiers`.
-  It is editor-only in practice, so G makes it a lazy import before the viewer depends
-  on the drawer.
+  It is editor-only in practice, so G makes it a slot the editor supplies; a lazy
+  import inside the package would still make every app that compiles it compile
+  Ketcher.
 - **Subpath imports.** If `#...` imports fail anywhere in the toolchain, the package uses
   relative imports; nothing else in the design changes.
 

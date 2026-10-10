@@ -140,7 +140,9 @@ Five steps, each with its own design and PRs:
    viewer depends on it. Designed in
    [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md); its first
    three PRs are planned in
-   [`assets/shared-frontend-plan.md`](assets/shared-frontend-plan.md).
+   [`assets/shared-frontend-plan.md`](assets/shared-frontend-plan.md) and merged
+   (ord-app#856–#858), and the rest in
+   [`assets/shared-frontend-plan-b-g.md`](assets/shared-frontend-plan-b-g.md).
 3. **Bring the search backend into ord-app** as its own package.
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
