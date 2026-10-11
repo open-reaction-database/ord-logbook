@@ -3,8 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; plan agreed, and step 2 is designed in
-  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md)
+- **Status:** draft; plan agreed, and step 2 is done (designed in
+  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md))
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, code-reuse, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -142,7 +142,8 @@ Five steps, each with its own design and PRs:
    three PRs are planned in
    [`assets/shared-frontend-plan.md`](assets/shared-frontend-plan.md) and merged
    (ord-app#856–#858), and the rest in
-   [`assets/shared-frontend-plan-b-g.md`](assets/shared-frontend-plan-b-g.md).
+   [`assets/shared-frontend-plan-b-g.md`](assets/shared-frontend-plan-b-g.md) and merged
+   (ord-app#860, #862–#867, and #869).
 3. **Bring the search backend into ord-app** as its own package.
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.

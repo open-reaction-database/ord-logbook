@@ -3,7 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** ready to execute; B starts from ord-app `main` at
+- **Status:** done; merged as ord-app#860 (B), #862 (C), #863 (D), #864 (E), #865 (F),
+  #866 (G1), #867 (G2), and #869 (G3), starting from ord-app `main` at
   [`65ac1eb`](https://github.com/open-reaction-database/ord-app/commit/65ac1eb)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
