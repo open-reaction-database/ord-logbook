@@ -42,14 +42,14 @@ Parquet, with no Postgres and no Valkey. When this step is done:
 
 ### Why two lockfiles
 
-The editor locks ord-schema 0.6.31 and RDKit 2024.9. The viewer needs ord-schema after
-v0.9.0, whose dataset filter
-([ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092)),
+The editor locks ord-schema 0.6.31 and RDKit 2024.9. The viewer needs ord-schema 0.9.1,
+the first release with the dataset filter
+([ord-schema#1092](https://github.com/open-reaction-database/ord-schema/pull/1092)), the
 chirality flag ([#1091](https://github.com/open-reaction-database/ord-schema/pull/1091)),
 reaction SMARTS ([#1093](https://github.com/open-reaction-database/ord-schema/pull/1093)),
 and `Corpus.reactions()` and `datasets()`
-([#1095](https://github.com/open-reaction-database/ord-schema/pull/1095)) are not yet
-released. And `Corpus` opens only artifacts stamped with the serving process's exact
+([#1095](https://github.com/open-reaction-database/ord-schema/pull/1095)). And `Corpus`
+opens only artifacts stamped with the serving process's exact
 ord-schema and RDKit versions, so the viewer's pins are set by the corpus ord-schema
 published, not by the viewer. In one environment, every republished corpus that needs a
 new ord-schema would re-pin the editor, and no editor upgrade could land before a
@@ -100,8 +100,10 @@ docker-compose.yml  .pre-commit-config.yaml  .jscpd.json  Makefile  scripts/
 `ord_viewer` pins `ord-schema[search,nl]` and `rdkit` with `==` to the versions that
 derived the published corpus, and installs ord-schema from a release only. Installed
 from git, ord-schema reports its last release's version while running different code,
-so the stamp check could not catch a mismatch. The first `backend/viewer` PR therefore
-waits for an ord-schema release that contains everything merged since v0.9.0.
+so the stamp check could not catch a mismatch. V1 starts on ord-schema 0.9.1, released
+on 2026-10-11 with everything merged since v0.9.0, and RDKit 2026.3.5, the version
+ord-schema locks at that release. Both follow the stamps of the corpus ord-schema
+publishes.
 
 ## API
 
@@ -231,7 +233,7 @@ so they cannot drift apart, and no other client depends on them.
 
 Outside ord-app, first:
 
-- an ord-schema release containing everything merged since v0.9.0, which V1 pins;
+- ord-schema 0.9.1, which V1 pins, released on 2026-10-11;
 - a corpus derived and published by that release, which step 5 needs and step 3 does
   not.
 
@@ -246,7 +248,8 @@ In ord-app, each PR from an up-to-date `main`, green on its own:
 | V3 | Search, the error table, the concurrency cap, and the resolver cache |
 | V4 | `/ask` |
 
-L1 and L2 can start now; V1 waits for the ord-schema release. CI job names stay
+They run in that order, since V1 builds on L1's root `ruff.toml` and hooks, and nothing
+outside ord-app blocks them now that 0.9.1 is out. CI job names stay
 `test_python`, `check_python`, and `test_e2e`; `test_python_viewer` is new and has to be
 added to the branch protection's required checks by hand.
 
