@@ -161,8 +161,8 @@ Open questions:
   DuckDB over the source files for records, as
   [2026-10-02](../2026-10-02-what-the-search-api-still-needs/README.md) and
   [2026-10-03](../2026-10-03-source-parquet-instead-of-the-orm/README.md) planned. The
-  parity gaps are merged in ord-schema but unreleased, so step 3's package waits on an
-  ord-schema release, and step 5 on ord-schema publishing a corpus derived by it.
+  parity gaps shipped in ord-schema 0.9.1 on 2026-10-11, which step 3's package pins;
+  step 5 waits on ord-schema publishing a corpus derived by it.
 - **ord-interface's open PRs**, including the protobuf-es migration (#221), matter only
   for as long as ord-interface serves the apex domain.
 
