@@ -3,8 +3,9 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; plan agreed, and step 2 is done (designed in
-  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md))
+- **Status:** draft; plan agreed, step 2 is done (designed in
+  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md)), and step 3 is
+  designed in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md)
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, code-reuse, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -40,9 +41,12 @@ shell, and the reaction display, and the search API moves into ord-app with them
   ord-app's reaction display reads through Redux, on the editor's own reaction model
   (§2). Before a viewer can reuse it, it has to take its data from a source the viewer
   can supply.
-- **Deployment barely changes.** Both apps already sit behind one load balancer under
-  separate host rules, and Pulumi builds each from a sibling checkout and a Dockerfile
-  path (§3). The interface stack can point at a second Dockerfile in ord-app.
+- **Routing and builds barely change; the task does.** Both apps already sit behind one
+  load balancer under separate host rules, and Pulumi builds each from a sibling
+  checkout and a Dockerfile path (§3). The interface stack can point at a second
+  Dockerfile in ord-app. The search it will serve holds its corpus in memory, though,
+  so the task grows from 1 vCPU and 2 GB to about 4 vCPU and 16 GB
+  ([step 3's design](assets/viewer-backend-design.md#step-5-inherits)).
 
 Decided so far:
 
@@ -144,18 +148,21 @@ Five steps, each with its own design and PRs:
    (ord-app#856–#858), and the rest in
    [`assets/shared-frontend-plan-b-g.md`](assets/shared-frontend-plan-b-g.md) and merged
    (ord-app#860, #862–#867, and #869).
-3. **Bring the search backend into ord-app** as its own package.
+3. **Bring the search backend into ord-app** as its own package: `ord_viewer`, a second
+   uv project beside the editor's, both moved under `backend/`. It serves the viewer
+   from `ord_schema.search` and the source Parquet, with no Postgres or Valkey. Designed
+   in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md).
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
 
 Open questions:
 
-- **What the moved backend runs on.**
+- ~~**What the moved backend runs on.**~~ Decided: `ord_schema.search` for search and
+  DuckDB over the source files for records, as
   [2026-10-02](../2026-10-02-what-the-search-api-still-needs/README.md) and
-  [2026-10-03](../2026-10-03-source-parquet-instead-of-the-orm/README.md) plan to
-  replace ord-interface's Postgres search with `ord_schema.search` and DuckDB over the
-  source files. If that is ready by step 3, the new package builds on it rather than
-  porting the cartridge-backed code.
+  [2026-10-03](../2026-10-03-source-parquet-instead-of-the-orm/README.md) planned. The
+  parity gaps are merged in ord-schema but unreleased, so step 3's package waits on an
+  ord-schema release, and step 5 on ord-schema publishing a corpus derived by it.
 - **ord-interface's open PRs**, including the protobuf-es migration (#221), matter only
   for as long as ord-interface serves the apex domain.
 
