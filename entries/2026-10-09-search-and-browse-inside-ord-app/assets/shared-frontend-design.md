@@ -3,9 +3,10 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** design agreed; W1, W2, and A done (planned in
-  [`shared-frontend-plan.md`](shared-frontend-plan.md)); B through G planned in
-  [`shared-frontend-plan-b-g.md`](shared-frontend-plan-b-g.md)
+- **Status:** done. W1, W2, and A merged as ord-app#856–#858 (planned in
+  [`shared-frontend-plan.md`](shared-frontend-plan.md)); B through G merged as
+  ord-app#860, #862–#867, and #869 (planned in
+  [`shared-frontend-plan-b-g.md`](shared-frontend-plan-b-g.md))
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 2 of [the entry](../README.md)'s plan. Paths are in ord-app at
