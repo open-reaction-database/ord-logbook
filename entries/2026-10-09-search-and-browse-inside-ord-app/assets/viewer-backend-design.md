@@ -3,7 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design agreed, not started
+- **Status:** draft; design agreed, planned in
+  [`viewer-backend-plan.md`](viewer-backend-plan.md), not started
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 3 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -71,8 +72,8 @@ backend/
       corpus.py           opening and holding the Corpus, and the resolver cache
       molblocks.py        {inputs, outcomes, workups} for one reaction
       routes/             datasets, reactions, search, ask, download, health
-      conftest.py         the fixture corpus
-      testdata/           small source datasets
+      testing.py          the test corpus, built from reactions in code and derived
+      conftest.py         session fixtures over it
 frontend/                 unchanged: apps/editor, apps/viewer (step 4), packages/ui
 deploy/
   editor/                 Dockerfile (from Dockerfile.single), Dockerfile.dockerignore,
@@ -128,27 +129,32 @@ so they cannot drift apart, and no other client depends on them.
   nothing `/ask` does not: a model can already emit any grammar query, and the grammar
   was built for that — no SQL, a row bound, a whole-call timeout, and a sandboxed DuckDB.
   FastAPI's OpenAPI document carries the `Query` JSON Schema.
-- **A result** is `{kind: "reactions", reaction_ids, truncated}`, or
-  `{kind: "table", columns, rows, truncated}` for an aggregate. `truncated` is the
+- **A result** is `{kind: "reactions", reaction_ids, truncated}` for a plain query, or
+  `{kind: "table", columns, rows, truncated}` for one with an `aggregate`; a query that
+  matches nothing is an empty result, not 404. `truncated` is the
   `ord.truncated` flag `Corpus.search` sets when the 1,000-row bound may have cut the
   answer. The viewer then fetches a page of cards at a time through `/api/reactions`.
 - **A reaction** is the editor's response shape, less its editor fields: `binpb` is the
   base64 serialized `Reaction`, as `Corpus.reactions()` returns it, and `molblocks` is
   `{inputs, outcomes, workups}`, built with `message_helpers.molblock_from_compound`.
   The shared package's `ordBinpbToReaction` and `getReactionPreviews` already read both,
-  and Indigo draws them in the browser. IDs come back in the order asked, and unknown
-  IDs are skipped.
+  and Indigo draws them in the browser. A compound with no structural identifier, such
+  as one given only by name, has a `null` molblock. Each known reaction comes back once,
+  in the order first asked; unknown IDs are skipped, so a batch of only unknown IDs is
+  `[]`, and one unknown ID on `/api/reactions/{reaction_id}` is 404.
 - **The batch fetch is a GET**, to match datasets: 100 IDs are about 4 KiB of query
   string, inside nginx's default 8 KiB request line, and the pages can be cached. Search,
   ask, and download take bodies; 1,000 IDs are about 40 KiB.
 - **Dataset compounds** are an aggregate over `inputs.components` or
   `outcomes.products`, filtered by `dataset_id` and grouped by `smiles`, each row with a
-  molblock for the chart's image. They ran in 0.04–0.93 s in
-  [2026-10-03](../../2026-10-03-source-parquet-instead-of-the-orm/README.md#5-every-other-postgres-read-has-a-route).
-- **Datasets** come from `Corpus.datasets()`, sorted by name. `submitted_at` waits on the
+  molblock for the chart's image; an unknown dataset is 404. They ran in 0.04–0.93 s in
+  [2026-10-03](../../2026-10-03-source-parquet-instead-of-the-orm/README.md#5-every-other-postgres-read-has-a-route),
+  and wait for a search slot as a search does.
+- **Datasets** come from `Corpus.datasets()`, sorted by name. A source with no
+  `dataset_id` is left out, since no route could address it. `submitted_at` waits on the
   [date decisions](../../2026-09-03-date-time-formats/README.md).
 - **Downloads** are `.pb.gz` only, as in ord-interface's UI, built in memory: a
-  1,000-reaction download is about 3 MiB.
+  1,000-reaction download is about 3 MiB. A request naming no known reaction is 404.
 
 ### Errors
 
@@ -156,7 +162,7 @@ so they cannot drift apart, and no other client depends on them.
 | --- | --- |
 | `query.QueryError`, or a compound that does not resolve | 422, with the message |
 | `TimeoutError` from `Corpus.search` | 504 |
-| No free search slot within 10 s | 503 |
+| No free search slot within `ORD_VIEWER_SLOT_WAIT_SECONDS` | 503 |
 | `/ask` with no API key, or `ModelUnavailableError` | 503 |
 | `ModelRateLimitedError` | 429 |
 | `ModelRefusedError`, `UnanswerableError` | 422, with the model's reason |
@@ -175,9 +181,9 @@ so they cannot drift apart, and no other client depends on them.
 - **One process, one corpus.** `uvicorn ord_viewer.main:app` with one worker, since a
   corpus over ORD holds about 7 GiB with an occurrences directory. Handlers are plain
   `def`, so FastAPI runs them on its threadpool; `Corpus` is safe to share across
-  threads. A semaphore caps searches and asks in flight at `MAX_CONCURRENT`; a request
-  that waits 10 s for a slot gets 503. Each search gets cores ÷ `MAX_CONCURRENT` RDKit
-  threads.
+  threads. A semaphore caps searches, asks, and the dataset charts' aggregates in flight
+  at `MAX_CONCURRENT`; a request that waits 10 s for a slot gets 503, and a request that
+  fails frees its slot. Each search gets cores ÷ `MAX_CONCURRENT` RDKit threads.
 - **Opening.** The lifespan opens the corpus with `require_current`, `require_pivots`,
   and `require_occurrences`, `warm=True`, `sources_pattern`, and `max_rows=1000`, then
   calls `check_pivots()`, which takes the first-ask cost off every pivot level. That is
@@ -186,7 +192,9 @@ so they cannot drift apart, and no other client depends on them.
   deployment; swapping in place would double memory.
 - **Compound names.** A `{"compound": ...}` value resolves through ord-schema's chain —
   PubChem, CACTUS, then OPSIN — behind an in-process LRU passed as `Corpus(resolver=...)`,
-  in place of ord-interface's 30-day Valkey cache.
+  in place of ord-interface's 30-day Valkey cache. A name that resolves is kept; one
+  that fails raises `ValueError`, which ord-schema's question log reads as an unresolved
+  compound, and is retried next time.
 - **`/ask`** calls `nl.ask(question, corpus, timeout_seconds=60)`: one model call to
   translate and one to write the answer's sentence, with the system prompt cached by
   ord-schema. The concurrency cap covers it, and the viewer image's nginx adds a
@@ -198,9 +206,10 @@ so they cannot drift apart, and no other client depends on them.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ORD_VIEWER_CORPUS_DIR` | required | A root holding `projections/`, `structures/`, `pivots/`, `occurrences/`, and `sources/`: the layout ord-schema publishes, and its derive scripts' until then |
+| `ORD_VIEWER_CORPUS_DIR` | required | A root holding `projections/`, `structures/`, `pivots/`, `occurrences/`, and `sources/`, each with one shard level of files (`projections/*/*.parquet`, and `sources/*/*.parquet` as in ord-data's `data/<shard>/`): the layout ord-schema publishes, and its derive scripts' until then |
 | `ORD_VIEWER_MEMORY_LIMIT` | unset | DuckDB's `memory_limit` |
 | `ORD_VIEWER_MAX_CONCURRENT` | 4 | Searches and asks in flight |
+| `ORD_VIEWER_SLOT_WAIT_SECONDS` | 10 | How long a request waits for a slot before 503 |
 | `ORD_VIEWER_SEARCH_TIMEOUT_SECONDS` | 30 | Passed to `Corpus.search` |
 | `ORD_VIEWER_ASK_MODEL` | ord-schema's `DEFAULT_MODEL` | The model `/ask` uses |
 | `ORD_VIEWER_ASK_LOG` | `none` | `none` or `stdout`: the question log's sink |
@@ -208,12 +217,13 @@ so they cannot drift apart, and no other client depends on them.
 
 ## Testing
 
-- **A fixture corpus, derived rather than committed.** A session fixture derives a
-  corpus into a temporary directory from two or three small source datasets in
-  `ord_viewer/testdata/`, with ord-schema's derive scripts run in the test environment,
-  so the stamps match by construction. A committed corpus would go stale with every pin.
-  The datasets are chosen to exercise a stereocenter, a reaction SMARTS, yields, two
-  datasets for the dataset filter, and a name the offline resolver knows.
+- **A fixture corpus, derived rather than committed.** A session fixture writes two small
+  datasets, built from reactions in code (`ord_viewer/testing.py`), as source Parquet in
+  a temporary directory and derives a corpus from them with ord-schema's derive scripts
+  run in the test environment, so the stamps match by construction. A committed corpus
+  would go stale with every pin. The reactions are chosen to exercise a stereocenter and
+  its mirror image, a reaction SMARTS, yields, two datasets for the dataset filter, a
+  compound given only by name, and a name the offline resolver knows.
 - **Routes through `TestClient`**, with the lifespan pointed at the fixture corpus: each
   route, its limits, and every row of the error table, including 503 when the semaphore
   is full.
