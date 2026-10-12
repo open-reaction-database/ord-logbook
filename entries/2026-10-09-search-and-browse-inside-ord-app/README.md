@@ -151,7 +151,8 @@ Five steps, each with its own design and PRs:
 3. **Bring the search backend into ord-app** as its own package: `ord_viewer`, a second
    uv project beside the editor's, both moved under `backend/`. It serves the viewer
    from `ord_schema.search` and the source Parquet, with no Postgres or Valkey. Designed
-   in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md).
+   in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md) and planned in
+   [`assets/viewer-backend-plan.md`](assets/viewer-backend-plan.md).
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
 
