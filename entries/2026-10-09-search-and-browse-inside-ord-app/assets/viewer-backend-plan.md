@@ -33,10 +33,21 @@ updated to match.
 
 ## Global Constraints
 
-- Repository: `open-reaction-database/ord-app`, local checkout `~/ord/ord-app`. Every PR
-  starts from an up-to-date `main` on its own branch, after the previous PR has merged.
-  Never commit to `main`; never force-push; work in the checkout, not a worktree; check
-  `git status` before switching branches.
+- Repository: `open-reaction-database/ord-app`, main checkout `~/ord/ord-app`. Every PR
+  gets its own worktree at `~/ord/worktrees/ord-app/<branch>`, branched from an
+  up-to-date `origin/main` after the previous PR has merged:
+
+  ```bash
+  git -C ~/ord/ord-app fetch origin
+  git -C ~/ord/ord-app worktree add -b <branch> ~/ord/worktrees/ord-app/<branch> origin/main
+  cd ~/ord/worktrees/ord-app/<branch>
+  (cd frontend && npm ci --ignore-scripts)   # the pre-commit hooks and E2E use its tools
+  ```
+
+  Every command in a PR's tasks runs in that worktree. Leave the main checkout's branch
+  alone: the user or another session may be using it. Once the PR merges, remove the
+  worktree with `git -C ~/ord/ord-app worktree remove ~/ord/worktrees/ord-app/<branch>`.
+  Never commit to `main`; never force-push.
 - Order: L1, L2 (with its ord-infrastructure PR), V1, V2, V3, V4.
 - L1 and L2 change no behavior. Existing test assertions stay as they are; only paths and
   import names change. CI job names stay `test_python`, `test_e2e`, `check_python`,
@@ -84,7 +95,7 @@ has a test in the task named.
 
 ## PR L1: the editor's Python moves into `backend/editor`
 
-Branch `backend-editor-layout`, from `main`.
+Branch `backend-editor-layout`, in its own worktree from `origin/main`.
 
 Open PRs that touch the backend (ord-app#817, #829, #834, #847) already need a rebase
 past the frontend's move to `frontend/`; L1 adds the rename to that. Say so in the PR's
@@ -108,13 +119,10 @@ Notes.
 - Produces: the import package `ord_editor` (formerly `ord_app`); the uv project at
   `backend/editor` named `ord-editor`; the root `ruff.toml` whose `src` later tasks extend.
 
-- [ ] **Step 1: Branch and baseline.**
+- [ ] **Step 1: Worktree and baseline.** Create the worktree for `backend-editor-layout`
+  as the Global Constraints show, then from it:
 
   ```bash
-  cd ~/ord/ord-app
-  git status --short          # must print nothing
-  git switch main && git pull --ff-only
-  git switch -c backend-editor-layout
   docker compose up -d db     # Postgres on localhost:5400, user and database "ord"
   uv sync --frozen --no-build
   uv run --frozen --no-build alembic upgrade head
@@ -509,14 +517,15 @@ Notes.
   renamed and removed targets; that the job names are unchanged; the test count N; and,
   under Notes, the open PRs that will need a rebase (#817, #829, #834, #847).
 - [ ] **Step 2:** Check CI once, then go on; work Greptile's and SonarCloud's findings
-  with the `review-pr` skill. After merge, `git switch main && git pull --ff-only`.
+  with the `review-pr` skill. After merge, remove the worktree.
 
 ---
 
 ## PR L2: the editor's image files move into `deploy/editor`
 
-Branch `deploy-editor-layout`, from `main` after L1 merges. Its ord-infrastructure
-counterpart, branch `ord-app-deploy-editor`, merges after it and before the next deploy.
+Branch `deploy-editor-layout`, in its own worktree from `origin/main` after L1 merges.
+Its ord-infrastructure counterpart, branch `ord-app-deploy-editor`, merges after it and
+before the next deploy.
 
 ### Task L2.1: Move the image files
 
@@ -535,12 +544,10 @@ counterpart, branch `ord-app-deploy-editor`, merges after it and before the next
   `.dockerignore`, so each image keeps its own ignore list. Step 4's `deploy/viewer` follows
   the same pattern.
 
-- [ ] **Step 1: Move.**
+- [ ] **Step 1: Move.** Create the worktree for `deploy-editor-layout` as the Global
+  Constraints show, then from it:
 
   ```bash
-  cd ~/ord/ord-app
-  git status --short && git switch main && git pull --ff-only
-  git switch -c deploy-editor-layout
   mkdir -p deploy/editor
   git mv Dockerfile.single deploy/editor/Dockerfile
   git mv nginx.conf supervisord.conf deploy/editor/
@@ -625,25 +632,29 @@ counterpart, branch `ord-app-deploy-editor`, merges after it and before the next
 - [ ] **Step 1:**
 
   ```bash
-  cd ~/ord/ord-infrastructure
-  git status --short && git switch main && git pull --ff-only
-  git switch -c ord-app-deploy-editor
+  git -C ~/ord/ord-infrastructure fetch origin
+  git -C ~/ord/ord-infrastructure worktree add -b ord-app-deploy-editor \
+    ~/ord/worktrees/ord-infrastructure/ord-app-deploy-editor origin/main
+  cd ~/ord/worktrees/ord-infrastructure/ord-app-deploy-editor
   ```
 
   In `stacks/app/__main__.py`, `dockerfile="../../../ord-app/Dockerfile.single",` →
   `dockerfile="../../../ord-app/deploy/editor/Dockerfile",`.
 - [ ] **Step 2:** `uv sync --locked && uv run pytest -q`. Expected: green (the stack
   tests mock the build; `shared_test.py`'s Dockerfile paths are fixtures of their own).
+  Never run `pulumi` from this worktree: the stacks find ord-app as `../../../ord-app`,
+  which resolves only from the main checkout, `~/ord/ord-infrastructure`.
 - [ ] **Step 3:** Commit ("Build ord-app's image from deploy/editor/Dockerfile"), push,
   and open the PR, linking PR L2. It merges after L2. The staging stack builds whatever
   ord-app has checked out, so a staging deploy from a branch older than L2 fails until
-  that branch is rebased.
+  that branch is rebased. After merge, remove the worktree with
+  `git -C ~/ord/ord-infrastructure worktree remove ~/ord/worktrees/ord-infrastructure/ord-app-deploy-editor`.
 
 ---
 
 ## PR V1: the `backend/viewer` project
 
-Branch `viewer-backend-project`, from `main` after L2 merges.
+Branch `viewer-backend-project`, in its own worktree from `origin/main` after L2 merges.
 
 ### Task V1.1: The project, a derived test corpus, and `/api/health`
 
@@ -682,12 +693,10 @@ Branch `viewer-backend-project`, from `main` after L2 merges.
     two": `ord-viewer0201`, D-alanine acylated at 40%; `ord-viewer0202`, an esterification
     with a catalyst given only by name, no yield).
 
-- [ ] **Step 1: Branch and project file.**
+- [ ] **Step 1: Worktree and project file.** Create the worktree for
+  `viewer-backend-project` as the Global Constraints show, then from it:
 
   ```bash
-  cd ~/ord/ord-app
-  git status --short && git switch main && git pull --ff-only
-  git switch -c viewer-backend-project
   mkdir -p backend/viewer/ord_viewer/routes
   ```
 
@@ -1321,7 +1330,7 @@ Branch `viewer-backend-project`, from `main` after L2 merges.
 
 ## PR V2: datasets, reactions, and downloads
 
-Branch `viewer-backend-records`, from `main` after V1 merges.
+Branch `viewer-backend-records`, in its own worktree from `origin/main` after V1 merges.
 
 ### Task V2.1: Datasets and their compound counts
 
@@ -1985,7 +1994,7 @@ Branch `viewer-backend-records`, from `main` after V1 merges.
 
 ## PR V3: search
 
-Branch `viewer-backend-search`, from `main` after V2 merges.
+Branch `viewer-backend-search`, in its own worktree from `origin/main` after V2 merges.
 
 ### Task V3.1: A cap on searches in flight
 
@@ -2445,7 +2454,7 @@ Not committed. The numbers go in PR V3's body.
   ```bash
   corpus=~/ord/viewer-corpus
   mkdir -p "$corpus" && cp -R ~/ord/ord-data/data "$corpus/sources"
-  cd ~/ord/ord-app/backend/viewer
+  cd ~/ord/worktrees/ord-app/viewer-backend-search/backend/viewer
   uv run --frozen python -m ord_schema.artifacts.scripts.derive_projection --input_pattern="$corpus/sources/*/*.parquet" --output_dir="$corpus/projections"
   uv run --frozen python -m ord_schema.artifacts.scripts.derive_structures --input_pattern="$corpus/projections/*/*.parquet" --output_dir="$corpus/structures"
   uv run --frozen python -m ord_schema.artifacts.scripts.derive_pivots --input_pattern="$corpus/projections/*/*.parquet" --output_dir="$corpus/pivots"
@@ -2484,7 +2493,7 @@ Not committed. The numbers go in PR V3's body.
 
 ## PR V4: `/api/ask`
 
-Branch `viewer-backend-ask`, from `main` after V3 merges.
+Branch `viewer-backend-ask`, in its own worktree from `origin/main` after V3 merges.
 
 ### Task V4.1: Questions in English
 
