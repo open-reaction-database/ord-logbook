@@ -2096,7 +2096,8 @@ Branch `viewer-backend-search`, in its own worktree from `origin/main` after V2 
       slot_wait_seconds: float = Field(default=10.0, gt=0)
   ```
 
-  `ViewerState` gains `slots: SearchSlots`. In `main.py`'s lifespan:
+  `ViewerState` gains `slots: SearchSlots`. In `main.py`'s lifespan, inside the
+  `contextlib.closing` block that holds the corpus:
 
   ```python
           app.state.viewer = ViewerState(
@@ -2736,7 +2737,8 @@ Branch `viewer-backend-ask`, in its own worktree from `origin/main` after V3 mer
 
   In `main.py`: `create_app` gains
   `ask_client_factory: Callable[[], anthropic.Anthropic | None] = ask_client_from_environment`;
-  the lifespan passes `ask_client=ask_client_factory()` to `ViewerState`; register
+  the lifespan, inside the same block, passes `ask_client=ask_client_factory()` to
+  `ViewerState`; register
   `ask.router`. In `testing.py`, `make_client` becomes:
 
   ```python
@@ -2804,9 +2806,10 @@ been updated to match.
 - **The resolver** is ord-schema's `resolvers.resolve_name("name", …)` behind
   `functools.lru_cache`. It raises `ValueError` for an unknown name, which is what
   ord-schema's question log reads as an unresolved compound; a failed name is retried.
-- **The corpus layout** has one shard level under each tree (`projections/*/*.parquet`,
-  and `sources/*/*.parquet` as in ord-data's `data/<shard>/`), the layout the derive
-  scripts write.
+- **The corpus layout** has one shard level under `projections/`, `structures/`, and
+  `sources/` (`projections/*/*.parquet`, and `sources/*/*.parquet` as in ord-data's
+  `data/<shard>/`), and one subdirectory per level under `pivots/` and
+  `occurrences/`, each sharded the same way: the layout the derive scripts write.
 - **`create_app` takes the settings factory, the resolver, and the model client
   factory**, so tests inject a corpus, an offline resolver, and a stub client;
   `app = create_app()` reads the environment in the lifespan.
@@ -2819,3 +2822,7 @@ been updated to match.
   BuildKit reads in its place, keeps L1's exclusions (their paths are relative to the
   context, which stays the repository root), and excludes `.git/` from the editor image's
   context.
+- **V1's lifespan holds the corpus in `contextlib.closing`**, so it is closed on
+  shutdown, on an exception, and when anything built after the open (V3's slots, V4's
+  model client) raises. The OpenAPI document and docs page are served under `/api`, an
+  empty `ORD_VIEWER_*` variable counts as unset, and `/api/health` is `async def`.

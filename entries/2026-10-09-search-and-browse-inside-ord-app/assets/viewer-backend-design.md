@@ -111,7 +111,10 @@ publishes.
 
 Routes are declared under `/api/` in the app and passed through by nginx, as the editor
 does with `/api/v1/`. They carry no version: the viewer and its API ship in one image,
-so they cannot drift apart, and no other client depends on them.
+so they cannot drift apart, and no other client depends on them. The OpenAPI document
+and its docs page sit there too, at `/api/openapi.json` and `/api/docs`, so the viewer
+image's nginx (step 4) passes `location ^~ /api/` to uvicorn ahead of any static-file
+rule, such as the editor's `\.json$`, that would otherwise shadow the document.
 
 | Route | Request | Response | Replaces in ord-interface |
 | --- | --- | --- | --- |
@@ -180,9 +183,10 @@ so they cannot drift apart, and no other client depends on them.
 ## Runtime
 
 - **One process, one corpus.** `uvicorn ord_viewer.main:app` with one worker, since a
-  corpus over ORD holds about 7 GiB with an occurrences directory. Handlers are plain
-  `def`, so FastAPI runs them on its threadpool; `Corpus` is safe to share across
-  threads. A semaphore caps searches, asks, and the dataset charts' aggregates in flight
+  corpus over ORD holds about 7 GiB with an occurrences directory. Handlers that read
+  the corpus are plain `def`, so FastAPI runs them on its threadpool; `Corpus` is safe
+  to share across threads. The health check is `async def` and reads a precomputed
+  fingerprint, so it never queues behind them. A semaphore caps searches, asks, and the dataset charts' aggregates in flight
   at `MAX_CONCURRENT`; a request that waits 10 s for a slot gets 503, and a request that
   fails frees its slot. Each search gets cores ÷ `MAX_CONCURRENT` RDKit threads.
 - **Opening.** The lifespan opens the corpus with `require_current`, `require_pivots`,
@@ -207,7 +211,7 @@ so they cannot drift apart, and no other client depends on them.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ORD_VIEWER_CORPUS_DIR` | required | A root holding `projections/`, `structures/`, `pivots/`, `occurrences/`, and `sources/`, each with one shard level of files (`projections/*/*.parquet`, and `sources/*/*.parquet` as in ord-data's `data/<shard>/`): the layout ord-schema publishes, and its derive scripts' until then |
+| `ORD_VIEWER_CORPUS_DIR` | required | A root holding `projections/`, `structures/`, `pivots/`, `occurrences/`, and `sources/`, where `projections/`, `structures/`, and `sources/` hold one shard level of files (`projections/*/*.parquet`, and `sources/*/*.parquet` as in ord-data's `data/<shard>/`) and `pivots/` and `occurrences/` hold one subdirectory per level, each sharded the same way: the layout ord-schema publishes, and its derive scripts' until then |
 | `ORD_VIEWER_MEMORY_LIMIT` | unset | DuckDB's `memory_limit` |
 | `ORD_VIEWER_MAX_CONCURRENT` | 4 | Searches and asks in flight |
 | `ORD_VIEWER_SLOT_WAIT_SECONDS` | 10 | How long a request waits for a slot before 503 |
