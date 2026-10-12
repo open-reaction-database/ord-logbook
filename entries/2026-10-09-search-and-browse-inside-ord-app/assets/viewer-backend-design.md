@@ -63,8 +63,9 @@ in `frontend/packages/ui`.
 ```text
 backend/
   editor/                 uv project: pyproject.toml, uv.lock, alembic.ini, migrations/,
-                          .env.template, the compose image's Dockerfile and entrypoint
-    ord_editor/           today's ord_app/; service_api/ and the rest unchanged inside
+                          the compose image's Dockerfile and entrypoint
+    ord_editor/           today's ord_app/; service_api/, .env.template, and the rest
+                          unchanged inside
   viewer/                 uv project: pyproject.toml, uv.lock
     ord_viewer/
       main.py             the FastAPI app; its lifespan opens the corpus
