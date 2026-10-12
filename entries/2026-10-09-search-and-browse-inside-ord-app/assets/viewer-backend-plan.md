@@ -605,10 +605,13 @@ before the next deploy.
     'test -x ./entrypoint.sh && grep -q ord_editor /etc/supervisor/conf.d/supervisord.conf && echo ok'
   docker run --rm -e APP_ENV=localhost --entrypoint python ord-editor:deploy \
     -c "import ord_editor.service_api.main"
+  docker run --rm --entrypoint sh ord-editor:deploy -c \
+    'find /app \( -name "*_test.py" -o -name conftest.py -o -name testdata -o -name .env \) -print'
   ```
 
   Expected: a context far smaller than L1's build (`.git/` is no longer sent); `nginx -t`
-  reports the configuration ok; `ok`; the import succeeds.
+  reports the configuration ok; `ok`; the import succeeds; `find` prints nothing, so L1's
+  exclusions came along with the ignore file.
 
 - [ ] **Step 6: Commit and open the PR.**
 
@@ -2809,6 +2812,10 @@ been updated to match.
   `app = create_app()` reads the environment in the lifespan.
 - **L1 drops pre-commit from the editor's dev group**, since pre-commit runs through
   `uvx` once there is no project at the root; the Makefile loses `check-pytype` and fixes
-  `python-formating`; `backend/editor/.dockerignore` covers the compose image's context.
+  `python-formating`, which runs `ruff format` as well; `backend/editor/.dockerignore`
+  covers the compose image's context, and the root `.dockerignore` keeps the backend's
+  `.env`, its tests, and `testdata/` out of the production image.
 - **L2 moves the root `.dockerignore` to `deploy/editor/Dockerfile.dockerignore`**, which
-  BuildKit reads in its place, and excludes `.git/` from the editor image's context.
+  BuildKit reads in its place, keeps L1's exclusions (their paths are relative to the
+  context, which stays the repository root), and excludes `.git/` from the editor image's
+  context.
