@@ -57,7 +57,8 @@ updated to match.
   `ORD_APP_TESTING`, `ORD_APP_REQUIRE_AUTH0`, `VITE_AUTH0_*`, `DOWNLOAD_LINK_SECRET`).
   Only the Python package is renamed.
 - Both projects use Python 3.12 (`requires-python = ">=3.12,<3.13"`).
-- `backend/viewer` pins `ord-schema[search,nl]==0.9.1` and `rdkit==2026.3.5`, and its dev
+- `backend/viewer` pins `ord-schema[search,nl]==0.9.2` (0.9.1 through V1) and
+  `rdkit==2026.3.5`, and its dev
   group pins `ruff==0.9.10` so the pre-commit hook and CI agree.
 - Every new `.py`, `.toml`, `.yaml`, `.sh`, and `Makefile` starts with the Apache-2.0
   header, copyright 2026, "Open Reaction Database Project Authors" (addlicense adds it;
@@ -2406,8 +2407,7 @@ Branch `viewer-backend-search`, in its own worktree from `origin/main` after V2 
 - Produces: `resolve_compound_name` keeps its signature and gains
   `functools.lru_cache(maxsize=4096)`, so `resolve_compound_name.cache_clear()` exists.
 
-- [ ] **Step 1: Failing test.** Append to `ord_viewer/corpus_test.py`, which V2 started,
-  merging the imports and widening its module docstring:
+- [ ] **Step 1: Failing test.** `ord_viewer/corpus_test.py`:
 
   ```python
   import pytest
@@ -2834,9 +2834,9 @@ been updated to match.
 - **V2's 422s use `status.HTTP_422_UNPROCESSABLE_CONTENT`**, since the locked Starlette
   deprecates `HTTP_422_UNPROCESSABLE_ENTITY`, and a request past a list bound is
   refused by `Query(max_length=...)`, so every 422 has FastAPI's body shape.
-- **Two V2 workarounds wait on ord-schema.** `corpus.read_reactions` absorbs
-  `Corpus.reactions`' error for a request that holds no known ID (ord-schema#1107), and
-  the compound counts put tied counts in SMILES order in Python, because 0.9.1 cannot
-  order an aggregate over a level by its group key (ord-schema#1106); which tied
-  compounds a `limit` keeps can vary between requests until then. The ord-schema bump
-  that step 5 needs for its corpus is the trigger to drop both.
+- **V2 moved to ord-schema 0.9.2**, which fixes ordering an aggregate over a level by
+  its group key (ord-schema#1106) and `Corpus.reactions` for a request that holds no
+  known ID (#1107), so V2 needs no workaround: the compound counts break ties on SMILES
+  in the query, and the routes call `Corpus.reactions` directly. 0.9.2 judges an
+  artifact current by its RDKit version and artifact lineage, not the ord-schema
+  version (#1108).
