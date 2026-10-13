@@ -162,7 +162,8 @@ Five steps, each with its own design and PRs:
    [`assets/viewer-frontend-design.md`](assets/viewer-frontend-design.md); its first
    three PRs are planned in
    [`assets/viewer-frontend-plan.md`](assets/viewer-frontend-plan.md) and merged
-   (ord-app#890, #891, and #893, with #894).
+   (ord-app#890, #891, and #893, with #894), and the rest in
+   [`assets/viewer-frontend-plan-f4-f6.md`](assets/viewer-frontend-plan-f4-f6.md).
 5. **Point the interface stack at the new image** and archive ord-interface.
 
 Open questions:
