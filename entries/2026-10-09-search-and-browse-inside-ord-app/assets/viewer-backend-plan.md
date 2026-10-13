@@ -3,7 +3,12 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; not started
+- **Status:** done; merged as
+  [ord-app#877](https://github.com/open-reaction-database/ord-app/pull/877) (L1), #880
+  (L2) with
+  [ord-infrastructure#56](https://github.com/open-reaction-database/ord-infrastructure/pull/56),
+  #881, #885 (V1), #887 (V2), #888 (V3), and #889 (V4). Where the code departs from
+  the tasks below, the [Refinements](#refinements-to-the-design) say how
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
@@ -2862,3 +2867,12 @@ been updated to match.
   any depth are standard base64. Every route declares its error statuses in the
   OpenAPI document, the request models refuse unknown keys, and a query nested past
   pydantic's recursion limit is a 422.
+- **V4's `/api/ask`** follows V3's async form. Its dependencies are `anthropic>=1.13,<2`
+  (the locked SDK is 1.13; the plan's `<1` would have excluded it) and, in the dev group,
+  `httpx2`, which the SDK's errors take. Each model call is bounded at 30 s, since an ask
+  holds its slot through them and the SDK's default is ten minutes; the ask's search
+  takes `ORD_VIEWER_SEARCH_TIMEOUT_SECONDS` like any other, where the design named
+  `nl.ask`'s 60 s. The lifespan closes the model client at shutdown, the request refuses
+  unknown keys, and the 422 body omits each error's echoed `input` for every error type.
+  `ORD_VIEWER_ASK_LOG` stays `none` unless a deployment sets it. No timings were taken,
+  since no API key was set.
