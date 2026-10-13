@@ -130,6 +130,50 @@ has a test in the task named.
 - **Ports.** The viewer's dev server listens on 5174 and `vite preview` on 4174, beside
   the editor's 5173; both send `/api` to the backend on 8001, or to `ORD_VIEWER_API`.
 
+These came from executing F1–F3 (ord-app#890, #891, and #893); the design file has been
+updated to match.
+
+- **The editor keeps its polyfill.** Removing it blanked the editor, since csv-parse
+  reads `Buffer` as it loads; the E2E caught it. The editor keeps `buffer` and the
+  polyfill in `main.tsx`, and the loader's `??=` install is a no-op there.
+- **Each opening gets its own Ketcher.** The modal unmounts the canvas on close, so
+  `KetcherDialog` forgets the instance then, and the plan's "clears the canvas when
+  closed" test became "loads a new initial structure while open". A chunk that fails to
+  load stays inside the dialog (`LoadBoundary`, with Close and Try again, retrying
+  with a fresh `React.lazy`). The E2E reads the saved structure back.
+- **Path parameters.** wouter matches routes against `decodeURI(path)`, which leaves
+  reserved escapes such as `%2F`, so the plan's `encodeURIComponent` encoded them
+  twice. `src/routeParams.ts`'s `routeParam` decodes the rest, and F4–F6's pages read
+  `:datasetId` and `:reactionId` through it.
+- **The client's errors.** `ApiError` records whether the backend wrote the response:
+  nginx's own 502 or 504, during the backend's startup or past its timeout, shows the
+  503's message rather than the ask's or the search's. A list of validation errors with
+  no messages falls back to the status text, where the plan's code returned `''`.
+- **Request types keep defaulted fields optional** (`defaultNonNullable: false`), so a
+  `Query` may leave out an order's `descending` or a structure's `chirality`;
+  `types.test.ts` type-checks three such requests.
+- **Narrow screens.** The navigation is a row from `sm` up and a menu below it; About's
+  sections stack below `sm` (`Grid`, where `SimpleGrid` with a three-column span added
+  empty columns).
+- **SonarCloud skips `schema.ts`** through a new `.sonarcloud.properties`, after its 805
+  repeated lines failed the duplication gate. Its `S8707` on `testing.main()`, a
+  command-line path the caller chooses, is a false positive marked in SonarCloud.
+- **The image's exit code.** supervisord exits 0 however it stops, so `start.sh`, the
+  container's command, exits 0 only for a requested stop that supervisord carried out
+  cleanly, keeps supervisord's own nonzero code, and is 1 otherwise; it clears the
+  marker `exit_on_failure.sh` leaves, which a restarted container would keep.
+  `build_viewer_image` checks both codes.
+- **The smoke test.** It reads each response whole before matching, since `curl | grep
+  -q` can cut curl off and fail under `pipefail`; every request has a time limit (5 s to
+  connect, 30 s in all), the wait for the backend a three-minute deadline, and each image
+  job a 30-minute limit.
+- **`/api/ask`'s model calls make one attempt each** (ord-app#894): the SDK's two default
+  retries put an ask's worst case near 230 s, past nginx's 150 s.
+- **F3.4's compose check** compared `docker compose config` before and after the move,
+  rather than running `up` and `down`, which would have removed a running `ord-app`
+  stack.
+- **F2 outgrew the plan's test counts**: 51 viewer tests where the plan wrote 35.
+
 ---
 
 ## PR F1: the structure dialog moves into the shared package
@@ -3235,6 +3279,7 @@ Branch `viewer-image`, in its own worktree from `origin/main`.
 
 ## After F3
 
-- Write F4–F6's plan, against the hooks, `renderAt`, and the image F2 and F3 shipped.
-- Record here, in a Refinements list like step 3's, where F1–F3 departed from these
-  tasks, and update the design to match.
+- Write F4–F6's plan, against the hooks, `renderAt`, `routeParam`, and the image F2 and
+  F3 shipped.
+- Where F1–F3 departed from these tasks is recorded under
+  [Refinements](#refinements-to-the-design), and the design matches.
