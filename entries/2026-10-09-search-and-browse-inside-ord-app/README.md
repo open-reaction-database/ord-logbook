@@ -159,7 +159,9 @@ Five steps, each with its own design and PRs:
    on TanStack Query and types generated from the backend's OpenAPI document, with the
    editor's Ketcher dialog moved into the shared package, and `deploy/viewer` built and
    smoke-tested in CI on arm64. Designed in
-   [`assets/viewer-frontend-design.md`](assets/viewer-frontend-design.md).
+   [`assets/viewer-frontend-design.md`](assets/viewer-frontend-design.md); its first
+   three PRs are planned in
+   [`assets/viewer-frontend-plan.md`](assets/viewer-frontend-plan.md).
 5. **Point the interface stack at the new image** and archive ord-interface.
 
 Open questions:
