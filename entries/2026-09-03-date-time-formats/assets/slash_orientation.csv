@@ -17,9 +17,9 @@ dataset_id,position,values,distinct_values,day_first_witnesses,month_first_witne
 5481550056a14935b76e031fb94b88be,provenance.record_created.time,30000,20,0,30000,2021-02-17T23:14:42,,2021-02-17T15:27:08,month-first,witness
 5540e162c09f4c04905ddc8ba9c931c6,provenance.record_created.time,3,1,0,3,2021-06-26T12:54:27,,2021-06-17T10:57:55,month-first,witness
 55de08a995554f558c25fc43eac62359,provenance.record_created.time,48,1,0,48,2021-04-27T21:52:02,,2021-04-21T16:29:13,month-first,witness
-5c9a10329a8a48968d18879a48bb8ab2,provenance.record_created.time,9632,1,0,0,2024-11-16T18:12:57,2024-05-08T11:33:06,2024-08-05T11:33:06,month-first (lean),proximity
-5c9a10329a8a48968d18879a48bb8ab2,provenance.record_modified[].time,19264,2,0,0,2026-08-29T22:14:05,2024-05-08T11:34:45,2024-08-05T11:34:45,month-first (lean),proximity
-5e8318f0dda04b398c14f4c3adfeb32c,provenance.record_created.time,24,1,0,0,2025-01-20T03:51:33,2024-12-05T15:29:23,2024-05-12T15:29:23,day-first (lean),proximity
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_created.time,9632,1,0,0,2024-11-16T18:12:57,2024-05-08T11:33:06,2024-08-05T11:33:06,day-first,ord-data#212 submitter
+5c9a10329a8a48968d18879a48bb8ab2,provenance.record_modified[].time,19264,2,0,0,2026-08-29T22:14:05,2024-05-08T11:34:45,2024-08-05T11:34:45,day-first,ord-data#212 submitter
+5e8318f0dda04b398c14f4c3adfeb32c,provenance.record_created.time,24,1,0,0,2025-01-20T03:51:33,2024-12-05T15:29:23,2024-05-12T15:29:23,day-first,ord-data#218 submitter
 5eb7f2689f4a42eba63ad9e37e49a5cd,provenance.record_created.time,39,1,0,39,2021-06-30T22:49:12,,2021-06-26T16:31:37,month-first,witness
 675eddcaa6674ce3ae61e79bbc1e1c08,provenance.record_created.time,1536,1,0,0,2023-08-30T19:13:03,2023-09-08T22:44:35,2023-08-09T22:44:35,month-first,bound
 68cb8b4b2b384e3d85b5b1efae58b203,provenance.record_created.time,5760,1,0,5760,2021-03-03T19:46:44,,2021-02-25T13:05:42,month-first,witness
