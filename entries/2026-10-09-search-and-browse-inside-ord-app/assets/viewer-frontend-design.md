@@ -3,8 +3,9 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design agreed, and F1–F3 planned in
-  [`viewer-frontend-plan.md`](viewer-frontend-plan.md)
+- **Status:** draft; design agreed, F1–F3 planned in
+  [`viewer-frontend-plan.md`](viewer-frontend-plan.md) and merged, and F4–F6 planned in
+  [`viewer-frontend-plan-f4-f6.md`](viewer-frontend-plan-f4-f6.md)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 4 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -126,7 +127,10 @@ deploy/viewer/          Dockerfile, Dockerfile.dockerignore, nginx.conf,
   viewer's API returns none (the editor's backend returns a placeholder), so the viewer
   passes `{provenance: {}, summary: {}, conditions: ''}` and leaves the details off.
 - **A search** goes from the URL's parameters to the form's state, through the compiler
-  to a `Query`, to `POST /api/search`. A `reactions` result is shown as cards, ten to a
+  to a `Query`, to `POST /api/search`. The compiled query, like the dataset page's
+  sample, orders by `reaction_id`, since the backend returns matches in no fixed order;
+  ranking a similarity search by score, as ord-interface did, is not in the grammar. A
+  `reactions` result is shown as cards, ten to a
   page by default and up to 100, each page fetched with one
   `GET /api/reactions?id=…`. A `table` result, which only `/ask` produces, is shown as a
   table.
@@ -153,8 +157,8 @@ against V3's backend generated 1,129 lines from its 35 schemas this way.
 | Route | Shows |
 | --- | --- |
 | `/` | The datasets as a table: the name, linked; the description, clamped, with the rest in a modal; the reaction count; and the ID. A filter box and paging work in the browser, as in ord-interface. |
-| `/datasets/:id` | The dataset's name, ID, description, and reaction count. Two bar charts of the 30 most frequent inputs and products, from `/compounds`; hovering a bar draws its molecule from the molblock, with the SMILES and count. Then up to 100 of the dataset's reactions, from `{where: dataset_id eq …, limit: 100}`, as paged cards with Download and Copy link, titled as a sample when the dataset holds more. |
-| `/reactions/:id` | The editor's view-only page: breadcrumbs through the dataset, `ReactionHeader`, the Tabs and List switch, `ReactionContent`, and the drawer. The header adds Download, the reaction as `.pb.gz`, and Full record, the reaction as JSON in a modal, as ord-interface shows it. |
+| `/datasets/:id` | The dataset's name, ID, description, and reaction count. Two bar charts of the 30 most frequent inputs and products, from `/compounds`; hovering a bar draws its molecule from the molblock, with the SMILES and count; each chart renders its molecules together when it loads. Then up to 100 of the dataset's reactions, from `{where: dataset_id eq …, limit: 100}`, as paged cards with Download and Copy link, titled as a sample when the dataset holds more. |
+| `/reactions/:id` | The editor's view-only page: breadcrumbs through the dataset, `ReactionHeader`, the Tabs and List switch, `ReactionContent`, and the drawer. The header adds Download, the reaction as `.pb.gz`, and Full record, the reaction as ord-schema's protobuf JSON in a modal, as ord-interface shows it. |
 | `/search` | The form in a collapsible side panel, and the results beside it. |
 | `/reactions?id=…` | A selected set of at most 100 reactions: paged cards, Download, and Copy link. |
 | `/ask?q=…` | A banner saying the feature is in development, a question box with ord-interface's three examples, then the answer's sentence, the `Query` it compiled to as collapsed JSON, and the result. |
@@ -369,7 +373,9 @@ build time, unlike the editor's Auth0 arguments.
     a `binpb` and its molblocks are impractical to write by hand.
 - **`test_e2e_viewer`**, with Playwright:
   - The backend runs as `uvicorn --factory ord_viewer.testing:e2e_app`, over the derived
-    fixture corpus, with the offline resolver and a scripted model client.
+    fixture corpus named by `ORD_VIEWER_CORPUS_DIR`, with the offline resolver and a
+    scripted model client, which answers the questions in `ASK_SCRIPTS` and declines
+    any other.
   - The viewer is a production build served by `vite preview`, which proxies `/api`.
     Nothing forces the dev server, as the editor's sign-in bypass does.
   - The flows: browse to a dataset, its charts, and its cards; a reaction, with the
