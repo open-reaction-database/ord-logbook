@@ -67,10 +67,14 @@ frontend/apps/viewer/
     main.tsx            MantineProvider with the package's theme, Notifications,
                         QueryClientProvider, and the router
     routes.tsx          the routes, and redirects from ord-interface's paths
+    routeParams.ts      a path parameter decoded past what wouter decodes
     api/
       schema.ts         generated from backend/viewer/openapi.json; committed
+      types.ts          the schema's types under the names the pages use
       client.ts         fetch to typed JSON; a non-2xx response throws ApiError
+      queryClient.ts    the cache, which never goes stale, and its retry rule
       hooks.ts          one TanStack Query hook per route
+      download.ts       /api/download's file, saved under the server's name
     search/             the form's state, to and from URL parameters, and its compiler
     reaction/           a record to a snapshot, and the read-only provider's slots
     pages/              Datasets, Dataset, Reaction, ReactionSet, Search, Ask, About,
@@ -82,7 +86,8 @@ frontend/packages/ui/
 backend/viewer/
   openapi.json          the API's OpenAPI document, committed
 deploy/viewer/          Dockerfile, Dockerfile.dockerignore, nginx.conf,
-                        supervisord.conf
+                        supervisord.conf, exit_on_failure.sh, start.sh,
+                        smoke_test.sh
 ```
 
 - **Stack.** React 19, Vite 6, Mantine 7, wouter, TanStack Query 5, and
@@ -134,7 +139,9 @@ deploy/viewer/          Dockerfile, Dockerfile.dockerignore, nginx.conf,
 `lint_and_build_ui` regenerates it and fails on a diff. The generated file's license
 header is addlicense's, stamped when the file is first committed; the generator keeps the
 header the committed file starts with, so regenerating in a later year changes nothing.
-ESLint and jscpd skip the file.
+ESLint, jscpd, and SonarCloud (through `.sonarcloud.properties`) skip the file. It is
+generated with `defaultNonNullable: false`, so a field the backend defaults stays
+optional unless the schema lists it as required, and a request may leave it out.
 
 The backend's models and the viewer's types then cannot drift apart unnoticed, and the
 Node job needs no Python. The grammar's predicates arrive as a discriminated union on
@@ -155,11 +162,16 @@ against V3's backend generated 1,129 lines from its 35 schemas this way.
 | anything else | NotFound, as for an unknown dataset or reaction |
 
 - **Navigation.** `PageContainer`'s header holds Browse, Search, Contribute (the
-  editor), Docs, and About. `/ask` is not in it.
+  editor), Docs, and About: in a row from Mantine's `sm` breakpoint up, and below it in
+  a menu behind a button, since five links in a row overflow the 40 px header on a
+  phone. `/ask` is not in it.
 - **Redirects.** `/browse` goes to `/`, `/dataset/:id` to `/datasets/:id`, `/id/:id` to
   `/reactions/:id`, and `/selected-set?reaction_id=…` to `/reactions?id=…`, in the
   router. `/search` keeps ord-interface's parameters, so its shared links work as they
   are. nginx keeps ord-interface's 301 from `/editor` to the editor.
+- **Path parameters.** wouter matches routes against the path after `decodeURI`, which
+  leaves the escapes of reserved characters such as `/` in a parameter, so pages read
+  `:id` through `routeParam`, which decodes the rest, and links encode an ID once.
 - **The selected set holds at most 100 reactions**, one batch request, which keeps its URL
   near 4 KiB, inside nginx's default 8 KiB request line. Past 100, the result list's
   checkboxes disable and say why.
@@ -223,7 +235,10 @@ session's cache and nginx's per-client limit.
 | 503 | The service is busy, or `/ask` is unavailable; try again |
 | 504 | The search took too long; narrow it |
 
-Anything else shows the status and the server's detail.
+Anything else shows the status and the server's detail. A 502 or 504 that nginx wrote
+itself, with its own page rather than FastAPI's JSON, means the backend is starting, down,
+or did not answer in time, and shows the 503's message. A list of validation errors
+with no messages shows the status text.
 
 ## Shared package changes
 
@@ -244,9 +259,14 @@ Anything else shows the status and the server's detail.
   imports Ketcher statically through its slot table today, so its first load shrinks
   too.
 - **Polyfills.** Ketcher's modules read Node's `global` and `Buffer`. The loader installs
-  them before it imports `KetcherDialog`, so the editor's `main.tsx` drops its copy. A
-  module imported only for its side effects would not do, since the package's
-  `sideEffects` lists only stylesheets and a production build may drop it.
+  them before it imports `KetcherDialog`, so a host needs none for Ketcher. A module
+  imported only for its side effects would not do, since the package's `sideEffects`
+  lists only stylesheets and a production build may drop it. The editor keeps its own
+  copy in `main.tsx`, since csv-parse reads `Buffer` as it loads.
+- **Each opening gets its own Ketcher.** The modal unmounts the canvas when it closes, so
+  `KetcherDialog` forgets the instance on close and loads `initial` into the next one.
+  A chunk that fails to load stays inside the dialog, which offers Close and Try again;
+  a retry loads afresh, since a failed `React.lazy` keeps its rejection.
 - **Host requirements.** The README's list gains what an app that imports `./ketcher`
   provides: `define: {'process.env': {}}` in its Vite config.
 - **Nothing else changes.** The viewer uses `PageContainer` with its navigation in
@@ -270,7 +290,10 @@ since ord-infrastructure#55.
    `supervisord` runs uvicorn with one worker on `127.0.0.1:8000`, and nginx. Neither
    restarts: when either exits, an event listener stops supervisord and with it the
    container, so a backend that cannot open its corpus fails the task where it can be
-   seen, rather than leaving nginx answering 502.
+   seen, rather than leaving nginx answering 502. The container's command, `start.sh`,
+   exits 0 only for a stop it was asked for that supervisord carried out cleanly; a
+   program's exit is 1, and supervisord failing or stopping on its own keeps its code,
+   or is 1.
 
 The corpus is not in the image: `ORD_VIEWER_CORPUS_DIR` names a directory mounted at run
 time, and step 5 decides where it comes from. The viewer's bundle needs no settings at
@@ -283,7 +306,8 @@ build time, unlike the editor's Auth0 arguments.
   wait and the 30 s search timeout.
 - **`location = /api/ask`** adds `limit_req` keyed by the client's address, at 10 a
   minute with a burst of 5 and status 429, and a `proxy_read_timeout` of 150 s, past the
-  slot wait, two 30 s model calls, and the 60 s search.
+  10 s slot wait, three model calls (the query, its repair, and the answer) of one 30 s
+  attempt each (ord-app#894), and the 30 s search.
 - **The client's address.** Behind the load balancer, `$remote_addr` is the balancer's.
   `set_real_ip_from 10.0.0.0/8`, `real_ip_header X-Forwarded-For`, and
   `real_ip_recursive on` restore the client's, so the limit counts each client rather
@@ -321,7 +345,12 @@ build time, unlike the editor's Auth0 arguments.
     through nginx that `/api/health` answers 200, that `/` and `/reactions/<a fixture
     ID>` serve `index.html`, that `/api/openapi.json` is the API's document, that an
     `/assets/` file carries its cache header, that `/editor` answers 301, and that
-    `POST /api/ask` answers 503 with no key set.
+    `POST /api/ask` answers 503 with no key set. Every request has a time limit, and
+    the wait for the backend a three-minute deadline. It then checks that a requested
+    stop exits 0, and that a corpus that cannot open stops the container with exit
+    code 1.
+  - Each image job stops after 30 minutes. The first runs took 3.2 min cold and 1.4 min
+    cached for the viewer, and 3.8 and 3.3 min for the editor.
 - **Required checks.** `test_ui_viewer`, `test_e2e_viewer`, `build_editor_image`, and
   `build_viewer_image` have to be added to the `main` ruleset by hand, as
   `test_python_viewer` was.
@@ -381,8 +410,9 @@ F1 can land at any point before F5. F2 through F6 run in order.
 - **Every change to a backend model regenerates `schema.ts`** in the same PR. That is the
   point, but it puts a generated file in those diffs.
 - **The image starts slowly.** The backend accepts no connections for about 40 s while it
-  opens the corpus, during which nginx serves the SPA and answers 502 for `/api/`. Step 5
-  sets the health check's grace period.
+  opens the corpus, during which nginx serves the SPA and answers 502 for `/api/`, which
+  the pages show as the service being unavailable. Step 5 sets the health check's grace
+  period.
 - **The fixture corpus is small.** The charts and paging run on a few reactions; how they
   behave over the full corpus is step 5's check.
 
