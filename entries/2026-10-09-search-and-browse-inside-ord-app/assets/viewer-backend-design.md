@@ -50,9 +50,10 @@ chirality flag ([#1091](https://github.com/open-reaction-database/ord-schema/pul
 reaction SMARTS ([#1093](https://github.com/open-reaction-database/ord-schema/pull/1093)),
 and `Corpus.reactions()` and `datasets()`
 ([#1095](https://github.com/open-reaction-database/ord-schema/pull/1095)). And `Corpus`
-opens only artifacts stamped with the serving process's exact
-ord-schema and RDKit versions, so the viewer's pins are set by the corpus ord-schema
-published, not by the viewer. In one environment, every republished corpus that needs a
+opens only artifacts stamped with the serving process's RDKit version and artifact
+lineage (since ord-schema 0.9.2, which stopped comparing its own version,
+[#1108](https://github.com/open-reaction-database/ord-schema/pull/1108)), so the viewer's
+pins are set by the corpus ord-schema published, not by the viewer. In one environment, every republished corpus that needs a
 new ord-schema would re-pin the editor, and no editor upgrade could land before a
 matching corpus existed. Separate projects let each move on its own schedule. The two
 share no Python: a shared package would need compatible pins, and the shared code lives
@@ -102,10 +103,13 @@ docker-compose.yml  .pre-commit-config.yaml  .jscpd.json  Makefile  scripts/
 `ord_viewer` pins `ord-schema[search,nl]` and `rdkit` with `==` to the versions that
 derived the published corpus, and installs ord-schema from a release only. Installed
 from git, ord-schema reports its last release's version while running different code,
-so the stamp check could not catch a mismatch. V1 starts on ord-schema 0.9.1, released
+so the stamp check could not catch a mismatch. V1 started on ord-schema 0.9.1, released
 on 2026-10-11 with everything merged since v0.9.0, and RDKit 2026.3.5, the version
-ord-schema locks at that release. Both follow the stamps of the corpus ord-schema
-publishes.
+ord-schema locks at that release. V2 moved to 0.9.2 (2026-10-13), which fixed two bugs
+V2 found ([#1106](https://github.com/open-reaction-database/ord-schema/pull/1106),
+[#1107](https://github.com/open-reaction-database/ord-schema/pull/1107)). RDKit follows
+the stamps of the corpus ord-schema publishes, and ord-schema a release whose artifact
+definitions match it.
 
 ## API
 
@@ -248,9 +252,10 @@ rule, such as the editor's `\.json$`, that would otherwise shadow the document.
 
 Outside ord-app, first:
 
-- ord-schema 0.9.1, which V1 pins, released on 2026-10-11;
-- a corpus derived and published by that release, which step 5 needs and step 3 does
-  not.
+- ord-schema 0.9.1, which V1 pinned, released on 2026-10-11, and 0.9.2, which V2 pins,
+  on 2026-10-13;
+- a corpus derived and published with ord-schema's artifact definitions and RDKit at
+  those pins, which step 5 needs and step 3 does not.
 
 In ord-app, each PR from an up-to-date `main`, green on its own:
 
@@ -264,7 +269,7 @@ In ord-app, each PR from an up-to-date `main`, green on its own:
 | V4 | `/ask` |
 
 They run in that order, since V1 builds on L1's root `ruff.toml` and hooks, and nothing
-outside ord-app blocks them now that 0.9.1 is out. CI job names stay
+outside ord-app blocks them now that 0.9.1 and 0.9.2 are out. CI job names stay
 `test_python`, `check_python`, and `test_e2e`; `test_python_viewer` is new and has to be
 added to the branch protection's required checks by hand.
 
