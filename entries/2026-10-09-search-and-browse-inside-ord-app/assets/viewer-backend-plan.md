@@ -2152,7 +2152,8 @@ Branch `viewer-backend-search`, in its own worktree from `origin/main` after V2 
   - `ord_viewer.searching.to_result(request: Query, table: pa.Table) -> ReactionsResult | TableResult`.
     V4's `/api/ask` returns the same result.
 
-- [ ] **Step 1: Failing tests.** `ord_viewer/searching_test.py`:
+- [ ] **Step 1: Failing tests.** Append to `ord_viewer/searching_test.py`, which V2
+  started, merging the imports:
 
   ```python
   import pyarrow as pa
@@ -2405,7 +2406,8 @@ Branch `viewer-backend-search`, in its own worktree from `origin/main` after V2 
 - Produces: `resolve_compound_name` keeps its signature and gains
   `functools.lru_cache(maxsize=4096)`, so `resolve_compound_name.cache_clear()` exists.
 
-- [ ] **Step 1: Failing test.** `ord_viewer/corpus_test.py`:
+- [ ] **Step 1: Failing test.** Append to `ord_viewer/corpus_test.py`, which V2 started,
+  merging the imports and widening its module docstring:
 
   ```python
   import pytest
@@ -2666,8 +2668,8 @@ Branch `viewer-backend-ask`, in its own worktree from `origin/main` after V3 mer
   _STATUS_BY_ERROR: dict[type[nl.NLQueryError], int] = {
       nl.ModelUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
       nl.ModelRateLimitedError: status.HTTP_429_TOO_MANY_REQUESTS,
-      nl.ModelRefusedError: status.HTTP_422_UNPROCESSABLE_ENTITY,
-      nl.UnanswerableError: status.HTTP_422_UNPROCESSABLE_ENTITY,
+      nl.ModelRefusedError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+      nl.UnanswerableError: status.HTTP_422_UNPROCESSABLE_CONTENT,
       nl.MalformedQueryError: status.HTTP_502_BAD_GATEWAY,
   }
 
@@ -2826,3 +2828,15 @@ been updated to match.
   shutdown, on an exception, and when anything built after the open (V3's slots, V4's
   model client) raises. The OpenAPI document and docs page are served under `/api`, an
   empty `ORD_VIEWER_*` variable counts as unset, and `/api/health` is `async def`.
+- **V1 and V2 outgrew the plan's test counts.** A task's expected count is the suite
+  before it plus the tests it adds; the counts written in V3 and V4 are the plan's
+  original arithmetic.
+- **V2's 422s use `status.HTTP_422_UNPROCESSABLE_CONTENT`**, since the locked Starlette
+  deprecates `HTTP_422_UNPROCESSABLE_ENTITY`, and a request past a list bound is
+  refused by `Query(max_length=...)`, so every 422 has FastAPI's body shape.
+- **Two V2 workarounds wait on ord-schema.** `corpus.read_reactions` absorbs
+  `Corpus.reactions`' error for a request that holds no known ID (ord-schema#1107), and
+  the compound counts put tied counts in SMILES order in Python, because 0.9.1 cannot
+  order an aggregate over a level by its group key (ord-schema#1106); which tied
+  compounds a `limit` keeps can vary between requests until then. The ord-schema bump
+  that step 5 needs for its corpus is the trigger to drop both.
