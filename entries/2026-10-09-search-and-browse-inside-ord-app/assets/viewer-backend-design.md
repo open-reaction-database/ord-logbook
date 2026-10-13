@@ -3,8 +3,11 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design agreed, planned in
-  [`viewer-backend-plan.md`](viewer-backend-plan.md), not started
+- **Status:** done; planned in [`viewer-backend-plan.md`](viewer-backend-plan.md) and
+  merged as [ord-app#877](https://github.com/open-reaction-database/ord-app/pull/877) (L1),
+  #880 (L2) with
+  [ord-infrastructure#56](https://github.com/open-reaction-database/ord-infrastructure/pull/56),
+  #881, #885 (V1), #887 (V2), #888 (V3), and #889 (V4)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 3 of [the entry](../README.md)'s plan. Paths are in ord-app at

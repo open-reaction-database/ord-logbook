@@ -3,9 +3,9 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; plan agreed, step 2 is done (designed in
-  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md)), and step 3 is
-  designed in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md)
+- **Status:** draft; plan agreed, and steps 2 and 3 are done (designed in
+  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md) and
+  [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md))
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, code-reuse, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -151,8 +151,9 @@ Five steps, each with its own design and PRs:
 3. **Bring the search backend into ord-app** as its own package: `ord_viewer`, a second
    uv project beside the editor's, both moved under `backend/`. It serves the viewer
    from `ord_schema.search` and the source Parquet, with no Postgres or Valkey. Designed
-   in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md) and planned in
-   [`assets/viewer-backend-plan.md`](assets/viewer-backend-plan.md).
+   in [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md), planned in
+   [`assets/viewer-backend-plan.md`](assets/viewer-backend-plan.md), and merged
+   (ord-app#877, #880, #881, #885, and #887–#889, with ord-infrastructure#56).
 4. **Build the viewer** on the shared layer, as a second image.
 5. **Point the interface stack at the new image** and archive ord-interface.
 
