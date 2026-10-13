@@ -3,7 +3,8 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design agreed, plan to follow
+- **Status:** draft; design agreed, and F1–F3 planned in
+  [`viewer-frontend-plan.md`](viewer-frontend-plan.md)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 4 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -98,6 +99,12 @@ deploy/viewer/          Dockerfile, Dockerfile.dockerignore, nginx.conf,
   tool its targets do (ruff, ruff-format, `ty`, jscpd). It is a third list of the
   Python projects, after pre-commit and `check_python`, that each new project has to
   join.
+- **`ruff.toml` moves to `backend/`**, beside the Python projects, as `frontend/` holds
+  the JavaScript configuration. Its `src` becomes `["editor", "viewer"]`, which ruff
+  resolves against the file's directory; run from the root, ruff still finds it for
+  every file under `backend/`.
+- **The page carries ord-interface's Google Analytics tag** (`G-REEDLYB0ZJ`), as the apex
+  domain's pages do today.
 
 ## Data flow
 
@@ -124,7 +131,10 @@ deploy/viewer/          Dockerfile, Dockerfile.dockerignore, nginx.conf,
 `backend/viewer/openapi.json` is committed, and a pytest asserts that it equals
 `create_app().openapi()`, printing the command that rewrites it. `npm run generate:api
 -w apps/viewer` writes `src/api/schema.ts` from it with `openapi-typescript`, and
-`lint_and_build_ui` regenerates it and fails on a diff.
+`lint_and_build_ui` regenerates it and fails on a diff. The generated file's license
+header is addlicense's, stamped when the file is first committed; the generator keeps the
+header the committed file starts with, so regenerating in a later year changes nothing.
+ESLint and jscpd skip the file.
 
 The backend's models and the viewer's types then cannot drift apart unnoticed, and the
 Node job needs no Python. The grammar's predicates arrive as a discriminated union on
@@ -223,15 +233,22 @@ Anything else shows the status and the server's detail.
   buttons. It is the editor's `ComponentsKetcherEditor`, moved and generalized; the
   editor's `MoleculeEditor` slot becomes a wrapper that adds its Details field.
 - **Dependencies.** `ketcher-react`, `ketcher-standalone`, and `ketcher-core` become the
-  package's dependencies, and the root's overrides for them stay. ESLint allows Ketcher
-  imports only inside `src/ketcher/`, as it allows wouter only inside `src/shell/`.
-- **Loading.** Both apps load it with `React.lazy`, so Ketcher is a chunk of its own,
-  fetched when a dialog first opens. Only an app that imports `./ketcher` compiles it, so
-  step 2's concern about every app compiling Ketcher does not arise. The editor imports
-  it statically through its slot table today, so its first load shrinks too.
+  package's dependencies, with `buffer`, and the root's overrides for them stay. ESLint
+  allows Ketcher imports only in `src/ketcher/KetcherDialog.tsx`, as it allows wouter
+  only inside `src/shell/`.
+- **Loading.** The package loads Ketcher lazily, not each app. Apps import
+  `StructureDialog` statically; it renders nothing until first opened, then loads
+  `KetcherDialog` through `React.lazy` and keeps it mounted, so Ketcher is a chunk of its
+  own, fetched when a dialog first opens. Only an app that imports `./ketcher` compiles
+  it, so step 2's concern about every app compiling Ketcher does not arise. The editor
+  imports Ketcher statically through its slot table today, so its first load shrinks
+  too.
+- **Polyfills.** Ketcher's modules read Node's `global` and `Buffer`. The loader installs
+  them before it imports `KetcherDialog`, so the editor's `main.tsx` drops its copy. A
+  module imported only for its side effects would not do, since the package's
+  `sideEffects` lists only stylesheets and a production build may drop it.
 - **Host requirements.** The README's list gains what an app that imports `./ketcher`
-  provides: `define: {'process.env': {}}` in its Vite config, and Ketcher's static
-  resources under its base URL.
+  provides: `define: {'process.env': {}}` in its Vite config.
 - **Nothing else changes.** The viewer uses `PageContainer` with its navigation in
   `headerActions`, `ReactionProvider`, `createStaticReactionSource`, `ReactionHeader`,
   `ReactionContent`, `ReactionDetailsSidebar`, `ReactionCard` with the selection
@@ -250,7 +267,10 @@ since ord-infrastructure#55.
    `uv sync --frozen --no-dev --no-build` from `backend/viewer`'s lockfile, cached until
    the lock changes, then copies `ord_viewer`, the SPA, and the configs. It runs as a
    non-root user and listens on 8080, the interface stack's container port.
-   `supervisord` runs uvicorn with one worker on `127.0.0.1:8000`, and nginx.
+   `supervisord` runs uvicorn with one worker on `127.0.0.1:8000`, and nginx. Neither
+   restarts: when either exits, an event listener stops supervisord and with it the
+   container, so a backend that cannot open its corpus fails the task where it can be
+   seen, rather than leaving nginx answering 502.
 
 The corpus is not in the image: `ORD_VIEWER_CORPUS_DIR` names a directory mounted at run
 time, and step 5 decides where it comes from. The viewer's bundle needs no settings at
@@ -342,7 +362,7 @@ Each PR from an up-to-date `main`, green on its own:
 | --- | --- |
 | F1 | `StructureDialog` moves into `packages/ui/src/ketcher`, exported as `./ketcher`. The editor wraps it for its `MoleculeEditor` slot and loads it lazily; a Playwright check opens the dialog and saves a drawing. The editor behaves as it does today. |
 | F2 | The `apps/viewer` scaffold: its configuration, `main.tsx`, `ViewerPage` and the navigation, About, NotFound, and the redirects; `openapi.json` and its test; `generate:api` and the check on its output; the client and hooks; and `test_ui_viewer`, with `test_ui` narrowed to the editor and the package. |
-| F3 | `deploy/viewer`, `build_viewer_image` with its smoke test, `build_editor_image`, and `python -m ord_viewer.testing`, with `deploy/viewer` added to Dependabot's docker entry. `docker-compose.yml` moves to `backend/editor/`, and Dependabot's `docker-compose` entry, the README, CLAUDE.md, the UI testing skill, and `scripts/dev-e2e.sh` follow it; the Makefile goes, and CLAUDE.md's `make duplication` becomes `uvx pre-commit run jscpd --all-files`. It comes early, so arm64, RDKit, and nginx problems surface before the pages accumulate. |
+| F3 | `deploy/viewer`, `build_viewer_image` with its smoke test, `build_editor_image`, and `python -m ord_viewer.testing`, with `deploy/viewer` added to Dependabot's docker entry. `docker-compose.yml` moves to `backend/editor/`, and Dependabot's `docker-compose` entry, the README, CLAUDE.md, the UI testing skill, and `scripts/dev-e2e.sh` follow it; `ruff.toml` moves to `backend/`; the Makefile goes, and CLAUDE.md's `make duplication` becomes `uvx pre-commit run jscpd --all-files`. It comes early, so arm64, RDKit, and nginx problems surface before the pages accumulate. |
 | F4 | Browse, the dataset pages and their charts, the reaction page, the selected set, Download, and Full record; the `e2e_app` factory and `test_e2e_viewer`. |
 | F5 | Search: the form, the compiler, the URL's state, drawing, the results and their selection, table results, and the help note. |
 | F6 | `/ask`: the page, the banner, and its end-to-end flow with the scripted client. |
