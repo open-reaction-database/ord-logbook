@@ -2652,6 +2652,7 @@ Branch `viewer-backend-ask`, in its own worktree from `origin/main` after V3 mer
 
   import anthropic
   from fastapi import APIRouter, Depends, HTTPException, status
+  from fastapi.concurrency import run_in_threadpool
   from ord_schema.search import nl, nl_log
   from ord_schema.search.query import Query
   from pydantic import BaseModel, StringConstraints
@@ -2709,33 +2710,40 @@ Branch `viewer-backend-ask`, in its own worktree from `origin/main` after V3 mer
 
 
   @router.post("/ask")
-  def ask(
+  async def ask(
       body: AskRequest,
       state: Annotated[ViewerState, Depends(get_state)],
       client: Annotated[anthropic.Anthropic, Depends(get_ask_client)],
   ) -> AskResponse:
       """Translate a question into a query, run it, and describe what it found."""
       sink = nl_log.StdoutSink() if state.settings.ask_log == "stdout" else None
-      with state.slots.hold(), search_errors():
-          try:
-              answer = nl.ask(
-                  body.question,
-                  state.corpus,
-                  client=client,
-                  model=state.settings.ask_model,
-                  timeout_seconds=_ASK_TIMEOUT_SECONDS,
-                  sink=sink,
-                  source="ord-viewer",
-              )
-          except nl.NLQueryError as error:
-              code = _STATUS_BY_ERROR.get(type(error), status.HTTP_502_BAD_GATEWAY)
-              raise HTTPException(code, str(error)) from error
-      return AskResponse(
-          query=answer.query,
-          text=answer.text,
-          result=to_result(answer.query, answer.table),
-      )
+      async with state.slots.hold():
+          with search_errors():
+              try:
+                  answer = await run_in_threadpool(
+                      nl.ask,
+                      body.question,
+                      state.corpus,
+                      client=client,
+                      model=state.settings.ask_model,
+                      timeout_seconds=_ASK_TIMEOUT_SECONDS,
+                      sink=sink,
+                      source="ord-viewer",
+                  )
+              except nl.NLQueryError as error:
+                  code = _STATUS_BY_ERROR.get(type(error), status.HTTP_502_BAD_GATEWAY)
+                  raise HTTPException(code, str(error)) from error
+      result = await run_in_threadpool(to_result, answer.query, answer.table)
+      return AskResponse(query=answer.query, text=answer.text, result=result)
   ```
+
+  As V3 shipped it, a route that takes a slot is `async def`: it waits for the slot on
+  the event loop and runs the work through `fastapi.concurrency.run_in_threadpool`.
+  `get_ask_client` only reads state, so make it `async def`
+  too (with `# NOSONAR` and a docstring line saying why, as `_slots_busy` has), or
+  FastAPI runs it on the threadpool. Declare `responses` on the route for every status
+  in the error table, as V3's routes do with `SEARCH_ERRORS`, and extend `main_test.py`'s
+  OpenAPI test with it. A test that holds a slot uses `testing.hold_slot(client)`.
 
   In `main.py`: `create_app` gains
   `ask_client_factory: Callable[[], anthropic.Anthropic | None] = ask_client_from_environment`;
@@ -2840,3 +2848,17 @@ been updated to match.
   in the query, and the routes call `Corpus.reactions` directly. 0.9.2 judges an
   artifact current by its RDKit version and artifact lineage, not the ord-schema
   version (#1108).
+- **V3's search slots wait on the event loop.** The final review measured requests
+  waiting for a threaded slot filling AnyIO's 40 worker threads, which stalled the
+  record routes and let a 503 arrive long after the wait. `SearchSlots` holds an AnyIO
+  semaphore, `run_search` is a coroutine that runs only `Corpus.search` on the
+  threadpool, and the routes that take a slot are `async def`. Tests hold a slot through
+  `testing.hold_slot(client)`. The V3 code blocks above show the threaded form the
+  tasks started from; V4's `ask` shows the shipped one.
+- **V3's results:** an aggregate's rows are built by position, so columns sharing a
+  name stay aligned (ord-schema#1109 also names a `group_by` column by its whole path
+  and refuses repeated names). A decimal column, such as DuckDB's HUGEINT `sum` of
+  integers, becomes JSON numbers (ord-schema#1110 casts that sum upstream). Bytes at
+  any depth are standard base64. Every route declares its error statuses in the
+  OpenAPI document, the request models refuse unknown keys, and a query nested past
+  pydantic's recursion limit is a 422.

@@ -175,6 +175,7 @@ rule, such as the editor's `\.json$`, that would otherwise shadow the document.
 | `ModelRateLimitedError` | 429 |
 | `ModelRefusedError`, `UnanswerableError` | 422, with the model's reason |
 | `MalformedQueryError` | 502 |
+| `execute.PairingError`: the corpus is inconsistent | 500 |
 
 ### Dropped
 
@@ -187,12 +188,16 @@ rule, such as the editor's `\.json$`, that would otherwise shadow the document.
 ## Runtime
 
 - **One process, one corpus.** `uvicorn ord_viewer.main:app` with one worker, since a
-  corpus over ORD holds about 7 GiB with an occurrences directory. Handlers that read
-  the corpus are plain `def`, so FastAPI runs them on its threadpool; `Corpus` is safe
+  corpus over ORD holds about 7 GiB with an occurrences directory. Handlers that only
+  read records are plain `def`, so FastAPI runs them on its threadpool; `Corpus` is safe
   to share across threads. The health check is `async def` and reads a precomputed
-  fingerprint, so it never queues behind them. A semaphore caps searches, asks, and the dataset charts' aggregates in flight
-  at `MAX_CONCURRENT`; a request that waits 10 s for a slot gets 503, and a request that
-  fails frees its slot. Each search gets cores ÷ `MAX_CONCURRENT` RDKit threads.
+  fingerprint, so it never queues behind them. An AnyIO semaphore caps searches, asks,
+  and the dataset charts' aggregates in flight at `MAX_CONCURRENT`; a request that waits
+  10 s for a slot gets 503, and a request that fails frees its slot. The routes that take
+  a slot are `async def` and wait for it on the event loop, running only the search (and
+  the model calls, for `/ask`) on the threadpool, so requests waiting for a slot hold no
+  worker thread and the 503 arrives on time under load. Each search gets cores ÷
+  `MAX_CONCURRENT` RDKit threads.
 - **Opening.** The lifespan opens the corpus with `require_current`, `require_pivots`,
   and `require_occurrences`, `warm=True`, `sources_pattern`, and `max_rows=1000`, then
   calls `check_pivots()`, which takes the first-ask cost off every pivot level. That is
