@@ -73,6 +73,24 @@ _CONFIRMED = {
         "month-first",
         "ord-data#188 supplemental data",
     ),
+    # The submitter dated the template to 8 May 2024 from correspondence with
+    # its author, on ord-data#212; the template's spreadsheet, attached there,
+    # was last written that day.
+    ("5c9a10329a8a48968d18879a48bb8ab2", "provenance.record_created.time"): (
+        "day-first",
+        "ord-data#212 submitter",
+    ),
+    ("5c9a10329a8a48968d18879a48bb8ab2", "provenance.record_modified[].time"): (
+        "day-first",
+        "ord-data#212 submitter",
+    ),
+    # The submitter dated the templates to December 2024 on ord-data#218; the
+    # templates attached there were last saved 29 minutes after the day-first
+    # reading of their own stamp.
+    ("5e8318f0dda04b398c14f4c3adfeb32c", "provenance.record_created.time"): (
+        "day-first",
+        "ord-data#218 submitter",
+    ),
 }
 _UNAMBIGUOUS_FORMATS = (
     "%a %b %d %H:%M:%S %Y",

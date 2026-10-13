@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-03
 - **Author:** Steven Kearnes
-- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5)
+- **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5, Claude Opus 5.5)
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Supporting files for
@@ -39,8 +39,8 @@ Supporting files for
 - `slash_orientation.csv` — 48 rows, one per (dataset, position) holding slash
   values: the witness counts in each direction, the upper bound, the latest
   timestamp each reading implies, the verdict, and which kind of evidence
-  settled it. A verdict ending in `(lean)` is proximity only and is not a
-  finding: the two that remain are with their submitters.
+  settled it. A verdict ending in `(lean)` would be proximity only, not a
+  finding; every row is settled.
 
 ## Reproducing
 
