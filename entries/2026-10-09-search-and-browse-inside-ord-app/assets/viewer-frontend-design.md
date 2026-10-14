@@ -3,9 +3,10 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design agreed, F1–F3 planned in
-  [`viewer-frontend-plan.md`](viewer-frontend-plan.md) and merged, and F4–F6 planned in
-  [`viewer-frontend-plan-f4-f6.md`](viewer-frontend-plan-f4-f6.md)
+- **Status:** done; F1–F3 planned in [`viewer-frontend-plan.md`](viewer-frontend-plan.md)
+  and F4–F6 in [`viewer-frontend-plan-f4-f6.md`](viewer-frontend-plan-f4-f6.md), and all
+  merged. Each plan's Refinements say where the work departed from this design's first
+  draft, which has been updated to match.
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 Step 4 of [the entry](../README.md)'s plan. Paths are in ord-app at
@@ -76,12 +77,15 @@ frontend/apps/viewer/
       queryClient.ts    the cache, which never goes stale, and its retry rule
       hooks.ts          one TanStack Query hook per route
       download.ts       /api/download's file, saved under the server's name
-    search/             the form's state, to and from URL parameters, and its compiler
-    reaction/           a record to a snapshot, and the read-only provider's slots
+    search/             the form's state, to and from URL parameters, its compiler,
+                        the form, and the results' selection
+    reaction/           a record to a snapshot, the read-only provider and its slots,
+                        and the full record's JSON
     pages/              Datasets, Dataset, Reaction, ReactionSet, Search, Ask, About,
                         NotFound
-    components/         ViewerPage, ReactionList, ResultTable, CompoundChart,
-                        DownloadButton, InDevelopment
+    components/         ViewerPage, ReactionList, ReactionResults, ResultTable,
+                        CompoundChart, LinkedText, ErrorNotice, DownloadButton,
+                        CopyLinkButton, FullRecordButton, and paging
 frontend/packages/ui/
   src/ketcher/          StructureDialog, moved from the editor
 backend/viewer/
@@ -159,9 +163,9 @@ against V3's backend generated 1,129 lines from its 35 schemas this way.
 | `/` | The datasets as a table: the name, linked; the description, clamped, with the rest in a modal; the reaction count; and the ID. A filter box and paging work in the browser, as in ord-interface. |
 | `/datasets/:id` | The dataset's name, ID, description, and reaction count. Two bar charts of the 30 most frequent inputs and products, from `/compounds`; hovering a bar draws its molecule from the molblock, with the SMILES and count; each chart renders its molecules together when it loads. Then up to 100 of the dataset's reactions, from `{where: dataset_id eq …, limit: 100}`, as paged cards with Download and Copy link, titled as a sample when the dataset holds more. |
 | `/reactions/:id` | The editor's view-only page: breadcrumbs through the dataset, `ReactionHeader`, the Tabs and List switch, `ReactionContent`, and the drawer. The header adds Download, the reaction as `.pb.gz`, and Full record, the reaction as ord-schema's protobuf JSON in a modal, as ord-interface shows it. |
-| `/search` | The form in a collapsible side panel, and the results beside it. |
+| `/search` | The form in a collapsible side panel, and the results beside it, or below it on a phone. Hiding the form keeps its unsent edits. |
 | `/reactions?id=…` | A selected set of at most 100 reactions: paged cards, Download, and Copy link. |
-| `/ask?q=…` | A banner saying the feature is in development, a question box with ord-interface's three examples, then the answer's sentence, the `Query` it compiled to as collapsed JSON, and the result. |
+| `/ask?q=…` | A note saying the feature is in development, a question box with ord-interface's three examples, then the answer's sentence, the `Query` it compiled to as collapsed JSON, and the result. |
 | `/about` | ord-interface's About page, in the theme's type. |
 | anything else | NotFound, as for an unknown dataset or reaction |
 
@@ -190,43 +194,55 @@ against V3's backend generated 1,129 lines from its 35 schemas this way.
 | Similar | `similarity` with `smiles` and the threshold, 0.5 by default |
 | Substructure | `substructure`, with the SMILES as `smarts` |
 | SMARTS | `substructure` with `smarts` |
-| Stereochemistry | `chirality` on each `substructure` and on `reaction_smarts`; unchecked by default, as in ord-interface |
+| Stereochemistry | `chirality` on each `substructure` and on `reaction_smarts`; unchecked by default, as in ord-interface, and enabled only beside a substructure, a SMARTS, or a reaction SMARTS |
 | Reaction SMARTS | `reaction_smarts` |
 | Yield | `exists outcomes.products`, holding `exists measurements` where `type` is `YIELD` and `percentage.value` is within the range |
 | Conversion | `exists outcomes` where `conversion.value` is within the range |
 | Dataset IDs, DOIs, reaction IDs | an `or` of `eq` on `dataset_id`, `provenance.doi`, or `reaction_id` |
 | Limit | `limit`, 100 by default and at most 1,000 |
 
-- **Fields are joined by `and`.** An empty field, and a range left at 0–100, add nothing.
-  A form with nothing set does not search, since a `Query` with no `where` is every
-  reaction in the corpus.
+- **Fields are joined by `and`.** An empty field, a blank value, and a range left at
+  0–100 add nothing, and a blank bound is missing rather than 0. A form with nothing
+  set does not search, since a `Query` with no `where` is every reaction in the corpus.
 - **The URL holds the form**, under ord-interface's parameter names (`component`,
   `use_stereochemistry`, `similarity`, `dataset_id`, `doi`, `reaction_id`,
   `reaction_smarts`, `min_yield`, `max_yield`, `min_conversion`, `max_conversion`,
   `limit`). Its legacy `component=pattern;target;mode` values parse too.
+  `use_stereochemistry` is written with any structure, as ord-interface's URLs were, and
+  with a reaction SMARTS.
 - **Structures are typed or drawn.** Each structure field opens `StructureDialog`, which
   returns SMILES, or SMARTS in SMARTS mode.
-- **A help note** says where answers differ from the old site: a reaction SMARTS with
-  several templates on a side returns fewer reactions than the cartridge's `@>`
+- **A help note**, plain text rather than an alert, says where answers differ from the
+  old site: a reaction SMARTS with several templates on a side returns fewer reactions
+  than the cartridge's `@>`
   ([2026-10-02](../../2026-10-02-reaction-smarts-without-the-cartridge/README.md)), and
   the dataset charts read the projections' SMILES.
 
 ### Results
 
-- **Selection.** Each card has a checkbox, and View selected opens `/reactions?id=…`. The
-  selection is kept in `sessionStorage`, keyed by the search's URL, so it survives Back.
+- **Selection.** Each card has a checkbox, and View selected opens `/reactions?id=…`; it
+  is a disabled button while nothing is selected. The selection is kept in
+  `sessionStorage`, keyed by the search's URL, so it survives Back.
 - **Truncation.** When `truncated` says the 1,000-row bound may have cut the answer, the
-  results say so.
+  results say so. A search that stops at its own limit says that too, with the advice
+  its page gives: the search form's limit can be raised, and a question can ask for
+  more.
+- **Missing IDs.** The backend skips an ID it does not hold, so a list names the IDs
+  that did not come back.
 - **Downloads.** Download all sends every result's ID, at most 1,000, to
   `/api/download`.
-- **Tables.** A table result's columns and rows render as they come, and a `reaction_id`
-  column links to the reaction.
+- **Tables.** A table result's columns and rows render as they come, scrolling inside
+  their own container, and a `reaction_id` column links to the reaction.
 
 ### `/ask`
 
-The question box takes 1 to 2,000 characters, the backend's bound. The question goes in
-the URL as `?q=`, so an ask can be linked; loading the link asks again, within the
-session's cache and nginx's per-client limit.
+The question box takes 1 to 2,000 characters after trimming, counted by code point, as
+the backend counts them. The question goes in the URL as `?q=`, so an ask can be linked;
+loading the link asks again, within the session's cache and nginx's per-client limit.
+The box follows the URL's question, so Back shows the question asked. Asking the
+question already shown asks it again only after a failure, so a 429 or 503 can be
+retried, and an answer is not paid for twice. The in-development note is plain text,
+like the search's help note.
 
 ### Errors
 
@@ -362,7 +378,8 @@ build time, unlike the editor's Auth0 arguments.
 ## Testing
 
 - **Vitest in `apps/viewer`**, with its own configuration and coverage floors that start
-  at the coverage measured when the app lands, as `packages/ui`'s did.
+  at the coverage measured when the app lands, as `packages/ui`'s did, and stand at 99%
+  of lines, statements, and functions and 100% of branches.
   - The compiler, table-driven: each field to its `Query`, URL parameters to form state
     and back, ord-interface's legacy `component` values, and a range left at 0–100
     adding nothing.
@@ -384,8 +401,11 @@ build time, unlike the editor's Auth0 arguments.
     with its sentence, query, and result; an old URL's redirect; and NotFound.
   - One search per form field is the check on what `tsc` cannot see: the types prove the
     `Query`'s shape, and only the backend proves that its paths and operators compile.
-  - `toHaveScreenshot` captures of the reaction page and a result list, with baselines
-    made in CI's Linux container, as in step 2.
+  - `toHaveScreenshot` captures of the reaction page and a result list, each of the
+    1280×1080 viewport with the footer's year masked, against baselines made in CI's
+    Linux container, as in step 2.
+  - Each page at 375 px with full-length IDs and links, which must not scroll sideways
+    or clip what they show (`e2e/narrow.spec.ts`).
 - **Backend additions.** `openapi.json` and its test, `python -m ord_viewer.testing
   <directory>`, and the `e2e_app` factory.
 

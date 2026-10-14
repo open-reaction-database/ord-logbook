@@ -3,10 +3,11 @@
 - **Date:** 2026-10-09
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; plan agreed, steps 2 and 3 are done (designed in
-  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md) and
-  [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md)), and step 4 is
-  designed in [`assets/viewer-frontend-design.md`](assets/viewer-frontend-design.md)
+- **Status:** draft; plan agreed, and steps 2–4 are done (designed in
+  [`assets/shared-frontend-design.md`](assets/shared-frontend-design.md),
+  [`assets/viewer-backend-design.md`](assets/viewer-backend-design.md), and
+  [`assets/viewer-frontend-design.md`](assets/viewer-frontend-design.md)); step 5 is
+  next
 - **Tags:** ord-interface, ord-app, frontend, design-system, mantine, code-reuse, deployment
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -163,8 +164,15 @@ Five steps, each with its own design and PRs:
    three PRs are planned in
    [`assets/viewer-frontend-plan.md`](assets/viewer-frontend-plan.md) and merged
    (ord-app#890, #891, and #893, with #894), and the rest in
-   [`assets/viewer-frontend-plan-f4-f6.md`](assets/viewer-frontend-plan-f4-f6.md).
-5. **Point the interface stack at the new image** and archive ord-interface.
+   [`assets/viewer-frontend-plan-f4-f6.md`](assets/viewer-frontend-plan-f4-f6.md) and
+   merged (ord-app#896, #897, and #899, with #898 laying the shared reaction view out at
+   phone width).
+5. **Point the interface stack at the new image** and archive ord-interface. It
+   inherits what [the viewer's design](assets/viewer-frontend-design.md#step-5-inherits)
+   lists: `deploy/viewer`'s image, its contract (port 8080, the health check at
+   `/api/health` with a grace period past the backend's startup of about 40 s, and the
+   `ORD_VIEWER_*` settings), and a corpus derived with the artifact definitions and
+   RDKit the viewer pins, mounted at `ORD_VIEWER_CORPUS_DIR`.
 
 Open questions:
 

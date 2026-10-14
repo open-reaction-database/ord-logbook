@@ -119,6 +119,57 @@ planning; the design file is updated to match.
 - **The full record is protobuf JSON:** `toJson(ReactionSchema, …)` over the record's
   `binpb`, the reaction as ord-schema's JSON names it.
 
+These came from executing F4–F6 (ord-app#896, #897, and #899); the design file has been
+updated to match.
+
+- **Helpers leave their components' files.** React Refresh wants a component's file to
+  export only components, so `VIEWER_SLOTS` (`#reaction/slots.ts`), `ReactionLink`,
+  `fullRecordJson`, and `selectedIds` each have a module of their own.
+- **`renderAt` passes its providers as Testing Library's wrapper**, so a rerender keeps
+  them, the cache, and the location, and it mounts `Notifications` for the failures
+  that show as one.
+- **An ID the corpus does not hold is named.** The backend skips such an ID, so
+  `ReactionList` names the ones that did not come back, wherever it lists reactions.
+- **Failures reach the reader.** A failed copy shows a notification holding the address;
+  molecules that could not be drawn say so, with Retry. Copy link copies the address as
+  it is when clicked, not as it was rendered.
+- **No page scrolls sideways at 375 px.** Links in free text break anywhere, the
+  datasets table scrolls inside its own container, the stacked search page stretches its
+  results to the screen, and `/ask`'s examples wrap. `e2e/narrow.spec.ts` checks each
+  page at that width with full-length IDs and links; #898 did the same for the shared
+  reaction view.
+- **The screenshots** capture the 1280×1080 viewport and mask the footer's year, as the
+  editor's do, and their baselines came from CI's first run. Playwright's specs are not
+  in `tsc -b`, as the editor's are not.
+- **The coverage floors** are 99% for lines, statements, and functions and 100% for
+  branches, in whole percentages. When F4's branches fell to 95.3%, the uncovered paths
+  got tests, and the floor stayed.
+- **The search form:**
+  - a blank bound or value, such as `min_yield=` or `dataset_id=` in a URL, counts as
+    missing, not as 0 or a clause that matches nothing;
+  - structure rows keep stable keys, so removing one keeps the others' drawings;
+  - "Match stereochemistry" is enabled only beside a substructure, a SMARTS, or a
+    reaction SMARTS, the patterns it applies to, and the URL carries
+    `use_stereochemistry` with a reaction SMARTS as well as with a structure;
+  - hiding the form keeps its unsent edits, and the help note is plain text, since an
+    alert would be announced on load and found in place of a search's error.
+- **The results:**
+  - View selected is a disabled button while nothing is selected;
+  - a search that stops at its own limit says so, since `truncated` marks only the
+    1,000-row bound, with the advice its page gives: raise the limit, or ask for more;
+  - a table keys its rows and columns by their content, numbered among repeats.
+- **The test corpus** gives `ord-viewer0202` a DOI and a 30% conversion, so the DOI and
+  conversion searches have something to find, and `VIEWER0103` joins the fixture
+  records.
+- **`/ask`:**
+  - the in-development note is plain text, for the help note's reason;
+  - the question box is keyed by the URL's question, so Back shows that question;
+  - the 2,000-character bound counts code points after trimming, as the backend does;
+  - Ask asks a failed question again and leaves an answered one in the cache, so a 429
+    or 503 can be retried without paying twice for an answer;
+  - the scripted acetyl chloride query orders by `reaction_id`, and
+    `ScriptedAskClient` reads each message's content as the string `nl.ask` sends.
+
 ---
 
 ## PR F4: browse, reactions, the selected set, and the end-to-end job
