@@ -729,10 +729,13 @@ Both large steps are the projections' footers: 93 files, 2,484 row groups × 453
   `duckdb_memory()` books the cache as 0.23 GiB of `OBJECT_CACHE`, which is where finding
   10's ~200 MB came from. The other gigabyte sits outside `memory_limit`, so it is part of
   what the cap has to leave room for.
-- **pyarrow's parse of the same footers, freed but resident.** `_max_structure_id` reads
-  every structure ID column's statistics, which parses each footer whole. Nothing stays
-  allocated, but macOS keeps freed malloc pages counted as resident until the kernel
-  reclaims them, and the container's 2.7 GiB at open is about the same total.
+- **pyarrow's parse of the same footers, freed but kept.** `_max_structure_id` found its
+  columns through `metadata.schema`, and pyarrow's `ParquetSchema` and the `FileMetaData`
+  that caches it refer to each other. Each footer therefore waited for the cyclic
+  collector rather than going with its file, and many of the corpus's were parsed at
+  once. Nothing stays allocated once the collector runs, but the allocator keeps the
+  heap. In the container glibc held 1.31 GiB freed after this step (below), so it is not
+  macOS's accounting.
 
 Finding 16 predates both: its open never scanned the projections in DuckDB, and the footer
 cache did not yet exist. The cache then filled on the first projection query instead.
@@ -750,6 +753,39 @@ one with `warm=True` in a 12 GiB container on DuckDB's default limit, swap off:
 Before any query fills DuckDB's caches, then, a warm corpus holds 6.6 GiB with its index
 read from pivots and 5.2 GiB with the index a view. The library adds 2.6–2.9 GiB, against
 2.24 GiB in finding 16.
+
+**Freeing that heap at open shrinks the open and nothing after it.**
+[ord-schema#1127](https://github.com/open-reaction-database/ord-schema/pull/1127) finds
+the columns from the first row group's chunk paths, which form no cycle.
+`probe_open_steps_container.py` repeats the open's steps in the container, beside glibc's
+own split of its heap, reading the bound both ways:
+
+| after | `metadata.schema` | freed and kept | chunk paths | freed and kept |
+| --- | --- | --- | --- | --- |
+| `_pair` | 0.51 GiB | 0.22 GiB | 0.51 GiB | 0.22 GiB |
+| the structure ID bound | 1.76 GiB | 1.31 GiB | 0.46 GiB | 0.22 GiB |
+| DuckDB counts the structures | 1.93 GiB | 1.31 GiB | 0.63 GiB | 0.22 GiB |
+| DuckDB counts the projections | 3.34 GiB | 1.19 GiB | 2.13 GiB | 0.16 GiB |
+
+Reading the bound through DuckDB's `parquet_metadata()` instead, which parses into the
+cache the count then reads, ends at the same 2.13 GiB. A second parse in pyarrow costs
+nothing once it is freed when its file closes; the cycle was the cost, not the parse.
+
+Through a real `Corpus`, with the probes above, before the fix and after:
+
+| measurement | before | after |
+| --- | --- | --- |
+| cold open, three runs | 2.80–2.95 GiB | 2.29–2.40 GiB |
+| build at a 5 GiB limit, 12 GiB cap, peak | 8.29 GiB | 8.37 GiB |
+| warm, index from pivot artifacts | 6.53 GiB | 6.53 GiB |
+| warm, index as a view | 5.18 GiB | 5.21 GiB |
+
+The cold open drops by half a gigabyte, less than the step probe's 1.2 GiB because the
+collector frees some of the footers during a real open. Nothing after the open moves. At
+a 5 GiB limit the 8 GiB container built in one run of three and was killed in two, as
+before, and on DuckDB's default it was killed about 70 s into the build. The builds
+reuse whatever heap the open left free, so the headroom a build needs is set by the
+build: 3.3–3.4 GiB above the limit in these runs, against 3.1 in the first table.
 
 Times here are inflated the way finding 19's are, since the container read the artifacts
 through a bind mount; the spill went to a Docker volume.
