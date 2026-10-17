@@ -39,10 +39,12 @@ builds to take about half an hour over the full corpus.
 | `probe_container_rebuild.py` | the same build against the 0.9.5 `Corpus`, with swap off | 20 |
 | `probe_container_warm.py` | what a warm corpus holds in a container, by index route | 20 |
 | `probe_open_footprint.py` | what each step of opening a corpus leaves resident and allocated | 20 |
+| `probe_open_steps_container.py` | the same steps in a container, with what glibc freed and kept | 20 |
 
-`probe_cgroup.py` and the three `probe_container_*` scripts run in Docker rather than on
-the host, since a cgroup cap is the thing they measure; each script's docstring carries the
-command. `probe_open_footprint.py` reads macOS's `vmmap` and runs on the host. Give the spill directory a volume
+`probe_cgroup.py`, the three `probe_container_*` scripts, and
+`probe_open_steps_container.py` run in Docker rather than on the host, since a cgroup cap
+is the thing they measure; each script's docstring carries the command.
+`probe_open_footprint.py` reads macOS's `vmmap` and runs on the host. Give the spill directory a volume
 rather than a bind mount — a build that fills 25 GB of temporary files through one takes
 longer to delete them than to run.
 
