@@ -3,7 +3,7 @@
 - **Date:** 2026-10-17
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design approved
+- **Status:** draft; design approved, and planned in [`assets/structures-in-ask-plan.md`](assets/structures-in-ask-plan.md)
 - **Tags:** ord-schema, ord-app, nl-query, ketcher, structure-search, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
@@ -45,8 +45,9 @@ against these sources:
 
 ## Conclusions / next steps
 
-1. Write an implementation plan beside the design.
-2. Build ord-schema first and release it, then build ord-app.
+1. Build ord-schema (Tasks S1–S4 of [the plan](assets/structures-in-ask-plan.md)) and
+   release it.
+2. Build ord-app (Tasks A1–A9) on that release.
 
 ## References
 
