@@ -315,8 +315,9 @@ Through a real `Corpus`, warm, with identical row counts on every route:
 | temperature and city | 0.712 s | 0.029 s | 0.002 s |
 | substring of a safety note | 0.713 s | 0.026 s | 0.001 s |
 
-The parsed footers cost ~200 MB across the whole corpus and are bounded by the *files*
-rather than by what is asked of them, which is what makes them worth spending
+The parsed footers cost ~200 MB across the whole corpus by DuckDB's own accounting, and
+about six times that in what stays allocated (finding 20). Either way they are bounded by
+the *files* rather than by what is asked of them, which is what makes them worth spending
 unconditionally where a column set costs gigabytes apiece. Shipped in
 [ord-schema#968](https://github.com/open-reaction-database/ord-schema/pull/968), which
 also covers the invalidation this now leans on: a file rewritten under an open corpus is
@@ -674,6 +675,85 @@ Wall-clock figures in this finding are inflated: the container read the artifact
 spilled through a bind mount into macOS, which costs far more than a deployment's local
 disk. Resident sizes, which is what the finding is about, are unaffected.
 
+### 20. At 93 datasets the build holds 3.1 GiB beside DuckDB, and most of it is there at open
+
+Finding 19 was measured over 53 datasets and an occurrence index of three columns. By
+2026-10-16 the corpus was 93 datasets, after ord-data split the USPTO grants by year, and
+[ord-schema#1123](https://github.com/open-reaction-database/ord-schema/pull/1123) had
+dropped `reaction_role` from the index. The same question, asked of the current `Corpus`
+(`probe_container_rebuild.py`), over the full corpus, building the index from the
+projections, with DuckDB on 18 threads and swap off:
+
+| cap | `memory_limit` | outcome | peak RSS | above the limit |
+| --- | --- | --- | --- | --- |
+| 8 GiB | 6.3 GiB (default) | **killed**, exit 137, about 40 s into the build | 7.83 GiB at the last sample | — |
+| 8 GiB | 5 GiB | built in 113 s in one run of three; **killed** 86 and 151 s in, in the other two | 7.99–8.03 GiB | 2.99 GiB, in the run that built |
+| 12 GiB | 6500 MiB | built in 162 s, 23.8 GiB spilled | 9.49 GiB | 3.14 GiB |
+| 12 GiB | 5 GiB | built in 163 s, 23.7 GiB spilled | 8.13 GiB | 3.13 GiB |
+
+The process runs 3.1 GiB above whatever DuckDB is allowed, the same at both limits under
+the 12 GiB cap, where finding 19 measured 2.8–2.9 GiB. Unlike finding 19's, the 5 GiB run
+built, so the container and the laptop now agree that 5 GiB is enough. That floor plus
+3.1 GiB is 8.1 GiB, which puts an 8 GiB container exactly at the edge: holding DuckDB to
+the floor, it finished once at 7.99 GiB and was killed twice.
+
+**Swap changes the measurement, not the outcome.** Docker gives a container as much swap
+again as its memory unless `--memory-swap` says otherwise. With swap on, the two 12 GiB
+runs peaked at 8.80 and 7.62 GiB, because swapped pages leave the resident count, and the 8 GiB
+container was killed after 55 minutes rather than 40 seconds. Finding 19's command did not
+turn swap off, so its figures may be low for the same reason. A deployment has no swap,
+so the table above is the one to size against.
+
+**Most of what sits beside DuckDB is already there at open.** In the container a cold
+corpus holds about 2.7 GiB resident before anything is built, and DuckDB's own accounting covers
+0.41 GiB of it. Finding 16 measured 1.09 GiB at the same point on the laptop. Repeating
+the open's steps one at a time on the laptop (`probe_open_footprint.py`), with resident
+size beside the bytes malloc still has allocated:
+
+| after | resident | allocated |
+| --- | --- | --- |
+| imports | 0.18 GiB | 0.03 GiB |
+| reading the stamps of 186 artifacts | 0.41 GiB | 0.03 GiB |
+| `_max_structure_id` over every projection | 1.40 GiB | 0.03 GiB |
+| DuckDB counts the structures | 1.40 GiB | 0.04 GiB |
+| DuckDB counts the projections | 2.47 GiB | 1.4 GiB |
+
+Both large steps are the projections' footers: 93 files, 2,484 row groups × 453 columns,
+169 MiB serialized.
+
+- **DuckDB's parsed footers, still allocated.** `Corpus` counts the reactions view at open
+  to check that every file joined its offset, which it has done since
+  [ord-schema#1004](https://github.com/open-reaction-database/ord-schema/pull/1004). That
+  parses every projection footer into `parquet_metadata_cache`, which then holds about
+  1.2 GiB: the count leaves 1.4 GiB allocated with the cache on and 0.21 GiB with it off.
+  `duckdb_memory()` books the cache as 0.23 GiB of `OBJECT_CACHE`, which is where finding
+  10's ~200 MB came from. The other gigabyte sits outside `memory_limit`, so it is part of
+  what the cap has to leave room for.
+- **pyarrow's parse of the same footers, freed but resident.** `_max_structure_id` reads
+  every structure ID column's statistics, which parses each footer whole. Nothing stays
+  allocated, but macOS keeps freed malloc pages counted as resident until the kernel
+  reclaims them, and the container's 2.7 GiB at open is about the same total.
+
+Finding 16 predates both: its open never scanned the projections in DuckDB, and the footer
+cache did not yet exist. The cache then filled on the first projection query instead.
+
+**A warm corpus is what a deployment is sized against.** `probe_container_warm.py` opens
+one with `warm=True` in a 12 GiB container on DuckDB's default limit, swap off:
+
+| after | index from pivot artifacts | index as a view |
+| --- | --- | --- |
+| the corpus is open | 2.77 GiB | 2.30 GiB |
+| the index is built | 3.63 GiB | 2.63 GiB |
+| the library is built | 6.56 GiB | 5.19 GiB |
+| peak | 6.86 GiB | 5.54 GiB |
+
+Before any query fills DuckDB's caches, then, a warm corpus holds 6.6 GiB with its index
+read from pivots and 5.2 GiB with the index a view. The library adds 2.6–2.9 GiB, against
+2.24 GiB in finding 16.
+
+Times here are inflated the way finding 19's are, since the container read the artifacts
+through a bind mount; the spill went to a Docker volume.
+
 ## Conclusions / next steps
 
 The survey question — *where else can the cache live?* — had an answer nobody was looking
@@ -755,10 +835,11 @@ file rather than a table.
    still needed by the pivots, which are worth seconds — so the question is whether
    `_narrowed_table` and its second compile pass earn their place, not whether the cache
    does.
-3. **Derive a serialized `SubstructLibrary`** as an artifact too, so the ~1.5 GiB that
-   pins a resident process is loaded rather than built. This is now the *largest*
-   remaining resident cost by a wide margin: with the pivots on disk and the footers at
-   200 MB, the library is most of the floor.
+3. **Derive a serialized `SubstructLibrary`** as an artifact too, so the 2.2–2.9 GiB
+   (findings 16 and 20) that pins a resident process is loaded rather than built. This is
+   now the *largest* remaining resident cost by a wide margin: with the pivots on disk,
+   the library is most of the floor, and the parsed footers, at about 1.2 GiB
+   (finding 20), are the next largest.
 4. **Consider deriving a missing pivot to disk rather than to memory.** A corpus given a
    `pivots_dir` with no artifacts for a level builds that level in process, at up to
    4.18 GiB and 14 minutes. Writing it to the same directory instead would cost the same
