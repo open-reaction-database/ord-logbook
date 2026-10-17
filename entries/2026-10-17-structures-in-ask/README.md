@@ -3,7 +3,7 @@
 - **Date:** 2026-10-17
 - **Author:** Steven Kearnes
 - **Acknowledgments:** Prepared with [Claude Code](https://claude.com/claude-code) (Claude Opus 5.5)
-- **Status:** draft; design approved, and planned in [`assets/structures-in-ask-plan.md`](assets/structures-in-ask-plan.md)
+- **Status:** draft; design approved, and planned in [`assets/structures-in-ask-plan.md`](assets/structures-in-ask-plan.md); Tasks S1–S4 are in [ord-schema#1132](https://github.com/open-reaction-database/ord-schema/pull/1132)
 - **Tags:** ord-schema, ord-app, nl-query, ketcher, structure-search, design
 - **License:** [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
