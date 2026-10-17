@@ -92,11 +92,15 @@ builder, and the design file stands as written.
   | reactions with a reactant containing @A, ignoring its stereochemistry | `@A` compound SMILES `OC(=O)[C@@H]1CCCN1` | `reactions with a reactant containing OC(=O)[C@@H]1CCCN1, ignoring its stereochemistry` |
   | reactions with an input matching @A | `@A` compound SMARTS `[$([N+](=O)[O-]),$(N(=O)=O)]` | "reactions with a nitro group on any input" |
   | which reactions match @A? | `@A` reaction SMARTS `cB(O)O.c[Br,I]>>c-c` | "which reactions couple an aryl boronic acid or ester with an aryl bromide or iodide?" |
-  | which reactions use @A as a solvent and have a desired product with a yield above 50%? | `@A` compound SMILES `c1ccncc1` | the `and` of the pyridine case's `where` and the case "reactions where a desired product has a yield above 50%" |
+  | which reactions use @A as a solvent and have a desired product with a yield above 50%? | `@A` compound SMILES `CN(C)C=O` | the `and` of the pyridine case's `where`, with DMF in place of pyridine, and the case "reactions where a desired product has a yield above 50%" |
   | reactions using benzene as an input with yield greater than 70% | none | new; written in Task S4 |
 
   The similarity example gives a coefficient. The prompt takes a threshold only from the
   question, so "similar to @A" alone would leave the threshold to the model.
+
+  The mixed example names DMF because, in the local corpus, no reaction with pyridine as
+  solvent has a desired product with a yield above 50%. DMF is the most common solvent
+  among the reactions that do have one.
 
 ## Global Constraints
 
